@@ -2,11 +2,20 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, UserPlus } from "lucide-react";
+import { Pencil, UserMinus, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { deactivateCliente } from "@/app/actions/clientes";
 import type { TipoCliente } from "@/lib/constants/clientes";
 import { TIPO_CLIENTE_VALUES } from "@/lib/constants/clientes";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,9 +37,19 @@ import {
 } from "@/components/ui/table";
 import { ClienteFormDialog } from "@/components/clientes/cliente-form-dialog";
 import type { ClienteListRow } from "@/components/clientes/types";
+import { cn } from "@/lib/utils";
 
 function normalizar(s: string) {
   return s.trim().toLowerCase();
+}
+
+function badgeTipoCliente(t: TipoCliente) {
+  const map = {
+    Propietario: "bg-blue-100 text-blue-800 border-transparent hover:bg-blue-100",
+    Inquilino: "bg-green-100 text-green-800 border-transparent hover:bg-green-100",
+    Ambos: "bg-purple-100 text-purple-800 border-transparent hover:bg-purple-100",
+  } as const;
+  return map[t];
 }
 
 type Props = {
@@ -45,6 +64,7 @@ export function ClientesClient({ initial }: Props) {
   const [qDni, setQDni] = useState("");
   const [tipoFiltro, setTipoFiltro] = useState<"todos" | TipoCliente>("todos");
   const [verInactivos, setVerInactivos] = useState(false);
+  const [cascadeTarget, setCascadeTarget] = useState<ClienteListRow | null>(null);
 
   const filtrados = useMemo(() => {
     const nq = normalizar(qNombre);
@@ -76,24 +96,66 @@ export function ClientesClient({ initial }: Props) {
     setOpen(true);
   }
 
-  async function solicitarBaja(row: ClienteListRow) {
+  async function ejecutarBaja(row: ClienteListRow, opciones: { cascadePropiedades: boolean }) {
+    const res = await deactivateCliente(row.id, opciones);
+    if (res.ok) {
+      toast.success(
+        opciones.cascadePropiedades
+          ? "Cliente y propiedades vinculadas dados de baja."
+          : "Cliente dado de baja.",
+      );
+      setCascadeTarget(null);
+      router.refresh();
+      return;
+    }
+    if ("code" in res && res.code === "CASCADE_REQUIRED") {
+      setCascadeTarget(row);
+      return;
+    }
+    toast.error(res.error);
+  }
+
+  function solicitarBaja(row: ClienteListRow) {
     if (!row.is_active) {
       return;
     }
-    if (!confirm(`¿Dar de baja a ${row.nombre_completo}? Los contratos históricos se conservan.`)) {
+    void ejecutarBaja(row, { cascadePropiedades: false });
+  }
+
+  function confirmarBajaEnCascada() {
+    if (!cascadeTarget) {
       return;
     }
-    const res = await deactivateCliente(row.id);
-    if (!res.ok) {
-      toast.error(res.error);
-      return;
-    }
-    toast.success("Cliente dado de baja.");
-    router.refresh();
+    void ejecutarBaja(cascadeTarget, { cascadePropiedades: true });
   }
 
   return (
     <div className="flex flex-col gap-8">
+      <AlertDialog
+        open={cascadeTarget != null}
+        onOpenChange={(next) => {
+          if (!next) {
+            setCascadeTarget(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Propiedades vinculadas</AlertDialogTitle>
+            <AlertDialogDescription>
+              Este propietario tiene propiedades vinculadas. Al darlo de baja, todas sus propiedades también
+              pasarán a estar inactivas. ¿Desea continuar?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <Button type="button" onClick={() => confirmarBajaEnCascada()}>
+              Continuar
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <ClienteFormDialog open={open} onOpenChange={setOpen} editing={editing} />
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -182,6 +244,7 @@ export function ClientesClient({ initial }: Props) {
                     <TableHead>Nombre completo</TableHead>
                     <TableHead className="tabular-nums">DNI</TableHead>
                     <TableHead>Tipo</TableHead>
+                    <TableHead>Estado</TableHead>
                     <TableHead>Teléfono</TableHead>
                     <TableHead className="w-[120px] text-right">Acciones</TableHead>
                   </TableRow>
@@ -189,17 +252,23 @@ export function ClientesClient({ initial }: Props) {
                 <TableBody>
                   {filtrados.map((r) => (
                     <TableRow key={r.id} className={!r.is_active ? "bg-muted/40 text-muted-foreground" : undefined}>
-                      <TableCell className="font-medium">
-                        {r.nombre_completo}
-                        {!r.is_active ? (
-                          <Badge variant="secondary" className="ml-2">
-                            Baja
-                          </Badge>
-                        ) : null}
-                      </TableCell>
+                      <TableCell className="font-medium">{r.nombre_completo}</TableCell>
                       <TableCell className="tabular-nums">{r.dni}</TableCell>
                       <TableCell>
-                        <Badge variant="outline">{r.tipo_cliente}</Badge>
+                        <Badge className={cn("font-medium", badgeTipoCliente(r.tipo_cliente))} variant="secondary">
+                          {r.tipo_cliente}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {r.is_active ? (
+                          <Badge className="border-transparent bg-green-100 text-green-800 hover:bg-green-100">
+                            Activo
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="border-transparent bg-zinc-200 text-zinc-700 hover:bg-zinc-200">
+                            Inactivo
+                          </Badge>
+                        )}
                       </TableCell>
                       <TableCell className="tabular-nums text-sm">{r.telefono}</TableCell>
                       <TableCell className="text-right">
@@ -209,8 +278,15 @@ export function ClientesClient({ initial }: Props) {
                             <span className="sr-only">Editar</span>
                           </Button>
                           {r.is_active ? (
-                            <Button type="button" variant="outline" size="sm" onClick={() => solicitarBaja(r)}>
-                              Baja
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                              onClick={() => solicitarBaja(r)}
+                            >
+                              <UserMinus className="size-4" aria-hidden />
+                              <span className="sr-only">Dar de baja</span>
                             </Button>
                           ) : null}
                         </div>

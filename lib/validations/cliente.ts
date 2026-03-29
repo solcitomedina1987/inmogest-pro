@@ -32,6 +32,8 @@ export const clienteFormSchema = z.object({
   email: z.union([z.literal(""), z.string().email("Email inválido")]),
   fecha_nacimiento: z.union([z.literal(""), z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida")]),
   notas: z.string().max(5000).optional(),
+  /** Solo edición; en alta el servidor fuerza `true`. */
+  is_active: z.boolean().optional().default(true),
 });
 
 export type ClienteFormValues = z.infer<typeof clienteFormSchema>;

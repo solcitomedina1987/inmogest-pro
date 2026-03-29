@@ -25,6 +25,7 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -39,6 +40,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import type { ClienteListRow } from "@/components/clientes/types";
@@ -56,6 +58,7 @@ function emptyValues(): ClienteFormValues {
     email: "",
     fecha_nacimiento: "",
     notas: "",
+    is_active: true,
   };
 }
 
@@ -69,6 +72,7 @@ function fromRow(row: ClienteListRow): ClienteFormValues {
     email: row.email ?? "",
     fecha_nacimiento: row.fecha_nacimiento ?? "",
     notas: row.notas ?? "",
+    is_active: row.is_active,
   };
 }
 
@@ -300,6 +304,26 @@ export function ClienteFormDialog({ open, onOpenChange, editing }: Props) {
                 </FormItem>
               )}
             />
+
+            {editing ? (
+              <FormField
+                control={form.control}
+                name="is_active"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">Cliente activo</FormLabel>
+                      <FormDescription>
+                        Los clientes inactivos no aparecen en listados habituales ni en altas nuevas.
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} aria-label="Cliente activo" />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            ) : null}
 
             <DialogFooter className="gap-2 sm:gap-0">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>
