@@ -9,6 +9,7 @@ import {
   MapPin,
   Maximize2,
 } from "lucide-react";
+import { PropiedadImagenCarousel } from "@/components/propiedades/propiedad-imagen-carousel";
 import { cn } from "@/lib/utils";
 
 const precioFmt = new Intl.NumberFormat("es-AR", {
@@ -32,7 +33,8 @@ export type PropiedadPreviewModel = {
   m2_cubiertos: number;
   direccion?: string;
   ubicacion_texto?: string | null;
-  imageSrc: string;
+  /** Galería ordenada; una sola URL = imagen estática. */
+  imageUrls: string[];
   descripcion?: string | null;
 };
 
@@ -57,16 +59,16 @@ function Feature({
   return (
     <div
       className={cn(
-        "flex gap-3 rounded-xl border border-stone-200/90 bg-stone-50/90 p-3.5 shadow-sm",
+        "flex min-h-[4.5rem] flex-col items-center justify-center gap-2 rounded-xl border border-stone-200/90 bg-stone-50/90 p-3 text-center shadow-sm sm:min-h-0 sm:flex-row sm:items-start sm:justify-start sm:gap-3 sm:p-3.5 sm:text-left",
         className,
       )}
     >
       <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-white text-stone-500 shadow-sm ring-1 ring-stone-100">
         <Icon className="size-[18px]" aria-hidden />
       </div>
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 w-full flex-1 sm:w-auto">
         <p className="text-[11px] font-medium tracking-wide text-stone-500 uppercase">{label}</p>
-        <p className="mt-0.5 text-sm leading-snug font-semibold text-stone-900">{value}</p>
+        <p className="mt-0.5 break-words text-sm leading-snug font-semibold text-stone-900">{value}</p>
       </div>
     </div>
   );
@@ -84,27 +86,22 @@ export function PropiedadPreviewContent({ data, className, overlay }: Props) {
     m2_cubiertos,
     direccion,
     ubicacion_texto,
-    imageSrc,
+    imageUrls,
     descripcion,
   } = data;
 
   const ubicacion = [direccion?.trim(), ubicacion_texto?.trim()].filter(Boolean).join(" · ");
 
   return (
-    <div className={cn("bg-white text-stone-900", className)}>
-      <div className="relative aspect-[21/9] min-h-[200px] w-full overflow-hidden bg-stone-200 sm:aspect-[2/1] sm:min-h-[240px]">
-        {/* eslint-disable-next-line @next/next/no-img-element -- URLs externas (Storage) y local público */}
-        <img src={imageSrc} alt={nombre} className="size-full object-cover" />
-        <div
-          className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-black/10 to-transparent"
-          aria-hidden
-        />
-        {overlay ? (
-          <div className="pointer-events-none absolute inset-0">
-            <div className="pointer-events-auto absolute top-3 right-3 z-10">{overlay}</div>
-          </div>
-        ) : null}
-      </div>
+    <div className={cn("max-w-full bg-white text-stone-900", className)}>
+      <PropiedadImagenCarousel
+        alt={nombre}
+        urls={imageUrls}
+        sizes="(max-width: 768px) 100vw, min(48rem, 100vw)"
+        className="w-full max-w-full sm:aspect-[2/1] sm:min-h-[220px] md:min-h-[260px]"
+        topRight={overlay ?? undefined}
+        showGradient
+      />
 
       <div className="space-y-6 px-5 py-6 sm:px-7 sm:py-8">
         <header className="space-y-2">
@@ -119,7 +116,7 @@ export function PropiedadPreviewContent({ data, className, overlay }: Props) {
           ) : null}
         </header>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
           <Feature icon={Building2} label="Tipo de propiedad" value={tipo} />
           <Feature icon={KeyRound} label="Tipo de operación" value={estado} />
           <Feature icon={Banknote} label="Valor" value={precioFmt.format(valor)} />

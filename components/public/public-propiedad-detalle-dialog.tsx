@@ -21,7 +21,7 @@ function toPreview(p: PublicPropiedadHome): PropiedadPreviewModel {
     m2_cubiertos: p.m2_cubiertos,
     direccion: p.direccion,
     ubicacion_texto: p.ubicacion_texto,
-    imageSrc: p.imagen_modal,
+    imageUrls: p.imagenes,
     descripcion: p.descripcion,
   };
 }
@@ -38,24 +38,33 @@ export function PublicPropiedadDetalleDialog({ open, onOpenChange, propiedad }: 
       {propiedad ? (
         <DialogContent
           showCloseButton={false}
-          className="max-h-[min(92vh,880px)] w-[calc(100%-1.5rem)] max-w-2xl gap-0 overflow-y-auto overflow-x-hidden border-stone-200/80 p-0 shadow-xl sm:w-full"
+          className="flex h-[min(92dvh,880px)] max-h-[min(92dvh,880px)] w-[calc(100%-1rem)] max-w-2xl flex-col gap-0 overflow-hidden border-stone-200/80 p-0 shadow-xl sm:w-full"
         >
-          <PropiedadPreviewContent
-            data={toPreview(propiedad)}
-            overlay={
-              <DialogClose asChild>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="icon"
-                  className="size-9 rounded-full border border-white/50 bg-white/92 text-stone-700 shadow-md backdrop-blur-sm hover:bg-white"
-                  aria-label="Cerrar"
-                >
-                  <X className="size-4" />
-                </Button>
-              </DialogClose>
-            }
-          />
+          <div className="flex shrink-0 items-center justify-end border-b border-stone-200/90 bg-white px-2 py-1.5">
+            <DialogClose asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-11 shrink-0 rounded-full text-stone-700 hover:bg-stone-100"
+                aria-label="Cerrar"
+              >
+                <X className="size-6" strokeWidth={2} />
+              </Button>
+            </DialogClose>
+          </div>
+
+          <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-y-contain">
+            <PropiedadPreviewContent data={toPreview(propiedad)} />
+          </div>
+
+          <div className="shrink-0 border-t border-stone-200/90 bg-white px-4 py-3 sm:hidden">
+            <DialogClose asChild>
+              <Button type="button" variant="outline" className="h-11 w-full border-stone-300 text-stone-800">
+                Cerrar
+              </Button>
+            </DialogClose>
+          </div>
         </DialogContent>
       ) : null}
     </Dialog>

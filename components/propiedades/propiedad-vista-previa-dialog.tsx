@@ -21,7 +21,7 @@ function rowToPreview(row: PropiedadListRow): PropiedadPreviewModel {
     m2_cubiertos: row.m2_cubiertos,
     direccion: row.direccion,
     ubicacion_texto: row.ubicacion_texto,
-    imageSrc: row.imagen_principal,
+    imageUrls: [row.imagen_principal],
   };
 }
 

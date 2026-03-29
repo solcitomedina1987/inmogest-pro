@@ -21,13 +21,21 @@ export type FilaImagenPropiedad = {
   orden: number;
 };
 
+/** Todas las URLs según `orden` (normalizadas); sin filas → solo imagen por defecto. */
+export function imagenesOrdenadasPropiedad(
+  filas: readonly FilaImagenPropiedad[] | null | undefined,
+): string[] {
+  if (!filas?.length) {
+    return [PROPIEDAD_IMAGEN_DEFAULT];
+  }
+  const sorted = [...filas].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
+  const urls = sorted.map((f) => resolvePropiedadImageUrl(f.url_imagen));
+  return urls.length ? urls : [PROPIEDAD_IMAGEN_DEFAULT];
+}
+
 /** Primera imagen según `orden`, o la imagen por defecto si no hay filas. */
 export function primeraImagenPropiedad(
   filas: readonly FilaImagenPropiedad[] | null | undefined,
 ): string {
-  if (!filas?.length) {
-    return PROPIEDAD_IMAGEN_DEFAULT;
-  }
-  const sorted = [...filas].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
-  return resolvePropiedadImageUrl(sorted[0]?.url_imagen);
+  return imagenesOrdenadasPropiedad(filas)[0];
 }

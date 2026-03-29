@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { primeraImagenPropiedad } from "@/lib/propiedades/imagenes";
+import { imagenesOrdenadasPropiedad } from "@/lib/propiedades/imagenes";
 
 export type PublicPropiedadHome = {
   id: string;
@@ -14,7 +14,10 @@ export type PublicPropiedadHome = {
   m2_cubiertos: number;
   ubicacion_texto: string | null;
   descripcion: string | null;
+  /** Primera imagen (orden); misma que `imagenes[0]`. */
   imagen_modal: string;
+  /** Galería ordenada; carrusel si hay más de una. */
+  imagenes: string[];
 };
 
 type ImgRow = { url_imagen: string; orden: number };
@@ -56,6 +59,7 @@ export async function fetchPublicPropiedadesForHome(): Promise<PublicPropiedadHo
   return data.map((row) => {
     const r = row as Record<string, unknown> & { propiedades_img?: ImgRow[] | null };
     const imgs = Array.isArray(r.propiedades_img) ? r.propiedades_img : [];
+    const imagenes = imagenesOrdenadasPropiedad(imgs);
     return {
       id: r.id as string,
       nombre: r.nombre as string,
@@ -69,7 +73,8 @@ export async function fetchPublicPropiedadesForHome(): Promise<PublicPropiedadHo
       m2_cubiertos: Number(r.m2_cubiertos),
       ubicacion_texto: (r.ubicacion_texto as string) ?? null,
       descripcion: (r.descripcion as string) ?? null,
-      imagen_modal: primeraImagenPropiedad(imgs),
+      imagenes,
+      imagen_modal: imagenes[0],
     };
   });
 }

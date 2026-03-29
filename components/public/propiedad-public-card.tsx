@@ -2,7 +2,7 @@
 
 import { Bath, BedDouble, Ruler } from "lucide-react";
 import type { PublicPropiedadHome } from "@/lib/data/public-propiedades";
-import { PROPIEDAD_IMAGEN_DEFAULT } from "@/lib/constants/propiedades";
+import { PropiedadImagenCarousel } from "@/components/propiedades/propiedad-imagen-carousel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -77,20 +77,17 @@ type Props = {
 };
 
 export function PropiedadPublicCard({ propiedad, onVerDetalles }: Props) {
-  const { nombre, valor, estado, dormitorios, banos, m2_totales, imagen_modal } = propiedad;
-  const imgSrc = imagen_modal?.trim() || PROPIEDAD_IMAGEN_DEFAULT;
+  const { nombre, valor, estado, dormitorios, banos, m2_totales, imagenes } = propiedad;
 
   return (
     <article className="group flex flex-col overflow-hidden rounded-2xl border border-stone-200/90 bg-white shadow-sm transition-shadow duration-200 hover:shadow-md">
-      <div className="relative aspect-[4/3] overflow-hidden bg-stone-200">
-        {/* eslint-disable-next-line @next/next/no-img-element -- URLs públicas de storage o fallback local */}
-        <img
-          src={imgSrc}
-          alt=""
-          className="size-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-        />
-        <div className="absolute top-3 left-3 z-10">{badgeEstado(estado)}</div>
-      </div>
+      <PropiedadImagenCarousel
+        alt={nombre}
+        urls={imagenes}
+        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+        className="rounded-t-2xl"
+        topLeft={badgeEstado(estado)}
+      />
       <div className="flex flex-1 flex-col gap-3 p-4 sm:p-5">
         <div>
           <h3 className="line-clamp-2 text-base font-semibold leading-snug tracking-tight text-stone-900">

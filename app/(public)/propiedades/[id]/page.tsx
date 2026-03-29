@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { PropiedadPreviewContent } from "@/components/propiedades/propiedad-preview-content";
-import { primeraImagenPropiedad } from "@/lib/propiedades/imagenes";
+import { imagenesOrdenadasPropiedad } from "@/lib/propiedades/imagenes";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -44,7 +44,7 @@ export default async function PropiedadPublicaPage({ params }: Props) {
   }
 
   const imgs = Array.isArray(row.propiedades_img) ? row.propiedades_img : [];
-  const imageSrc = primeraImagenPropiedad(imgs);
+  const imageUrls = imagenesOrdenadasPropiedad(imgs);
 
   return (
     <main className="min-h-screen bg-stone-100 py-8 sm:py-12">
@@ -62,7 +62,7 @@ export default async function PropiedadPublicaPage({ params }: Props) {
             direccion: row.direccion as string,
             ubicacion_texto: (row.ubicacion_texto as string) ?? null,
             descripcion: (row.descripcion as string) ?? null,
-            imageSrc,
+            imageUrls,
           }}
         />
       </article>
