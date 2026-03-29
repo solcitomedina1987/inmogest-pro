@@ -1,8 +1,7 @@
-/**
- * Estados considerados “en cartel” para el sitio público.
- * En el enum actual no existe `Disponible`; se usan operaciones activas + consulta.
- */
-export const PROPIEDAD_ESTADOS_PUBLICOS = ["Alquiler", "Venta", "Consultar"] as const;
+import { ESTADO_PROPIEDAD_VALUES } from "@/lib/constants/propiedades";
+
+/** Estados del enum `estado_propiedad_listado` disponibles en el filtro del home público. */
+export const PUBLIC_HOME_ESTADOS_ORDENADOS = [...ESTADO_PROPIEDAD_VALUES] as const;
 
 export type PublicSiteContact = {
   whatsappHref: string;

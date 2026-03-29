@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import { PROPIEDAD_ESTADOS_PUBLICOS } from "@/lib/constants/public-site";
 import { primeraImagenPropiedad } from "@/lib/propiedades/imagenes";
 
 export type PublicPropiedadHome = {
@@ -21,7 +20,8 @@ export type PublicPropiedadHome = {
 type ImgRow = { url_imagen: string; orden: number };
 
 /**
- * Propiedades activas en cartel para el home público (Server Component / RSC).
+ * Todas las propiedades con baja lógica inactiva (is_active = true).
+ * El filtrado por tipo y estado se hace en el cliente.
  */
 export async function fetchPublicPropiedadesForHome(): Promise<PublicPropiedadHome[]> {
   const supabase = await createClient();
@@ -46,9 +46,8 @@ export async function fetchPublicPropiedadesForHome(): Promise<PublicPropiedadHo
     `,
     )
     .eq("is_active", true)
-    .in("estado", [...PROPIEDAD_ESTADOS_PUBLICOS])
     .order("created_at", { ascending: false })
-    .limit(120);
+    .limit(500);
 
   if (error || !data) {
     return [];

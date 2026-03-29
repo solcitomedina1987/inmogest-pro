@@ -17,29 +17,58 @@ const m2CardFmt = new Intl.NumberFormat("es-AR", {
   maximumFractionDigits: 0,
 });
 
-function badgeOperacion(estado: string) {
-  if (estado === "Venta") {
-    return (
-      <Badge className="border-0 bg-red-600 px-2.5 py-0.5 text-xs font-semibold text-white shadow-sm hover:bg-red-600">
-        Venta
-      </Badge>
-    );
+/** Badge por estado comercial: operaciones activas en verde/azul; cerradas en tonos neutros/pastel. */
+function badgeEstado(estado: string) {
+  switch (estado) {
+    case "Venta":
+      return (
+        <Badge className="border-0 bg-emerald-600 px-2.5 py-0.5 text-xs font-semibold text-white shadow-sm hover:bg-emerald-600">
+          Venta
+        </Badge>
+      );
+    case "Alquiler":
+      return (
+        <Badge className="border-0 bg-blue-600 px-2.5 py-0.5 text-xs font-semibold text-white shadow-sm hover:bg-blue-600">
+          Alquiler
+        </Badge>
+      );
+    case "Vendida":
+      return (
+        <Badge
+          variant="secondary"
+          className="border border-stone-200 bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-700"
+        >
+          Vendida
+        </Badge>
+      );
+    case "Alquilada":
+      return (
+        <Badge className="border border-cyan-200/80 bg-cyan-50 px-2.5 py-0.5 text-xs font-semibold text-cyan-950">
+          Alquilada
+        </Badge>
+      );
+    case "No Disponible":
+      return (
+        <Badge className="border border-slate-200 bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700">
+          No disponible
+        </Badge>
+      );
+    case "Consultar":
+      return (
+        <Badge
+          variant="outline"
+          className="border-amber-300/80 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-950"
+        >
+          Consultar
+        </Badge>
+      );
+    default:
+      return (
+        <Badge variant="secondary" className="px-2.5 py-0.5 text-xs font-semibold">
+          {estado}
+        </Badge>
+      );
   }
-  if (estado === "Alquiler") {
-    return (
-      <Badge className="border-0 bg-blue-600 px-2.5 py-0.5 text-xs font-semibold text-white shadow-sm hover:bg-blue-600">
-        Alquiler
-      </Badge>
-    );
-  }
-  return (
-    <Badge
-      variant="secondary"
-      className="border-stone-200 bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-800"
-    >
-      {estado}
-    </Badge>
-  );
 }
 
 type Props = {
@@ -48,18 +77,19 @@ type Props = {
 };
 
 export function PropiedadPublicCard({ propiedad, onVerDetalles }: Props) {
-  const { nombre, valor, estado, dormitorios, banos, m2_totales } = propiedad;
+  const { nombre, valor, estado, dormitorios, banos, m2_totales, imagen_modal } = propiedad;
+  const imgSrc = imagen_modal?.trim() || PROPIEDAD_IMAGEN_DEFAULT;
 
   return (
     <article className="group flex flex-col overflow-hidden rounded-2xl border border-stone-200/90 bg-white shadow-sm transition-shadow duration-200 hover:shadow-md">
       <div className="relative aspect-[4/3] overflow-hidden bg-stone-200">
-        {/* eslint-disable-next-line @next/next/no-img-element -- asset estático solicitado para el listado público */}
+        {/* eslint-disable-next-line @next/next/no-img-element -- URLs públicas de storage o fallback local */}
         <img
-          src={PROPIEDAD_IMAGEN_DEFAULT}
+          src={imgSrc}
           alt=""
           className="size-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
         />
-        <div className="absolute top-3 left-3 z-10">{badgeOperacion(estado)}</div>
+        <div className="absolute top-3 left-3 z-10">{badgeEstado(estado)}</div>
       </div>
       <div className="flex flex-1 flex-col gap-3 p-4 sm:p-5">
         <div>
