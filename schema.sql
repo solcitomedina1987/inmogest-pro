@@ -7,7 +7,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- -----------------------------------------------------------------------------
 -- Tipos enumerados
 -- -----------------------------------------------------------------------------
-CREATE TYPE public.rol_usuario AS ENUM ('admin', 'agente', 'cliente');
+CREATE TYPE public.rol_usuario AS ENUM ('admin', 'cliente');
 CREATE TYPE public.tipo_operacion AS ENUM ('Alquiler', 'Venta');
 CREATE TYPE public.tipo_propiedad AS ENUM (
   'Casa',
@@ -268,7 +268,7 @@ AS $$
   );
 $$;
 
--- Agente y admin: acceso de escritura a datos operativos (simplificado)
+-- Solo admin: acceso de escritura a datos operativos (RLS «staff»).
 CREATE OR REPLACE FUNCTION public.is_staff()
 RETURNS BOOLEAN
 LANGUAGE sql
@@ -278,7 +278,7 @@ SET search_path = public
 AS $$
   SELECT EXISTS (
     SELECT 1 FROM public.perfiles
-    WHERE id = auth.uid() AND rol IN ('admin', 'agente')
+    WHERE id = auth.uid() AND rol = 'admin'
   );
 $$;
 

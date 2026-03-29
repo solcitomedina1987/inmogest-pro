@@ -130,7 +130,7 @@ export function ClientesClient({ initial }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex max-w-full min-w-0 flex-col gap-8">
       <AlertDialog
         open={cascadeTarget != null}
         onOpenChange={(next) => {

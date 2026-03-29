@@ -1,11 +1,14 @@
-/** Roles con acceso operativo al panel (excluye `cliente`). */
-export const STAFF_ROLES = ["admin", "agente", "operador"] as const;
-export type StaffRol = (typeof STAFF_ROLES)[number];
+/** Valores de `public.perfiles.rol` tras simplificación a dos roles. */
+export const PERFIL_ROLES = ["admin", "cliente"] as const;
+export type PerfilRol = (typeof PERFIL_ROLES)[number];
 
-export function isStaffRol(rol: string | undefined | null): rol is StaffRol {
-  return rol === "admin" || rol === "agente" || rol === "operador";
+/** Alias para formularios de administración de usuarios (mismo conjunto). */
+export const PERFIL_ROLES_EDITABLES = PERFIL_ROLES;
+
+export function isAdminRol(rol: string | undefined | null): boolean {
+  return rol === "admin";
 }
 
-/** Valores válidos en `public.perfiles.rol` para edición desde administración. */
-export const PERFIL_ROLES_EDITABLES = ["admin", "operador", "agente", "cliente"] as const;
-export type PerfilRolEditable = (typeof PERFIL_ROLES_EDITABLES)[number];
+export function isClienteRol(rol: string | undefined | null): boolean {
+  return rol === "cliente";
+}

@@ -1,9 +1,9 @@
-import type { PerfilRolEditable } from "@/lib/roles";
+import type { PerfilRol } from "@/lib/roles";
 
 export type PerfilListRow = {
   id: string;
   nombre: string;
   email: string;
-  rol: PerfilRolEditable | string;
+  rol: PerfilRol | string;
   created_at: string;
 };

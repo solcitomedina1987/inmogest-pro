@@ -2,12 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { vendorCreateSchema, vendorUpdateSchema } from "@/lib/validations/vendor";
-import { requireStaff } from "@/lib/supabase/require-staff";
+import { requireAdmin } from "@/lib/supabase/require-admin";
 
 export type VendorActionResult = { ok: true } | { ok: false; error: string };
 
 export async function createVendor(input: unknown): Promise<VendorActionResult> {
-  const gate = await requireStaff();
+  const gate = await requireAdmin();
   if (!gate.ok) {
     return {
       ok: false,
@@ -41,7 +41,7 @@ export async function createVendor(input: unknown): Promise<VendorActionResult> 
 }
 
 export async function updateVendor(input: unknown): Promise<VendorActionResult> {
-  const gate = await requireStaff();
+  const gate = await requireAdmin();
   if (!gate.ok) {
     return {
       ok: false,
@@ -79,7 +79,7 @@ export async function updateVendor(input: unknown): Promise<VendorActionResult> 
 }
 
 export async function deactivateVendor(id: string): Promise<VendorActionResult> {
-  const gate = await requireStaff();
+  const gate = await requireAdmin();
   if (!gate.ok) {
     return {
       ok: false,

@@ -7,7 +7,7 @@ import {
   MAX_IMAGENES_PROPIEDAD,
   PROPIEDAD_IMAGEN_PLACEHOLDER,
 } from "@/lib/constants/propiedades";
-import { requireStaff } from "@/lib/supabase/require-staff";
+import { requireAdmin } from "@/lib/supabase/require-admin";
 import { storagePathFromPublicUrl } from "@/lib/supabase/storage-path";
 import { parsePropiedadFormData, toPropiedadDbPayload } from "@/lib/validations/propiedad";
 
@@ -55,7 +55,7 @@ async function insertImagenes(supabase: SupabaseClient, propiedadId: string, fil
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
 export async function createProperty(formData: FormData): Promise<ActionResult> {
-  const gate = await requireStaff();
+  const gate = await requireAdmin();
   if (!gate.ok) {
     return {
       ok: false,
@@ -100,7 +100,7 @@ export async function createProperty(formData: FormData): Promise<ActionResult> 
 }
 
 export async function updateProperty(formData: FormData): Promise<ActionResult> {
-  const gate = await requireStaff();
+  const gate = await requireAdmin();
   if (!gate.ok) {
     return {
       ok: false,
@@ -164,7 +164,7 @@ export async function updateProperty(formData: FormData): Promise<ActionResult> 
 }
 
 export async function deleteProperty(id: string): Promise<ActionResult> {
-  const gate = await requireStaff();
+  const gate = await requireAdmin();
   if (!gate.ok) {
     return {
       ok: false,

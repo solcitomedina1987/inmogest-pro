@@ -7,7 +7,7 @@ export default async function HomePage() {
   const propiedades = await getPublicPropiedadesForHomeAction();
 
   return (
-    <div className="min-h-screen bg-stone-50 text-stone-900">
+    <div className="min-h-screen max-w-full overflow-x-hidden bg-stone-50 text-stone-900">
       <PublicSiteHeader />
       <PublicHomeClient initialPropiedades={propiedades} />
       <PublicSiteFooter />

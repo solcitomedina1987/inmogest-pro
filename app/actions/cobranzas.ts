@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireStaff } from "@/lib/supabase/require-staff";
+import { requireAdmin } from "@/lib/supabase/require-admin";
 import { mesPeriodoActual, mesPeriodoDesdeFecha } from "@/lib/cobranzas/estado-contrato";
 import { contratoCobranzaSchema } from "@/lib/validations/contrato-cobranza";
 import { registroPagoSchema } from "@/lib/validations/registro-pago";
@@ -10,7 +10,7 @@ import { updateContratoCobranzaSchema } from "@/lib/validations/update-contrato-
 export type CobranzaActionResult = { ok: true } | { ok: false; error: string };
 
 export async function createContratoCobranza(input: unknown): Promise<CobranzaActionResult> {
-  const gate = await requireStaff();
+  const gate = await requireAdmin();
   if (!gate.ok) {
     return {
       ok: false,
@@ -66,7 +66,7 @@ export async function createContratoCobranza(input: unknown): Promise<CobranzaAc
 }
 
 export async function registrarPagoContrato(input: unknown): Promise<CobranzaActionResult> {
-  const gate = await requireStaff();
+  const gate = await requireAdmin();
   if (!gate.ok) {
     return {
       ok: false,
@@ -139,7 +139,7 @@ export async function registrarPagoContrato(input: unknown): Promise<CobranzaAct
  * Si cambia el monto mensual, opcionalmente recalcula `monto_esperado` en cuotas pendientes (mes actual y/o futuros).
  */
 export async function updateContract(input: unknown): Promise<CobranzaActionResult> {
-  const gate = await requireStaff();
+  const gate = await requireAdmin();
   if (!gate.ok) {
     return {
       ok: false,

@@ -81,9 +81,9 @@ export function UpdatePasswordForm() {
   const showInvalid = !ready && timedOut;
 
   return (
-    <div className="flex w-full flex-col items-center gap-8">
+    <div className="flex w-full max-w-full flex-col items-center gap-8">
       <BrandLogo className="w-full max-w-[453.75px] max-h-[7.21875rem] min-w-0" priority />
-      <Card className="w-full border shadow-sm">
+      <Card className="w-full max-w-full border shadow-sm">
         <CardHeader>
           <CardTitle className="text-xl">Nueva contraseña</CardTitle>
           <CardDescription>Elegí una contraseña nueva. No necesitás la anterior.</CardDescription>

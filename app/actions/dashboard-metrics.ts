@@ -1,6 +1,5 @@
 "use server";
 
-import { isStaffRol } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { mesPeriodoActual } from "@/lib/cobranzas/estado-contrato";
 
@@ -44,7 +43,7 @@ function unwrapFk<T>(v: T | T[] | null | undefined): T | null {
 }
 
 /**
- * Métricas del panel ejecutivo (solo lectura). Pensado para admin/agente.
+ * Métricas del panel ejecutivo (solo lectura). Admin y cliente autenticados en /dashboard.
  */
 export async function getExecutiveDashboardData(): Promise<ExecutiveDashboardData | null> {
   const supabase = await createClient();
@@ -57,7 +56,7 @@ export async function getExecutiveDashboardData(): Promise<ExecutiveDashboardDat
 
   const { data: perfil } = await supabase.from("perfiles").select("rol").eq("id", user.id).maybeSingle();
   const rol = perfil?.rol as string | undefined;
-  if (!isStaffRol(rol)) {
+  if (rol !== "admin" && rol !== "cliente") {
     return null;
   }
 

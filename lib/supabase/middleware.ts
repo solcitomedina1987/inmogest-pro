@@ -1,6 +1,10 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 
+function isDashboardRoot(pathname: string): boolean {
+  return pathname === "/dashboard" || pathname === "/dashboard/";
+}
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
@@ -51,50 +55,22 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (user && path.startsWith("/dashboard/admin-usuarios")) {
+  /* Solo administradores acceden a /dashboard/* fuera de la raíz. */
+  if (user && isDashboard && !isDashboardRoot(path)) {
     const { data: perfil } = await supabase
       .from("perfiles")
       .select("rol")
       .eq("id", user.id)
       .maybeSingle();
+
     if (perfil?.rol !== "admin") {
       const url = request.nextUrl.clone();
       url.pathname = "/dashboard";
+      url.search = "";
+      url.searchParams.set("restringido", "1");
       return NextResponse.redirect(url);
     }
   }
-
-  /* Rutas operativas: admin, agente u operador */
-  if (
-    user &&
-    (path.startsWith("/dashboard/propiedades") ||
-      path.startsWith("/dashboard/cobranzas") ||
-      path.startsWith("/dashboard/proveedores") ||
-      path.startsWith("/dashboard/clientes"))
-  ) {
-    const { data: perfil } = await supabase
-      .from("perfiles")
-      .select("rol")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    const rol = perfil?.rol as string | undefined;
-    if (rol !== "admin" && rol !== "agente" && rol !== "operador") {
-      const url = request.nextUrl.clone();
-      url.pathname = "/dashboard";
-      const aviso = path.startsWith("/dashboard/cobranzas")
-        ? "cobranzas_staff"
-        : path.startsWith("/dashboard/proveedores")
-          ? "proveedores_staff"
-          : path.startsWith("/dashboard/clientes")
-            ? "clientes_staff"
-            : "propiedades_staff";
-      url.searchParams.set("aviso", aviso);
-      return NextResponse.redirect(url);
-    }
-  }
-
-  /* Creación de usuarios: solo admin (Server Actions + RLS). */
 
   return supabaseResponse;
 }

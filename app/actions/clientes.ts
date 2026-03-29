@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import { requireStaff } from "@/lib/supabase/require-staff";
+import { requireAdmin } from "@/lib/supabase/require-admin";
 import { ERROR_CONTRATO_VIGENTE_INQUILINO, type DeactivateClienteResult } from "@/lib/clientes/deactivate-cliente";
 import { clienteFormSchema, toClienteInsertPayload } from "@/lib/validations/cliente";
 
@@ -22,7 +22,7 @@ function fechaHoyBuenosAires(): string {
 }
 
 export async function createCliente(input: unknown): Promise<ClienteActionResult> {
-  const gate = await requireStaff();
+  const gate = await requireAdmin();
   if (!gate.ok) {
     return { ok: false, error: gate.code === "no-auth" ? "Iniciá sesión." : "Sin permisos." };
   }
@@ -47,7 +47,7 @@ export async function createCliente(input: unknown): Promise<ClienteActionResult
 }
 
 export async function updateCliente(input: unknown): Promise<ClienteActionResult> {
-  const gate = await requireStaff();
+  const gate = await requireAdmin();
   if (!gate.ok) {
     return { ok: false, error: gate.code === "no-auth" ? "Iniciá sesión." : "Sin permisos." };
   }
@@ -115,7 +115,7 @@ export async function deactivateCliente(
   id: unknown,
   options?: unknown,
 ): Promise<DeactivateClienteResult> {
-  const gate = await requireStaff();
+  const gate = await requireAdmin();
   if (!gate.ok) {
     return { ok: false, error: gate.code === "no-auth" ? "Iniciá sesión." : "Sin permisos." };
   }

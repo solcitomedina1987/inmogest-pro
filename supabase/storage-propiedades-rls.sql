@@ -2,7 +2,7 @@
 -- Storage RLS — bucket "propiedades"
 -- Requisitos:
 --   1. Crear el bucket "propiedades" en Supabase → Storage (si aún no existe).
---   2. Tener la función public.is_staff() (admin | agente) definida en schema.sql.
+--   2. Tener la función public.is_staff() (solo admin) definida en schema.sql.
 --   3. Para que las imágenes carguen en <img> sin sesión, activa "Public bucket"
 --      en la configuración del bucket (o usa URLs firmadas si prefieres bucket privado).
 -- -----------------------------------------------------------------------------
@@ -19,7 +19,7 @@ CREATE POLICY "propiedades_bucket_select_public"
   FOR SELECT
   USING (bucket_id = 'propiedades');
 
--- Escritura: solo admin o agente (sesión autenticada)
+-- Escritura: solo admin (sesión autenticada)
 CREATE POLICY "propiedades_bucket_insert_staff"
   ON storage.objects
   FOR INSERT

@@ -1,5 +1,4 @@
 import { notFound, redirect } from "next/navigation";
-import { isStaffRol } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import type { ContratoCobranzaRow, PagoRow } from "@/lib/cobranzas/types";
 import { ContratoDetalleClient } from "@/components/cobranzas/contrato-detalle-client";
@@ -45,8 +44,8 @@ export default async function CobranzasContratoDetallePage({ params }: PageProps
 
   const { data: miPerfil } = await supabase.from("perfiles").select("rol").eq("id", user.id).maybeSingle();
   const miRol = miPerfil?.rol as string | undefined;
-  if (!isStaffRol(miRol)) {
-    redirect("/dashboard?aviso=cobranzas_staff");
+  if (miRol !== "admin") {
+    redirect("/dashboard?restringido=1");
   }
 
   const { data: row, error } = await supabase

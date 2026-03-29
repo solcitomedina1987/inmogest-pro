@@ -93,7 +93,7 @@ export function VendorsClient({ rows }: Props) {
 
   return (
     <>
-      <div className="flex flex-col gap-8">
+      <div className="flex max-w-full min-w-0 flex-col gap-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Agenda de proveedores</h1>
@@ -160,7 +160,7 @@ export function VendorsClient({ rows }: Props) {
                 No hay proveedores con estos criterios.
               </p>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="max-w-full overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>

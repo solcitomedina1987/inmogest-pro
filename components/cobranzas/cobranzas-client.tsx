@@ -111,7 +111,7 @@ export function CobranzasClient({
   const proximas = useMemo(() => filtrarProximasActualizaciones(contratosActivos, 90), [contratosActivos]);
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex max-w-full min-w-0 flex-col gap-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Cobranzas y contratos</h1>
@@ -169,7 +169,7 @@ export function CobranzasClient({
               No hay contratos registrados. Creá uno con el botón superior.
             </p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="max-w-full overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>

@@ -55,9 +55,9 @@ export function LoginForm({ redirectTo }: Props) {
   }
 
   return (
-    <div className="flex w-full flex-col items-center gap-8">
+    <div className="flex w-full max-w-full flex-col items-center gap-8">
       <BrandLogo className="w-full max-w-[453.75px] max-h-[7.21875rem] min-w-0" priority />
-      <Card className="w-full border shadow-sm">
+      <Card className="w-full max-w-full border shadow-sm">
       <CardHeader>
         <CardTitle className="text-xl">Iniciar sesión</CardTitle>
         <CardDescription>Ingresá tu email y contraseña.</CardDescription>
@@ -93,24 +93,27 @@ export function LoginForm({ redirectTo }: Props) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
-            <p className="text-right text-sm">
-              <Link
-                href="/forgot-password"
-                className="text-primary font-medium underline-offset-4 hover:underline"
-              >
-                ¿Olvidaste tu contraseña?
-              </Link>
-            </p>
           </div>
         </CardContent>
-        <CardFooter className="flex flex-col gap-4 pt-2">
+        <CardFooter className="flex flex-col gap-3 pt-2">
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "Ingresando…" : "Entrar"}
           </Button>
-          <p className="text-muted-foreground text-center text-sm">
+          <p className="text-muted-foreground text-center text-xs leading-relaxed">
             ¿No tenés cuenta?{" "}
-            <Link href="/registro" className="text-primary font-medium underline-offset-4 hover:underline">
+            <Link
+              href="/registro"
+              className="text-foreground/80 underline decoration-stone-300 underline-offset-4 transition-colors hover:text-foreground hover:decoration-stone-500"
+            >
               Registrate
+            </Link>
+          </p>
+          <p className="text-center text-xs leading-relaxed">
+            <Link
+              href="/forgot-password"
+              className="text-muted-foreground underline decoration-transparent underline-offset-4 transition-colors hover:text-foreground hover:decoration-stone-400"
+            >
+              Recuperar contraseña
             </Link>
           </p>
         </CardFooter>

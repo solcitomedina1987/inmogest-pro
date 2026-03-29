@@ -11,7 +11,7 @@ export function PublicSiteFooter() {
 
   return (
     <footer className="border-t border-stone-200 bg-white">
-      <div className="mx-auto flex max-w-6xl flex-col items-center gap-6 px-4 py-12 sm:flex-row sm:justify-between">
+      <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-6 px-4 py-12 md:px-8 sm:flex-row sm:justify-between">
         <div className="text-center sm:text-left">
           <p className="text-sm font-semibold text-stone-900">InmoGest Pro</p>
           <p className="text-muted-foreground mt-1 max-w-sm text-xs leading-relaxed">
@@ -51,7 +51,7 @@ export function PublicSiteFooter() {
           </a>
         </nav>
       </div>
-      <div className="border-t border-stone-100 py-4 text-center">
+      <div className="border-t border-stone-100 px-4 py-4 text-center md:px-8">
         <p className="text-muted-foreground text-xs">
           © {new Date().getFullYear()} InmoGest Pro. Todos los derechos reservados.
         </p>

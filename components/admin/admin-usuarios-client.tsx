@@ -61,12 +61,12 @@ export function AdminUsuariosClient({ initial, currentUserId }: Props) {
   const [editRow, setEditRow] = useState<PerfilListRow | null>(null);
 
   const [editNombre, setEditNombre] = useState("");
-  const [editRol, setEditRol] = useState<string>("operador");
+  const [editRol, setEditRol] = useState<string>("cliente");
 
   const [nuNombre, setNuNombre] = useState("");
   const [nuEmail, setNuEmail] = useState("");
   const [nuPassword, setNuPassword] = useState("");
-  const [nuRol, setNuRol] = useState<string>("operador");
+  const [nuRol, setNuRol] = useState<string>("cliente");
 
   function abrirEditar(row: PerfilListRow) {
     setEditRow(row);
@@ -79,7 +79,7 @@ export function AdminUsuariosClient({ initial, currentUserId }: Props) {
     setNuNombre("");
     setNuEmail("");
     setNuPassword("");
-    setNuRol("operador");
+    setNuRol("cliente");
     setNuevoOpen(true);
   }
 
@@ -129,7 +129,7 @@ export function AdminUsuariosClient({ initial, currentUserId }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex max-w-full min-w-0 flex-col gap-8">
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -270,7 +270,7 @@ export function AdminUsuariosClient({ initial, currentUserId }: Props) {
           <CardDescription>{initial.length} usuario(s).</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
+          <div className="max-w-full overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>

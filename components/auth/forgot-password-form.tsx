@@ -42,9 +42,9 @@ export function ForgotPasswordForm() {
   }
 
   return (
-    <div className="flex w-full flex-col items-center gap-8">
+    <div className="flex w-full max-w-full flex-col items-center gap-8">
       <BrandLogo className="w-full max-w-[453.75px] max-h-[7.21875rem] min-w-0" priority />
-      <Card className="w-full border shadow-sm">
+      <Card className="w-full max-w-full border shadow-sm">
         <CardHeader>
           <CardTitle className="text-xl">Recuperar contraseña</CardTitle>
           <CardDescription>Ingresá el email de tu cuenta. Te enviaremos un enlace seguro.</CardDescription>

@@ -17,15 +17,20 @@ const precioFmt = new Intl.NumberFormat("es-AR", {
   maximumFractionDigits: 0,
 });
 
-export async function ExecutiveDashboardPanel() {
+type PanelProps = {
+  /** Enlaces a secciones solo para administradores (cliente ve métricas sin acceso a listados). */
+  showAdminLinks?: boolean;
+};
+
+export async function ExecutiveDashboardPanel({ showAdminLinks = false }: PanelProps = {}) {
   const data = await getExecutiveDashboardData();
   if (!data) {
     return null;
   }
 
   return (
-    <div className="space-y-10">
-      <div className="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-4 xl:gap-10">
+    <div className="max-w-full space-y-10">
+      <div className="grid max-w-full grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-8 xl:grid-cols-4 xl:gap-10">
         <Card
           className={cn(
             "min-h-[148px] border shadow-sm transition-shadow hover:shadow-md",
@@ -137,12 +142,14 @@ export async function ExecutiveDashboardPanel() {
               ))}
             </ul>
           )}
-          <Button variant="outline" className="gap-2" asChild>
-            <Link href="/dashboard/cobranzas">
-              Ver todos los cobros
-              <ChevronRight className="size-4" aria-hidden />
-            </Link>
-          </Button>
+          {showAdminLinks ? (
+            <Button variant="outline" className="gap-2" asChild>
+              <Link href="/dashboard/cobranzas">
+                Ver todos los cobros
+                <ChevronRight className="size-4" aria-hidden />
+              </Link>
+            </Button>
+          ) : null}
         </CardContent>
       </Card>
     </div>

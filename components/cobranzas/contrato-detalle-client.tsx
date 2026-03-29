@@ -226,6 +226,7 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
           {pagos.length === 0 ? (
             <p className="text-muted-foreground py-6 text-center text-sm">No hay pagos registrados aún.</p>
           ) : (
+            <div className="max-w-full overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -264,6 +265,7 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
           {pagos.some((p) => p.observaciones) ? (
             <div className="text-muted-foreground mt-4 space-y-2 text-xs">

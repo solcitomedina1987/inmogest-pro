@@ -13,7 +13,8 @@ type Props = {
  * `width`/`height` del Image deben ser mayores que el máximo en pantalla; si no, el `<img>`
  * suele quedar ~200px aunque el CSS tenga `max-w` más grande.
  */
-const INTRINSIC_W = 960;
+/** Tamaño intrínseco alto para nitidez al mostrar el logo grande en cabecera pública. */
+const INTRINSIC_W = 1200;
 const INTRINSIC_H = Math.round((56 * INTRINSIC_W) / 200);
 
 export function BrandLogo({ className, priority }: Props) {
