@@ -1,12 +1,16 @@
-export default function HomePage() {
+import { getPublicPropiedadesForHomeAction } from "@/app/actions/public-propiedades";
+import { PublicHomeClient } from "@/components/public/public-home-client";
+import { PublicSiteFooter } from "@/components/public/public-site-footer";
+import { PublicSiteHeader } from "@/components/public/public-site-header";
+
+export default async function HomePage() {
+  const propiedades = await getPublicPropiedadesForHomeAction();
+
   return (
-    <main className="mx-auto flex min-h-screen max-w-5xl flex-col gap-6 p-8">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight">InmoGest Pro</h1>
-        <p className="text-sm text-neutral-600">
-          Inicio público — buscador y listado (pendiente de implementar).
-        </p>
-      </header>
-    </main>
+    <div className="min-h-screen bg-stone-50 text-stone-900">
+      <PublicSiteHeader />
+      <PublicHomeClient initialPropiedades={propiedades} />
+      <PublicSiteFooter />
+    </div>
   );
 }

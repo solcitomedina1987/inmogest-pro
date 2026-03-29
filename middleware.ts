@@ -1,6 +1,12 @@
 import { type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
+/**
+ * Protección de rutas:
+ * - `/dashboard/**` sin sesión → redirección a `/login` (con `?redirect=`).
+ * - `/login` y `/registro` con sesión → `/dashboard`.
+ * La lógica está en `lib/supabase/middleware.ts` (refresh de sesión Supabase + comprobaciones).
+ */
 export async function middleware(request: NextRequest) {
   return updateSession(request);
 }

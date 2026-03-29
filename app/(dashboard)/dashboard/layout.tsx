@@ -1,16 +1,9 @@
-import { AppSidebar } from "@/components/dashboard/app-sidebar";
+import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <div className="flex min-h-screen bg-neutral-50">
-      <AppSidebar />
-      <div className="flex flex-1 flex-col">
-        <main className="flex-1 p-8">{children}</main>
-      </div>
-    </div>
-  );
+  return <DashboardShell>{children}</DashboardShell>;
 }
