@@ -1,4 +1,4 @@
--- InmoGest Pro — Esquema relacional para Supabase (PostgreSQL)
+-- Consultora Medina & Asociados — Esquema relacional de referencia (PostgreSQL / Supabase)
 -- Ejecutar en SQL Editor o vía migraciones. Ajustar políticas RLS según reglas de negocio.
 
 -- Extensión para gen_random_uuid()

@@ -1,8 +1,13 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { PropiedadesTable } from "@/components/propiedades/propiedades-table";
 import type { PersonaOption, PropiedadListRow } from "@/components/propiedades/types";
 import { primeraImagenPropiedad } from "@/lib/propiedades/imagenes";
+
+export const metadata: Metadata = {
+  title: "Propiedades",
+};
 
 export default async function DashboardPropiedadesPage() {
   const supabase = await createClient();

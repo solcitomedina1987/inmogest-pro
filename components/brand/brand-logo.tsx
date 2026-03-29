@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { BRAND_LOGO_SRC } from "@/lib/constants/branding";
+import { BRAND_LOGO_SRC, BRAND_NAME } from "@/lib/constants/branding";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -21,7 +21,7 @@ export function BrandLogo({ className, priority }: Props) {
   return (
     <Image
       src={BRAND_LOGO_SRC}
-      alt="InmoGest Pro"
+      alt={BRAND_NAME}
       width={INTRINSIC_W}
       height={INTRINSIC_H}
       sizes="(max-width: 640px) 90vw, 480px"

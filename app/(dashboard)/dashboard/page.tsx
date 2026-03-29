@@ -1,9 +1,16 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { roleLabel } from "@/lib/role-label";
+import { BRAND_NAME } from "@/lib/constants/branding";
 import { ExecutiveDashboardPanel } from "@/components/dashboard/executive-dashboard-panel";
 import { ExecutiveDashboardSkeleton } from "@/components/dashboard/executive-dashboard-skeleton";
+import { FirstLoginWelcomeDialog } from "@/components/dashboard/first-login-welcome-dialog";
+
+export const metadata: Metadata = {
+  title: "Panel",
+};
 
 export const dynamic = "force-dynamic";
 
@@ -29,13 +36,16 @@ export default async function DashboardHomePage() {
 
   return (
     <div className="mx-auto flex w-full min-w-0 max-w-7xl flex-col gap-8">
+      <Suspense fallback={null}>
+        <FirstLoginWelcomeDialog />
+      </Suspense>
       <header className="flex flex-col gap-2 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6">
         <div className="min-w-0 space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Dashboard</h1>
           {mostrarMetricas ? (
             <p className="text-muted-foreground text-sm">Métricas clave y cobros atrasados</p>
           ) : (
-            <p className="text-muted-foreground text-sm">Resumen de tu cuenta en InmoGest Pro</p>
+            <p className="text-muted-foreground text-sm">Resumen de tu cuenta en {BRAND_NAME}</p>
           )}
         </div>
         <p className="text-muted-foreground shrink-0 text-xs tracking-wide sm:text-right">

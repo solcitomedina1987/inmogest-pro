@@ -1,5 +1,10 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+
+export const metadata: Metadata = {
+  title: "Contratos",
+};
 
 export default async function DashboardContratosPage() {
   const supabase = await createClient();

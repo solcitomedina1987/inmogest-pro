@@ -44,6 +44,9 @@ export function RegisterForm() {
     setLoading(true);
     const supabase = createClient();
 
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const emailRedirectTo = `${origin}/auth/callback?next=${encodeURIComponent("/dashboard")}&type=signup`;
+
     const { data, error: signError } = await supabase.auth.signUp({
       email: email.trim(),
       password,
@@ -51,6 +54,7 @@ export function RegisterForm() {
         data: {
           nombre: nombreCompleto.trim() || email.trim().split("@")[0],
         },
+        emailRedirectTo,
       },
     });
 

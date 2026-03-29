@@ -1,8 +1,13 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { VendorsClient } from "@/components/vendors/vendors-client";
 import { PROFESIONES_VENDOR, type ProfesionVendor } from "@/lib/constants/vendors";
 import type { VendorRow } from "@/components/vendors/types";
+
+export const metadata: Metadata = {
+  title: "Proveedores",
+};
 
 function isProfesionVendor(v: string): v is ProfesionVendor {
   return (PROFESIONES_VENDOR as readonly string[]).includes(v);

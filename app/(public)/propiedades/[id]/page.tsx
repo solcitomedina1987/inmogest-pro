@@ -1,9 +1,22 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/constants/branding";
 import { PropiedadPreviewContent } from "@/components/propiedades/propiedad-preview-content";
 import { imagenesOrdenadasPropiedad } from "@/lib/propiedades/imagenes";
 
 type Props = { params: Promise<{ id: string }> };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id } = await params;
+  const supabase = await createClient();
+  const { data } = await supabase.from("propiedades").select("nombre").eq("id", id).eq("is_active", true).maybeSingle();
+  const nombre = data?.nombre as string | undefined;
+  return {
+    title: nombre ?? "Propiedad",
+    description: nombre ? `${nombre} — ${BRAND_NAME}. ${BRAND_TAGLINE}` : BRAND_TAGLINE,
+  };
+}
 
 type ImgRow = { url_imagen: string; orden: number };
 

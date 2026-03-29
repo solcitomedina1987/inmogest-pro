@@ -122,11 +122,16 @@ export async function crearUsuarioDesdeAdmin(input: unknown): Promise<AdminUsuar
     process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
 
+  const callback = `${site}/auth/callback?${new URLSearchParams({
+    next: "/dashboard",
+    type: "signup",
+  }).toString()}`;
+
   const { error: resendErr } = await service.auth.resend({
     type: "signup",
     email,
     options: {
-      emailRedirectTo: `${site}/login`,
+      emailRedirectTo: callback,
     },
   });
 

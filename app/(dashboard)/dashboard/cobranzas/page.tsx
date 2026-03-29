@@ -1,9 +1,14 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { mesPeriodoActual } from "@/lib/cobranzas/estado-contrato";
 import type { ContratoCobranzaRow, PagoRow } from "@/lib/cobranzas/types";
 import { CobranzasClient } from "@/components/cobranzas/cobranzas-client";
 import type { SelectOption } from "@/components/cobranzas/contrato-form-dialog";
+
+export const metadata: Metadata = {
+  title: "Cobranzas",
+};
 
 function unwrapFk<T>(v: T | T[] | null | undefined): T | null {
   if (v == null) {

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { ContratoCobranzaRow, PagoRow } from "@/lib/cobranzas/types";
@@ -31,6 +32,22 @@ function normalizeContratoRow(row: Record<string, unknown>): ContratoCobranzaRow
 }
 
 type PageProps = { params: Promise<{ id: string }> };
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { id } = await params;
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("contratos_cobranza")
+    .select("propiedad:propiedades ( nombre )")
+    .eq("id", id)
+    .maybeSingle();
+  const raw = data as { propiedad?: { nombre: string } | { nombre: string }[] } | null;
+  const p = raw?.propiedad;
+  const nombre = Array.isArray(p) ? p[0]?.nombre : p?.nombre;
+  return {
+    title: nombre ? `Cobranzas · ${nombre}` : "Contrato de alquiler",
+  };
+}
 
 export default async function CobranzasContratoDetallePage({ params }: PageProps) {
   const { id } = await params;

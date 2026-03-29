@@ -1,7 +1,12 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AdminUsuariosClient } from "@/components/admin/admin-usuarios-client";
 import type { PerfilListRow } from "@/components/admin/types";
+
+export const metadata: Metadata = {
+  title: "Usuarios",
+};
 
 export default async function AdminUsuariosPage() {
   const supabase = await createClient();

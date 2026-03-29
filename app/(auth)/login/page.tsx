@@ -1,5 +1,10 @@
+import type { Metadata } from "next";
 import { LoginForm } from "@/components/auth/login-form";
 import { safeRedirectPath } from "@/lib/safe-redirect";
+
+export const metadata: Metadata = {
+  title: "Iniciar sesión",
+};
 
 type Props = {
   searchParams: Promise<{ redirect?: string }>;

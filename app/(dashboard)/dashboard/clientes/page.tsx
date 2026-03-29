@@ -1,8 +1,13 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ClientesClient } from "@/components/clientes/clientes-client";
 import type { ClienteListRow } from "@/components/clientes/types";
 import type { TipoCliente } from "@/lib/constants/clientes";
+
+export const metadata: Metadata = {
+  title: "Clientes",
+};
 
 function mapRow(r: Record<string, unknown>): ClienteListRow {
   return {
