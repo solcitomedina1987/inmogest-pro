@@ -193,8 +193,7 @@ export function PublicHomeClient({ initialPropiedades }: Props) {
             </p>
             <p>
               Nuestra misión es simplificar la experiencia de alquilar, vender o invertir, con
-              información transparente y un servicio cercano. Este texto es un placeholder: reemplazalo
-              con la historia y los valores de tu inmobiliaria.
+              información transparente y un servicio cercano.
             </p>
           </div>
         </div>
