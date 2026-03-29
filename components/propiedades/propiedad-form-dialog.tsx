@@ -129,7 +129,7 @@ export function PropiedadFormDialog({ open, onOpenChange, editing, propietarios,
       );
     }
     const accepted = list.filter((f) => f.size <= MAX_BYTES_PROPIEDAD_IMAGEN);
-    let trimmed = accepted.slice(0, MAX_IMAGENES_PROPIEDAD);
+    const trimmed = accepted.slice(0, MAX_IMAGENES_PROPIEDAD);
     if (accepted.length > MAX_IMAGENES_PROPIEDAD) {
       toast.warning(`Solo se pueden subir hasta ${MAX_IMAGENES_PROPIEDAD} imágenes por propiedad.`);
     }
