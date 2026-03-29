@@ -1,5 +1,6 @@
 "use server";
 
+import { isStaffRol } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { mesPeriodoActual } from "@/lib/cobranzas/estado-contrato";
 
@@ -56,7 +57,7 @@ export async function getExecutiveDashboardData(): Promise<ExecutiveDashboardDat
 
   const { data: perfil } = await supabase.from("perfiles").select("rol").eq("id", user.id).maybeSingle();
   const rol = perfil?.rol as string | undefined;
-  if (rol !== "admin" && rol !== "agente") {
+  if (!isStaffRol(rol)) {
     return null;
   }
 

@@ -56,10 +56,7 @@ export function LoginForm({ redirectTo }: Props) {
 
   return (
     <div className="flex w-full flex-col items-center gap-8">
-      <BrandLogo
-        className="w-full max-w-[302.5px] max-h-[4.8125rem] min-w-0"
-        priority
-      />
+      <BrandLogo className="w-full max-w-[453.75px] max-h-[7.21875rem] min-w-0" priority />
       <Card className="w-full border shadow-sm">
       <CardHeader>
         <CardTitle className="text-xl">Iniciar sesión</CardTitle>
@@ -70,7 +67,7 @@ export function LoginForm({ redirectTo }: Props) {
           {error ? (
             <Alert variant="destructive">
               <AlertTitle>Error</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription>E-mail o contraseña incorrectos.</AlertDescription>
             </Alert>
           ) : null}
           <div className="space-y-2">
@@ -96,9 +93,17 @@ export function LoginForm({ redirectTo }: Props) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
+            <p className="text-right text-sm">
+              <Link
+                href="/forgot-password"
+                className="text-primary font-medium underline-offset-4 hover:underline"
+              >
+                ¿Olvidaste tu contraseña?
+              </Link>
+            </p>
           </div>
         </CardContent>
-        <CardFooter className="flex flex-col gap-4 border-t pt-6">
+        <CardFooter className="flex flex-col gap-4 pt-2">
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "Ingresando…" : "Entrar"}
           </Button>

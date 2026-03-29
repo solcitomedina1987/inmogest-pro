@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Facebook, Instagram, MessageCircle, Phone } from "lucide-react";
 import { getPublicSiteContact } from "@/lib/constants/public-site";
 import { cn } from "@/lib/utils";
@@ -53,6 +54,14 @@ export function PublicSiteFooter() {
       <div className="border-t border-stone-100 py-4 text-center">
         <p className="text-muted-foreground text-xs">
           © {new Date().getFullYear()} InmoGest Pro. Todos los derechos reservados.
+        </p>
+        <p className="mt-2">
+          <Link
+            href="/login"
+            className="text-muted-foreground text-[11px] font-medium tracking-wide underline-offset-4 hover:text-stone-700 hover:underline"
+          >
+            Login Usuarios
+          </Link>
         </p>
       </div>
     </footer>

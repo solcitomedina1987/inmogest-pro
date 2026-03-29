@@ -1,13 +1,12 @@
 import type { User } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { isStaffRol } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 
-type StaffResult =
+type AdminResult =
   | { ok: true; supabase: SupabaseClient; user: User }
   | { ok: false; supabase: SupabaseClient | null; code: "no-auth" | "forbidden" };
 
-export async function requireStaff(): Promise<StaffResult> {
+export async function requireAdmin(): Promise<AdminResult> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -19,8 +18,7 @@ export async function requireStaff(): Promise<StaffResult> {
 
   const { data: perfil } = await supabase.from("perfiles").select("rol").eq("id", user.id).maybeSingle();
 
-  const rol = perfil?.rol as string | undefined;
-  if (!isStaffRol(rol)) {
+  if (perfil?.rol !== "admin") {
     return { ok: false, supabase, code: "forbidden" };
   }
 

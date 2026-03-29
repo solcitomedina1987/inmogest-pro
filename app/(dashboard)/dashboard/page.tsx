@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
+import { isStaffRol } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { roleLabel } from "@/lib/role-label";
 import { ExecutiveDashboardPanel } from "@/components/dashboard/executive-dashboard-panel";
@@ -31,7 +32,7 @@ export default async function DashboardHomePage({ searchParams }: Props) {
 
   const nombre = perfil?.nombre?.trim() || user.email?.split("@")[0] || "Usuario";
   const rol = perfil?.rol ?? "cliente";
-  const isStaff = rol === "admin" || rol === "agente";
+  const isStaff = isStaffRol(rol);
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-8">
@@ -39,7 +40,7 @@ export default async function DashboardHomePage({ searchParams }: Props) {
         <Alert variant="destructive">
           <AlertTitle>Propiedades</AlertTitle>
           <AlertDescription>
-            Solo usuarios con rol administrador o agente pueden gestionar propiedades. Tu rol actual es{" "}
+            Solo personal operativo (administrador, agente u operador) puede gestionar propiedades. Tu rol actual es{" "}
             <strong>{roleLabel(rol)}</strong>.
           </AlertDescription>
         </Alert>
@@ -48,7 +49,7 @@ export default async function DashboardHomePage({ searchParams }: Props) {
         <Alert variant="destructive">
           <AlertTitle>Cobranzas</AlertTitle>
           <AlertDescription>
-            Solo administradores y agentes pueden acceder a cobranzas y contratos de alquiler. Tu rol actual es{" "}
+            Solo personal operativo puede acceder a cobranzas y contratos de alquiler. Tu rol actual es{" "}
             <strong>{roleLabel(rol)}</strong>.
           </AlertDescription>
         </Alert>
@@ -57,7 +58,7 @@ export default async function DashboardHomePage({ searchParams }: Props) {
         <Alert variant="destructive">
           <AlertTitle>Proveedores</AlertTitle>
           <AlertDescription>
-            Solo administradores y agentes pueden gestionar la agenda de proveedores. Tu rol actual es{" "}
+            Solo personal operativo puede gestionar la agenda de proveedores. Tu rol actual es{" "}
             <strong>{roleLabel(rol)}</strong>.
           </AlertDescription>
         </Alert>
@@ -66,7 +67,7 @@ export default async function DashboardHomePage({ searchParams }: Props) {
         <Alert variant="destructive">
           <AlertTitle>Clientes</AlertTitle>
           <AlertDescription>
-            Solo administradores y agentes pueden gestionar el padrón de clientes. Tu rol actual es{" "}
+            Solo personal operativo puede gestionar el padrón de clientes. Tu rol actual es{" "}
             <strong>{roleLabel(rol)}</strong>.
           </AlertDescription>
         </Alert>

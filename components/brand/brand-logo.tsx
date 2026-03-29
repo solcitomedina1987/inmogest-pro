@@ -13,7 +13,7 @@ type Props = {
  * `width`/`height` del Image deben ser mayores que el máximo en pantalla; si no, el `<img>`
  * suele quedar ~200px aunque el CSS tenga `max-w` más grande.
  */
-const INTRINSIC_W = 640;
+const INTRINSIC_W = 960;
 const INTRINSIC_H = Math.round((56 * INTRINSIC_W) / 200);
 
 export function BrandLogo({ className, priority }: Props) {
@@ -23,10 +23,10 @@ export function BrandLogo({ className, priority }: Props) {
       alt="InmoGest Pro"
       width={INTRINSIC_W}
       height={INTRINSIC_H}
-      sizes="(max-width: 640px) 90vw, 320px"
+      sizes="(max-width: 640px) 90vw, 480px"
       className={cn(
         "h-auto w-auto object-contain object-center",
-        "max-h-11 max-w-[200px]",
+        "max-h-[4.125rem] max-w-[300px]",
         className,
       )}
       priority={priority}

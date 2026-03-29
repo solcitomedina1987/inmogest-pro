@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { isStaffRol } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { ClientesClient } from "@/components/clientes/clientes-client";
 import type { ClienteListRow } from "@/components/clientes/types";
@@ -31,7 +32,7 @@ export default async function DashboardClientesPage() {
 
   const { data: miPerfil } = await supabase.from("perfiles").select("rol").eq("id", user.id).maybeSingle();
   const miRol = miPerfil?.rol as string | undefined;
-  if (miRol !== "admin" && miRol !== "agente") {
+  if (!isStaffRol(miRol)) {
     redirect("/dashboard?aviso=clientes_staff");
   }
 

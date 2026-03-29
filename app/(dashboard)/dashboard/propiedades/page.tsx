@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { isStaffRol } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { PropiedadesTable } from "@/components/propiedades/propiedades-table";
 import type { PersonaOption, PropiedadListRow } from "@/components/propiedades/types";
@@ -16,7 +17,7 @@ export default async function DashboardPropiedadesPage() {
 
   const { data: miPerfil } = await supabase.from("perfiles").select("rol").eq("id", user.id).maybeSingle();
   const miRol = miPerfil?.rol as string | undefined;
-  if (miRol !== "admin" && miRol !== "agente") {
+  if (!isStaffRol(miRol)) {
     redirect("/dashboard?aviso=propiedades_staff");
   }
 

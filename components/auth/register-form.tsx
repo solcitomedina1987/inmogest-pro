@@ -74,10 +74,7 @@ export function RegisterForm() {
 
   return (
     <div className="flex w-full flex-col items-center gap-8">
-      <BrandLogo
-        className="w-full max-w-[302.5px] max-h-[4.8125rem] min-w-0"
-        priority
-      />
+      <BrandLogo className="w-full max-w-[453.75px] max-h-[7.21875rem] min-w-0" priority />
       <Card className="w-full border shadow-sm">
       <CardHeader>
         <CardTitle className="text-xl">Crear cuenta</CardTitle>
@@ -94,9 +91,16 @@ export function RegisterForm() {
             </Alert>
           ) : null}
           {info ? (
-            <Alert>
-              <AlertTitle>Revisá tu correo</AlertTitle>
-              <AlertDescription>{info}</AlertDescription>
+            <Alert
+              className="border-2 border-primary/35 bg-primary/12 shadow-sm"
+              variant="default"
+            >
+              <AlertTitle className="text-base font-bold text-foreground">
+                Revisá tu email para confirmar
+              </AlertTitle>
+              <AlertDescription className="text-foreground/90 mt-1 text-sm font-medium leading-relaxed">
+                {info}
+              </AlertDescription>
             </Alert>
           ) : null}
           <div className="space-y-2">
@@ -136,7 +140,7 @@ export function RegisterForm() {
             />
           </div>
         </CardContent>
-        <CardFooter className="flex flex-col gap-4 border-t pt-6">
+        <CardFooter className="flex flex-col gap-4 pt-2">
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "Creando cuenta…" : "Registrarme"}
           </Button>

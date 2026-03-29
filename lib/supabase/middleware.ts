@@ -31,7 +31,11 @@ export async function updateSession(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
   const isDashboard = path.startsWith("/dashboard");
-  const isAuthPage = path === "/login" || path === "/registro";
+  const isAuthPage =
+    path === "/login" ||
+    path === "/registro" ||
+    path === "/forgot-password" ||
+    path === "/update-password";
 
   if (isDashboard && !user) {
     const url = request.nextUrl.clone();
@@ -40,19 +44,33 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (user && isAuthPage) {
+  if (user && isAuthPage && path !== "/update-password") {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     url.search = "";
     return NextResponse.redirect(url);
   }
 
-  /* Rutas operativas: solo admin / agente */
+  if (user && path.startsWith("/dashboard/admin-usuarios")) {
+    const { data: perfil } = await supabase
+      .from("perfiles")
+      .select("rol")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (perfil?.rol !== "admin") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/dashboard";
+      return NextResponse.redirect(url);
+    }
+  }
+
+  /* Rutas operativas: admin, agente u operador */
   if (
     user &&
     (path.startsWith("/dashboard/propiedades") ||
       path.startsWith("/dashboard/cobranzas") ||
-      path.startsWith("/dashboard/proveedores"))
+      path.startsWith("/dashboard/proveedores") ||
+      path.startsWith("/dashboard/clientes"))
   ) {
     const { data: perfil } = await supabase
       .from("perfiles")
@@ -61,20 +79,22 @@ export async function updateSession(request: NextRequest) {
       .maybeSingle();
 
     const rol = perfil?.rol as string | undefined;
-    if (rol !== "admin" && rol !== "agente") {
+    if (rol !== "admin" && rol !== "agente" && rol !== "operador") {
       const url = request.nextUrl.clone();
       url.pathname = "/dashboard";
       const aviso = path.startsWith("/dashboard/cobranzas")
         ? "cobranzas_staff"
         : path.startsWith("/dashboard/proveedores")
           ? "proveedores_staff"
-          : "propiedades_staff";
+          : path.startsWith("/dashboard/clientes")
+            ? "clientes_staff"
+            : "propiedades_staff";
       url.searchParams.set("aviso", aviso);
       return NextResponse.redirect(url);
     }
   }
 
-  /* Creación de usuarios reservada a admin: validar en Server Actions / rutas API (p. ej. /dashboard/equipo). */
+  /* Creación de usuarios: solo admin (Server Actions + RLS). */
 
   return supabaseResponse;
 }

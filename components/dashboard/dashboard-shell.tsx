@@ -10,7 +10,7 @@ import { isDashboardSameSection } from "@/components/dashboard/dashboard-nav-uti
 import { cn } from "@/lib/utils";
 import { Toaster } from "sonner";
 
-const nav = [
+const baseNav = [
   { href: "/dashboard", label: "Inicio" },
   { href: "/dashboard/propiedades", label: "Propiedades" },
   { href: "/dashboard/proveedores", label: "Proveedores" },
@@ -19,11 +19,14 @@ const nav = [
   { href: "/dashboard/contratos", label: "Contratos" },
 ] as const;
 
+const adminNavItem = { href: "/dashboard/admin-usuarios", label: "Usuarios" } as const;
+
 type Props = {
   children: React.ReactNode;
+  isAdmin?: boolean;
 };
 
-export function DashboardShell({ children }: Props) {
+export function DashboardShell({ children, isAdmin = false }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const [isPending, startTransition] = useTransition();
@@ -34,11 +37,11 @@ export function DashboardShell({ children }: Props) {
       <aside className="bg-card flex w-56 shrink-0 flex-col border-r border-border print:hidden">
         <div className="border-b border-border px-3 py-5">
           <div className="flex justify-center">
-            <BrandLogo className="w-full max-w-[231.25px] max-h-[3.4375rem] min-w-0 object-contain" />
+            <BrandLogo className="w-full max-w-[346.875px] max-h-[5.15625rem] min-w-0 object-contain" />
           </div>
         </div>
         <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
-          {nav.map((item) => (
+          {baseNav.map((item) => (
             <Link
               key={item.href}
               href={item.href}
@@ -64,6 +67,32 @@ export function DashboardShell({ children }: Props) {
               {item.label}
             </Link>
           ))}
+          {isAdmin ? (
+            <Link
+              key={adminNavItem.href}
+              href={adminNavItem.href}
+              prefetch
+              onClick={(e) => {
+                if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) {
+                  return;
+                }
+                if (isDashboardSameSection(pathname, adminNavItem.href)) {
+                  e.preventDefault();
+                  return;
+                }
+                e.preventDefault();
+                startTransition(() => {
+                  router.push(adminNavItem.href);
+                });
+              }}
+              className={cn(
+                "text-foreground rounded-md px-3 py-2 text-sm transition-colors hover:bg-muted",
+                isDashboardSameSection(pathname, adminNavItem.href) && "bg-muted font-medium",
+              )}
+            >
+              {adminNavItem.label}
+            </Link>
+          ) : null}
         </nav>
         <div className="border-t border-border p-3">
           <LogoutButton />
