@@ -25,3 +25,6 @@ export const ESTADO_PROPIEDAD_VALUES = [
 ] as const;
 
 export const MAX_IMAGENES_PROPIEDAD = 10;
+
+/** Tamaño máximo por archivo al subir fotos (validación cliente y servidor). */
+export const MAX_BYTES_PROPIEDAD_IMAGEN = 5 * 1024 * 1024;

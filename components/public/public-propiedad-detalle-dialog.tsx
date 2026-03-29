@@ -38,7 +38,7 @@ export function PublicPropiedadDetalleDialog({ open, onOpenChange, propiedad }: 
       {propiedad ? (
         <DialogContent
           showCloseButton={false}
-          className="flex h-[min(92dvh,880px)] max-h-[min(92dvh,880px)] w-[calc(100%-1rem)] max-w-2xl flex-col gap-0 overflow-hidden border-stone-200/80 p-0 shadow-xl sm:w-full"
+          className="flex h-[min(92dvh,920px)] max-h-[min(92dvh,920px)] w-[calc(100%-1rem)] max-w-[calc(100%-1rem)] flex-col gap-0 overflow-hidden border-stone-200/80 p-0 shadow-xl sm:h-[min(92dvh,920px)] sm:max-h-[min(92dvh,920px)] sm:max-w-4xl sm:w-full lg:max-w-5xl"
         >
           <div className="flex shrink-0 items-center justify-end border-b border-stone-200/90 bg-white px-2 py-1.5">
             <DialogClose asChild>

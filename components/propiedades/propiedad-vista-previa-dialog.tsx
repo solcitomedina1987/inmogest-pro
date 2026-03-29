@@ -37,7 +37,7 @@ export function PropiedadVistaPreviaDialog({ open, onOpenChange, propiedad }: Pr
       {propiedad ? (
         <DialogContent
           showCloseButton={false}
-          className="max-h-[min(92vh,880px)] w-[calc(100%-1.5rem)] max-w-2xl gap-0 overflow-y-auto overflow-x-hidden border-stone-200/80 p-0 shadow-xl sm:w-full"
+          className="max-h-[min(92vh,920px)] w-[calc(100%-1rem)] max-w-[calc(100%-1rem)] gap-0 overflow-y-auto overflow-x-hidden border-stone-200/80 p-0 shadow-xl sm:max-w-4xl sm:w-full lg:max-w-5xl"
         >
           <PropiedadPreviewContent
             data={rowToPreview(propiedad)}

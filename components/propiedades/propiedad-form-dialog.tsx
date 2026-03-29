@@ -3,10 +3,13 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Loader2 } from "lucide-react";
 import { useForm, type Resolver } from "react-hook-form";
+import { toast } from "sonner";
 import { createProperty, updateProperty } from "@/app/actions/propiedades";
 import {
   ESTADO_PROPIEDAD_VALUES,
+  MAX_BYTES_PROPIEDAD_IMAGEN,
   MAX_IMAGENES_PROPIEDAD,
   TIPO_PROPIEDAD_VALUES,
 } from "@/lib/constants/propiedades";
@@ -117,6 +120,22 @@ export function PropiedadFormDialog({ open, onOpenChange, editing, propietarios,
     }
   }, [open, editing, form]);
 
+  function handleImageInputChange(fileList: FileList | null) {
+    const list = Array.from(fileList ?? []).filter((f) => f.size > 0);
+    const rejectedSize = list.filter((f) => f.size > MAX_BYTES_PROPIEDAD_IMAGEN);
+    if (rejectedSize.length > 0) {
+      toast.error(
+        `Cada imagen debe pesar como máximo 5 MB. Revisá: ${rejectedSize.map((f) => f.name).join(", ")}`,
+      );
+    }
+    const accepted = list.filter((f) => f.size <= MAX_BYTES_PROPIEDAD_IMAGEN);
+    let trimmed = accepted.slice(0, MAX_IMAGENES_PROPIEDAD);
+    if (accepted.length > MAX_IMAGENES_PROPIEDAD) {
+      toast.warning(`Solo se pueden subir hasta ${MAX_IMAGENES_PROPIEDAD} imágenes por propiedad.`);
+    }
+    setFiles(trimmed);
+  }
+
   function buildFormData(values: PropiedadFormClientValues) {
     const fd = new FormData();
     fd.append("nombre", values.nombre);
@@ -180,6 +199,17 @@ export function PropiedadFormDialog({ open, onOpenChange, editing, propietarios,
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            {pending ? (
+              <div
+                className="flex items-center gap-2 rounded-md border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm text-stone-800"
+                aria-live="polite"
+              >
+                <Loader2 className="text-muted-foreground size-4 shrink-0 animate-spin" aria-hidden />
+                <span>
+                  {files.length > 0 ? "Subiendo imágenes y guardando la propiedad…" : "Guardando la propiedad…"}
+                </span>
+              </div>
+            ) : null}
             {actionError ? (
               <Alert variant="destructive">
                 <AlertTitle>No se pudo guardar</AlertTitle>
@@ -455,21 +485,41 @@ export function PropiedadFormDialog({ open, onOpenChange, editing, propietarios,
                 type="file"
                 accept="image/*"
                 multiple
-                onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
+                disabled={pending}
+                onChange={(e) => {
+                  handleImageInputChange(e.target.files);
+                  e.target.value = "";
+                }}
               />
               <p className="text-muted-foreground text-xs">
-                Hasta {MAX_IMAGENES_PROPIEDAD} archivos. Si no subís ninguna, se usa la imagen local
-                por defecto del sitio (/img/casa-default.png)
-                {editing ? ". Al subir archivos, se reemplazan las actuales." : "."}
+                Hasta {MAX_IMAGENES_PROPIEDAD} archivos, máximo 5 MB cada uno. Si no subís ninguna, se usa la
+                imagen por defecto (/img/casa-default.png)
+                {editing ? ". Al elegir archivos nuevos, se reemplazan todas las fotos actuales." : "."}
               </p>
+              {files.length > 0 ? (
+                <p className="text-muted-foreground text-xs">
+                  {files.length === 1
+                    ? "1 archivo listo para subir."
+                    : `${files.length} archivos listos para subir.`}
+                </p>
+              ) : null}
             </div>
 
             <DialogFooter className="gap-2 sm:gap-0">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              <Button type="button" variant="outline" disabled={pending} onClick={() => onOpenChange(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={pending}>
-                {pending ? "Guardando…" : editing ? "Guardar cambios" : "Crear"}
+              <Button type="submit" disabled={pending} className="min-w-[8.5rem]">
+                {pending ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 className="size-4 animate-spin" />
+                    Cargando…
+                  </span>
+                ) : editing ? (
+                  "Guardar cambios"
+                ) : (
+                  "Crear"
+                )}
               </Button>
             </DialogFooter>
           </form>

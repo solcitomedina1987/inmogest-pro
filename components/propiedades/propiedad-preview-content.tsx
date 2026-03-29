@@ -59,16 +59,20 @@ function Feature({
   return (
     <div
       className={cn(
-        "flex min-h-[4.5rem] flex-col items-center justify-center gap-2 rounded-xl border border-stone-200/90 bg-stone-50/90 p-3 text-center shadow-sm sm:min-h-0 sm:flex-row sm:items-start sm:justify-start sm:gap-3 sm:p-3.5 sm:text-left",
+        "flex min-h-[4.25rem] flex-col items-center justify-center gap-1.5 rounded-lg border border-stone-200/90 bg-stone-50/90 p-2.5 text-center shadow-sm md:min-h-0 md:flex-row md:items-start md:justify-start md:gap-2.5 md:p-3 md:text-left lg:rounded-xl lg:gap-3 lg:p-3",
         className,
       )}
     >
-      <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-white text-stone-500 shadow-sm ring-1 ring-stone-100">
-        <Icon className="size-[18px]" aria-hidden />
+      <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-white text-stone-500 shadow-sm ring-1 ring-stone-100 md:size-8 lg:size-9">
+        <Icon className="size-4 md:size-[15px] lg:size-[17px]" aria-hidden />
       </div>
-      <div className="min-w-0 w-full flex-1 sm:w-auto">
-        <p className="text-[11px] font-medium tracking-wide text-stone-500 uppercase">{label}</p>
-        <p className="mt-0.5 break-words text-sm leading-snug font-semibold text-stone-900">{value}</p>
+      <div className="min-w-0 w-full flex-1 md:w-auto">
+        <p className="text-[10px] font-medium tracking-wide text-stone-500 uppercase md:text-[10px] lg:text-[11px]">
+          {label}
+        </p>
+        <p className="mt-0.5 break-words text-xs leading-snug font-semibold text-stone-900 md:text-xs lg:text-sm">
+          {value}
+        </p>
       </div>
     </div>
   );
@@ -116,7 +120,7 @@ export function PropiedadPreviewContent({ data, className, overlay }: Props) {
           ) : null}
         </header>
 
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+        <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 md:gap-3 lg:grid-cols-4 lg:gap-3 xl:grid-cols-5">
           <Feature icon={Building2} label="Tipo de propiedad" value={tipo} />
           <Feature icon={KeyRound} label="Tipo de operación" value={estado} />
           <Feature icon={Banknote} label="Valor" value={precioFmt.format(valor)} />

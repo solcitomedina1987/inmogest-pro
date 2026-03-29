@@ -10,10 +10,10 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  /* Subida de imágenes en createProperty / updateProperty (FormData en Server Actions) */
+  /* Hasta 10 imágenes × 5 MB + campos del formulario (createProperty / updateProperty). */
   experimental: {
     serverActions: {
-      bodySizeLimit: "20mb",
+      bodySizeLimit: "55mb",
     },
   },
 };
