@@ -53,6 +53,7 @@ type Props = {
 
 export function ContratoDetalleClient({ contrato, pagos }: Props) {
   const [pagoOpen, setPagoOpen] = useState(false);
+  const [mesPeriodoPago, setMesPeriodoPago] = useState<string | null>(null);
   const [editarOpen, setEditarOpen] = useState(false);
   const [reciboProps, setReciboProps] = useState<ReciboAlquilerProps | null>(null);
   const [imprimirPendiente, setImprimirPendiente] = useState(false);
@@ -109,10 +110,16 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
       <EditarContratoDialog open={editarOpen} onOpenChange={setEditarOpen} contrato={contrato} />
       <RegistrarPagoDialog
         open={pagoOpen}
-        onOpenChange={setPagoOpen}
+        onOpenChange={(o) => {
+          if (!o) {
+            setMesPeriodoPago(null);
+          }
+          setPagoOpen(o);
+        }}
         contratoId={contrato.id}
         montoSugerido={Number(contrato.monto_mensual)}
         disabled={!contrato.is_active}
+        mesPeriodoPredefinido={mesPeriodoPago}
       />
 
       <div className="print:hidden flex flex-wrap items-center gap-4">
@@ -141,7 +148,14 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
             <Pencil className="size-4 shrink-0" aria-hidden />
             Editar contrato
           </Button>
-          <Button type="button" onClick={() => setPagoOpen(true)} disabled={!contrato.is_active}>
+          <Button
+            type="button"
+            onClick={() => {
+              setMesPeriodoPago(null);
+              setPagoOpen(true);
+            }}
+            disabled={!contrato.is_active}
+          >
             Registrar pago
           </Button>
         </div>
@@ -200,31 +214,19 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
         </CardContent>
       </Card>
 
-      <Card className="border shadow-sm print:hidden">
+      <Card className="border shadow-sm">
         <CardHeader>
-          <CardTitle className="text-lg">Registro de pago</CardTitle>
+          <CardTitle className="text-lg">Cuotas mensuales</CardTitle>
           <CardDescription>
-            Cargá un cobro mensual (modal). El período se asigna según el mes de la fecha indicada.
+            Por cada mes del contrato hay una cuota. Usá &quot;Registrar pago&quot; en cada fila pendiente o el botón
+            superior; el mismo formulario aplica el cobro al período indicado.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button type="button" onClick={() => setPagoOpen(true)} disabled={!contrato.is_active}>
-            Abrir formulario de pago
-          </Button>
-          {!contrato.is_active ? (
-            <p className="text-muted-foreground mt-2 text-xs">Los contratos finalizados no admiten nuevos registros de pago.</p>
-          ) : null}
-        </CardContent>
-      </Card>
-
-      <Card className="border shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-lg">Historial de pagos</CardTitle>
-          <CardDescription>Del más reciente al más antiguo</CardDescription>
-        </CardHeader>
-        <CardContent>
           {pagos.length === 0 ? (
-            <p className="text-muted-foreground py-6 text-center text-sm">No hay pagos registrados aún.</p>
+            <p className="text-muted-foreground py-6 text-center text-sm">
+              No hay cuotas en el sistema para este contrato. Revisá fechas de inicio y vencimiento.
+            </p>
           ) : (
             <div className="max-w-full overflow-x-auto">
             <Table>
@@ -236,6 +238,7 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
                   <TableHead>Fecha pago</TableHead>
                   <TableHead>Forma</TableHead>
                   <TableHead>Estado</TableHead>
+                  <TableHead className="w-[140px] print:hidden">Registrar</TableHead>
                   <TableHead className="print:hidden">Recibo</TableHead>
                 </TableRow>
               </TableHeader>
@@ -259,7 +262,31 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
                     </TableCell>
                     <TableCell>{estadoBadge(p.estado)}</TableCell>
                     <TableCell className="print:hidden">
-                      <ReciboPrintButton onPrint={() => solicitarImpresionRecibo(p)} />
+                      {p.estado === "Pagado" ? (
+                        <span className="text-muted-foreground text-xs">—</span>
+                      ) : contrato.is_active ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-8 whitespace-nowrap text-xs"
+                          onClick={() => {
+                            setMesPeriodoPago(p.mes_periodo);
+                            setPagoOpen(true);
+                          }}
+                        >
+                          Registrar pago
+                        </Button>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="print:hidden">
+                      {p.estado === "Pagado" ? (
+                        <ReciboPrintButton onPrint={() => solicitarImpresionRecibo(p)} />
+                      ) : (
+                        <span className="text-muted-foreground text-xs">—</span>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}

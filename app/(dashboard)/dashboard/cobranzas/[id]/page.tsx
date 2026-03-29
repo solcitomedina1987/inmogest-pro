@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { ContratoCobranzaRow, PagoRow } from "@/lib/cobranzas/types";
+import { ensurePagosMensualesExistentes } from "@/lib/cobranzas/sync-pagos-mensuales";
 import { ContratoDetalleClient } from "@/components/cobranzas/contrato-detalle-client";
 
 function unwrapFk<T>(v: T | T[] | null | undefined): T | null {
@@ -77,12 +78,21 @@ export default async function CobranzasContratoDetallePage({ params }: PageProps
 
   const contrato = normalizeContratoRow(row as Record<string, unknown>);
 
+  const sync = await ensurePagosMensualesExistentes(supabase, id);
+  if (!sync.ok) {
+    return (
+      <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-4 text-sm">
+        <p className="font-medium">Error al sincronizar cuotas mensuales</p>
+        <p className="text-muted-foreground mt-1">{sync.error}</p>
+      </div>
+    );
+  }
+
   const { data: pagosRaw, error: pErr } = await supabase
     .from("pagos")
     .select("*")
     .eq("contrato_id", id)
-    .order("mes_periodo", { ascending: false })
-    .order("created_at", { ascending: false });
+    .order("mes_periodo", { ascending: true });
 
   if (pErr) {
     return (

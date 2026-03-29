@@ -58,7 +58,13 @@ export function DashboardShell({ children, isAdmin = false, isCliente = false }:
       <nav className={cn("flex flex-col gap-1", mobile ? "flex-1 overflow-y-auto" : "flex-1 overflow-y-auto p-3")}>
         {mobile ? (
           <div className="border-border mb-4 flex justify-center border-b pb-4">
-            <BrandLogo className="max-h-10 max-w-[200px] min-w-0 object-contain" />
+            <Link
+              href="/"
+              className="inline-flex focus-visible:ring-ring rounded-md focus-visible:ring-2 focus-visible:outline-none"
+              aria-label="Ir al sitio público"
+            >
+              <BrandLogo className="max-h-10 max-w-[200px] min-w-0 object-contain" />
+            </Link>
           </div>
         ) : null}
         {navItems.map((item) => (
@@ -100,7 +106,13 @@ export function DashboardShell({ children, isAdmin = false, isCliente = false }:
       <Toaster richColors position="top-center" closeButton />
 
       <header className="bg-card sticky top-0 z-40 flex h-14 max-w-full shrink-0 items-center justify-between border-b px-4 print:hidden lg:hidden md:px-8">
-        <BrandLogo className="max-h-9 max-w-[min(200px,55vw)] min-w-0 object-contain" />
+        <Link
+          href="/"
+          className="inline-flex min-w-0 shrink focus-visible:ring-ring rounded-md focus-visible:ring-2 focus-visible:outline-none"
+          aria-label="Ir al sitio público"
+        >
+          <BrandLogo className="max-h-9 max-w-[min(200px,55vw)] min-w-0 object-contain" />
+        </Link>
         <Button
           type="button"
           variant="outline"
@@ -130,7 +142,13 @@ export function DashboardShell({ children, isAdmin = false, isCliente = false }:
       <aside className="bg-card hidden w-56 max-w-full shrink-0 flex-col border-r border-border print:hidden lg:flex">
         <div className="border-border border-b px-3 py-5">
           <div className="flex justify-center">
-            <BrandLogo className="w-full max-w-[346.875px] max-h-[5.15625rem] min-w-0 object-contain" />
+            <Link
+              href="/"
+              className="inline-flex w-full max-w-[346.875px] justify-center focus-visible:ring-ring rounded-md focus-visible:ring-2 focus-visible:outline-none"
+              aria-label="Ir al sitio público"
+            >
+              <BrandLogo className="w-full max-w-[346.875px] max-h-[5.15625rem] min-w-0 object-contain" />
+            </Link>
           </div>
         </div>
         <NavLinks />

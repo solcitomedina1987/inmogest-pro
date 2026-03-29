@@ -112,8 +112,8 @@ export function PropiedadesTable({ rows, propietarios, clientes }: Props) {
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Propiedades</h1>
             <p className="text-muted-foreground mt-1 text-sm">
-              Inmuebles activos. Filtrá por nombre, tipo u operación; la columna Cobros enlaza al contrato si la
-              propiedad está alquilada.
+              Inmuebles activos. Si el estado es <strong>Alquilada</strong>, se muestra el inquilino vinculado en la
+              ficha. La columna Cobros enlaza al contrato de alquiler cuando existe.
             </p>
           </div>
           <Button type="button" onClick={openCreate}>
@@ -209,6 +209,8 @@ export function PropiedadesTable({ rows, propietarios, clientes }: Props) {
                       <TableHead className="text-right">Precio</TableHead>
                       <TableHead>Tipo</TableHead>
                       <TableHead>Estado</TableHead>
+                      <TableHead className="min-w-[9rem]">Inquilino</TableHead>
+                      <TableHead className="min-w-[7rem]">Tel. inquilino</TableHead>
                       <TableHead className="w-[72px] text-center">Ver</TableHead>
                       <TableHead className="w-[72px] text-center">Cobros</TableHead>
                       <TableHead className="w-[100px] text-right">Acciones</TableHead>
@@ -231,6 +233,24 @@ export function PropiedadesTable({ rows, propietarios, clientes }: Props) {
                           </TableCell>
                           <TableCell>
                             <PropiedadEstadoBadge estado={row.estado} />
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {row.estado === "Alquilada"
+                              ? row.inquilino_nombre ?? (
+                                  <span className="text-muted-foreground">—</span>
+                                )
+                              : (
+                                  <span className="text-muted-foreground">—</span>
+                                )}
+                          </TableCell>
+                          <TableCell className="tabular-nums text-sm">
+                            {row.estado === "Alquilada"
+                              ? row.inquilino_telefono ?? (
+                                  <span className="text-muted-foreground">—</span>
+                                )
+                              : (
+                                  <span className="text-muted-foreground">—</span>
+                                )}
                           </TableCell>
                           <TableCell className="text-center">
                             <Button

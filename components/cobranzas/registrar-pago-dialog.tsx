@@ -53,6 +53,8 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   /** Contratos finalizados no permiten registrar pagos. */
   disabled?: boolean;
+  /** Período YYYY-MM: inicializa la fecha de pago en ese mes (día 1). */
+  mesPeriodoPredefinido?: string | null;
 };
 
 export function RegistrarPagoDialog({
@@ -61,6 +63,7 @@ export function RegistrarPagoDialog({
   open,
   onOpenChange,
   disabled = false,
+  mesPeriodoPredefinido = null,
 }: Props) {
   const router = useRouter();
   const [actionError, setActionError] = useState<string | null>(null);
@@ -86,15 +89,19 @@ export function RegistrarPagoDialog({
   useEffect(() => {
     if (open) {
       setActionError(null);
+      const fechaInicial =
+        mesPeriodoPredefinido && /^\d{4}-\d{2}$/.test(mesPeriodoPredefinido)
+          ? `${mesPeriodoPredefinido}-01`
+          : hoyISO();
       form.reset({
         contrato_id: contratoId,
-        fecha_pago: hoyISO(),
+        fecha_pago: fechaInicial,
         forma_pago: "Transferencia",
         monto_pagado: montoSugerido,
         observaciones: "",
       });
     }
-  }, [open, contratoId, montoSugerido, form]);
+  }, [open, contratoId, montoSugerido, mesPeriodoPredefinido, form]);
 
   function onSubmit(values: RegistroPagoValues) {
     if (disabled) {

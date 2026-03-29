@@ -37,7 +37,8 @@ export default async function DashboardPropiedadesPage() {
       ubicacion_texto,
       propietario_id,
       cliente_id,
-      propiedades_img ( url_imagen, orden )
+      propiedades_img ( url_imagen, orden ),
+      cliente_inquilino:clientes!propiedades_cliente_id_fkey ( nombre_completo, telefono )
     `,
     )
     .eq("is_active", true)
@@ -65,11 +66,23 @@ export default async function DashboardPropiedadesPage() {
   }
 
   type ImgRow = { url_imagen: string; orden: number };
-  type RawProp = Record<string, unknown> & { propiedades_img?: ImgRow[] | null };
+  type InquilinoEmb = { nombre_completo: string; telefono: string | null };
+  type RawProp = Record<string, unknown> & {
+    propiedades_img?: ImgRow[] | null;
+    cliente_inquilino?: InquilinoEmb | InquilinoEmb[] | null;
+  };
+
+  function unwrapInquilino(v: RawProp["cliente_inquilino"]): InquilinoEmb | null {
+    if (v == null) {
+      return null;
+    }
+    return Array.isArray(v) ? (v[0] ?? null) : v;
+  }
 
   const rowsBase: Omit<PropiedadListRow, "contrato_cobranza_id">[] = (propsRows ?? []).map((r) => {
     const raw = r as RawProp;
     const imgs = Array.isArray(raw.propiedades_img) ? raw.propiedades_img : [];
+    const inq = unwrapInquilino(raw.cliente_inquilino);
     return {
       id: raw.id as string,
       nombre: raw.nombre as string,
@@ -85,6 +98,8 @@ export default async function DashboardPropiedadesPage() {
       propietario_id: raw.propietario_id as string,
       cliente_id: (raw.cliente_id as string) ?? null,
       imagen_principal: primeraImagenPropiedad(imgs),
+      inquilino_nombre: inq?.nombre_completo?.trim() ? inq.nombre_completo.trim() : null,
+      inquilino_telefono: inq?.telefono?.trim() ? inq.telefono.trim() : null,
     };
   });
 

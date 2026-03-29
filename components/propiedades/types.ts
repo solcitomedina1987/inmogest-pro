@@ -27,4 +27,7 @@ export type PropiedadListRow = {
   imagen_principal: string;
   /** Contrato de cobranzas activo para esta propiedad (si existe). */
   contrato_cobranza_id: string | null;
+  /** Datos del cliente vinculado (inquilino en ficha); relevante si estado = Alquilada. */
+  inquilino_nombre: string | null;
+  inquilino_telefono: string | null;
 };

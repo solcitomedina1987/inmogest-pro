@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/supabase/require-admin";
 import { mesPeriodoActual, mesPeriodoDesdeFecha } from "@/lib/cobranzas/estado-contrato";
+import { mesesPeriodoEntreFechasContrato } from "@/lib/cobranzas/meses-contrato";
 import { contratoCobranzaSchema } from "@/lib/validations/contrato-cobranza";
 import { registroPagoSchema } from "@/lib/validations/registro-pago";
 import { updateContratoCobranzaSchema } from "@/lib/validations/update-contrato-cobranza";
@@ -49,16 +50,19 @@ export async function createContratoCobranza(input: unknown): Promise<CobranzaAc
     return { ok: false, error: insErr?.message ?? "No se pudo crear el contrato." };
   }
 
-  const mes = mesPeriodoActual();
-  const { error: pagoErr } = await supabase.from("pagos").insert({
-    contrato_id: created.id as string,
-    mes_periodo: mes,
-    monto_esperado: v.monto_mensual,
-    estado: "Pendiente",
-  });
-
-  if (pagoErr) {
-    return { ok: false, error: pagoErr.message };
+  const contratoId = created.id as string;
+  const meses = mesesPeriodoEntreFechasContrato(v.fecha_inicio, v.fecha_vencimiento);
+  if (meses.length > 0) {
+    const pagosRows = meses.map((mes_periodo) => ({
+      contrato_id: contratoId,
+      mes_periodo,
+      monto_esperado: v.monto_mensual,
+      estado: "Pendiente" as const,
+    }));
+    const { error: pagoErr } = await supabase.from("pagos").insert(pagosRows);
+    if (pagoErr) {
+      return { ok: false, error: pagoErr.message };
+    }
   }
 
   revalidatePath("/dashboard/cobranzas");
