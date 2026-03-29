@@ -57,7 +57,7 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
   const [reciboProps, setReciboProps] = useState<ReciboAlquilerProps | null>(null);
   const [imprimirPendiente, setImprimirPendiente] = useState(false);
 
-  const nombreInquilino = contrato.inquilino?.nombre?.trim() || "—";
+  const nombreInquilino = contrato.inquilino?.nombre_completo?.trim() || "—";
 
   useEffect(() => {
     if (!imprimirPendiente || !reciboProps) {
@@ -159,11 +159,11 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
           </div>
           <div>
             <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Inquilino</p>
-            <p className="mt-1 font-medium">{contrato.inquilino?.nombre ?? "—"}</p>
+            <p className="mt-1 font-medium">{contrato.inquilino?.nombre_completo ?? "—"}</p>
           </div>
           <div>
             <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Locador</p>
-            <p className="mt-1 font-medium">{contrato.locador?.nombre ?? "—"}</p>
+            <p className="mt-1 font-medium">{contrato.locador?.nombre_completo ?? "—"}</p>
           </div>
           <div>
             <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Monto mensual</p>

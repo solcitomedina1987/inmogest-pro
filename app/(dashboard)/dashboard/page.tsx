@@ -62,6 +62,15 @@ export default async function DashboardHomePage({ searchParams }: Props) {
           </AlertDescription>
         </Alert>
       ) : null}
+      {aviso === "clientes_staff" ? (
+        <Alert variant="destructive">
+          <AlertTitle>Clientes</AlertTitle>
+          <AlertDescription>
+            Solo administradores y agentes pueden gestionar el padrón de clientes. Tu rol actual es{" "}
+            <strong>{roleLabel(rol)}</strong>.
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       <header className="flex flex-col gap-2 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6">
         <div className="min-w-0 space-y-1">

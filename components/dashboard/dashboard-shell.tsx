@@ -14,6 +14,7 @@ const nav = [
   { href: "/dashboard", label: "Inicio" },
   { href: "/dashboard/propiedades", label: "Propiedades" },
   { href: "/dashboard/proveedores", label: "Proveedores" },
+  { href: "/dashboard/clientes", label: "Clientes" },
   { href: "/dashboard/cobranzas", label: "Cobranzas" },
   { href: "/dashboard/contratos", label: "Contratos" },
 ] as const;

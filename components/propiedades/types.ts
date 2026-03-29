@@ -1,8 +1,12 @@
+import type { TipoCliente } from "@/lib/constants/clientes";
+
 export type PersonaOption = {
   id: string;
-  nombre: string;
+  nombre_completo: string;
+  dni: number;
+  tipo_cliente: TipoCliente;
   email?: string | null;
-  contacto?: string | null;
+  telefono?: string | null;
 };
 
 export type PropiedadListRow = {

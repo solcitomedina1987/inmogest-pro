@@ -49,7 +49,7 @@ const DIALOG_SELECT_CONTENT_CLASS =
   "z-[300] max-h-[min(18rem,var(--radix-select-content-available-height))]";
 
 function personaSubtitle(p: PersonaOption) {
-  const extra = p.email?.trim() || p.contacto?.trim();
+  const extra = p.email?.trim() || p.telefono?.trim() || `DNI ${p.dni}`;
   return extra ? ` · ${extra}` : "";
 }
 
@@ -170,10 +170,10 @@ export function PropiedadFormDialog({ open, onOpenChange, editing, propietarios,
 
         {propietarios.length === 0 ? (
           <Alert variant="destructive">
-            <AlertTitle>Sin propietarios</AlertTitle>
+            <AlertTitle>Sin propietarios en el padrón</AlertTitle>
             <AlertDescription>
-              No hay filas en la tabla <code className="text-xs">propietarios</code> o no tenés permisos RLS.
-              Ejecutá el seed de la migración SQL o creá propietarios desde Supabase.
+              No hay clientes activos con tipo <strong>Propietario</strong> o <strong>Ambos</strong>. Creá uno en{" "}
+              <strong>Clientes</strong> o actualizá el tipo de una persona existente.
             </AlertDescription>
           </Alert>
         ) : null}
@@ -305,7 +305,7 @@ export function PropiedadFormDialog({ open, onOpenChange, editing, propietarios,
                     <SelectContent position="popper" className={DIALOG_SELECT_CONTENT_CLASS}>
                       {propietarios.map((p) => (
                         <SelectItem key={p.id} value={p.id}>
-                          {p.nombre}
+                          {p.nombre_completo}
                           {personaSubtitle(p)}
                         </SelectItem>
                       ))}
@@ -335,7 +335,7 @@ export function PropiedadFormDialog({ open, onOpenChange, editing, propietarios,
                       <SelectItem value="none">Sin cliente</SelectItem>
                       {clientes.map((c) => (
                         <SelectItem key={c.id} value={c.id}>
-                          {c.nombre}
+                          {c.nombre_completo}
                           {personaSubtitle(c)}
                         </SelectItem>
                       ))}

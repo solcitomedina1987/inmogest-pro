@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { ContratoCobranzaRow, PagoRow } from "@/lib/cobranzas/types";
 import { ContratoDetalleClient } from "@/components/cobranzas/contrato-detalle-client";
 
-function unwrapFk<T extends { nombre?: string }>(v: T | T[] | null | undefined): T | null {
+function unwrapFk<T>(v: T | T[] | null | undefined): T | null {
   if (v == null) {
     return null;
   }
@@ -24,8 +24,8 @@ function normalizeContratoRow(row: Record<string, unknown>): ContratoCobranzaRow
     ultima_actualizacion: (row.ultima_actualizacion as string) ?? null,
     is_active: Boolean(row.is_active),
     propiedad: unwrapFk(row.propiedad as { nombre: string } | { nombre: string }[] | null),
-    inquilino: unwrapFk(row.inquilino as { nombre: string } | { nombre: string }[] | null),
-    locador: unwrapFk(row.locador as { nombre: string } | { nombre: string }[] | null),
+    inquilino: unwrapFk(row.inquilino as { nombre_completo: string } | { nombre_completo: string }[] | null),
+    locador: unwrapFk(row.locador as { nombre_completo: string } | { nombre_completo: string }[] | null),
   };
 }
 
@@ -64,8 +64,8 @@ export default async function CobranzasContratoDetallePage({ params }: PageProps
       ultima_actualizacion,
       is_active,
       propiedad:propiedades ( nombre ),
-      inquilino:clientes ( nombre ),
-      locador:propietarios ( nombre )
+      inquilino:clientes!contratos_cobranza_cliente_id_fkey ( nombre_completo ),
+      locador:clientes!contratos_cobranza_locador_id_fkey ( nombre_completo )
     `,
     )
     .eq("id", id)

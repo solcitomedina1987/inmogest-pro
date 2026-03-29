@@ -43,17 +43,13 @@ export default async function DashboardPropiedadesPage() {
     .eq("is_active", true)
     .order("created_at", { ascending: false });
 
-  const { data: propietariosData, error: propErr } = await supabase
-    .from("propietarios")
-    .select("id, nombre, email, contacto")
-    .order("nombre");
-
-  const { data: clientesData, error: cliErr } = await supabase
+  const { data: personasData, error: personasErr } = await supabase
     .from("clientes")
-    .select("id, nombre, email, contacto")
-    .order("nombre");
+    .select("id, nombre_completo, dni, tipo_cliente, email, telefono")
+    .eq("is_active", true)
+    .order("nombre_completo");
 
-  const queryError = propsErr?.message ?? propErr?.message ?? cliErr?.message;
+  const queryError = propsErr?.message ?? personasErr?.message;
 
   if (queryError) {
     return (
@@ -61,8 +57,8 @@ export default async function DashboardPropiedadesPage() {
         <p className="font-medium">Error al cargar datos</p>
         <p className="text-muted-foreground mt-1">{queryError}</p>
         <p className="text-muted-foreground mt-2">
-          Si acabás de desplegar el proyecto, ejecutá la migración SQL en{" "}
-          <code className="rounded bg-muted px-1">supabase/migrations/20250328120000_propiedades_crud.sql</code>.
+          Si acabás de desplegar el proyecto, ejecutá las migraciones en{" "}
+          <code className="rounded bg-muted px-1">supabase/migrations/</code> (propiedades y clientes unificados).
         </p>
       </div>
     );
@@ -117,11 +113,18 @@ export default async function DashboardPropiedadesPage() {
     contrato_cobranza_id: contratoPorPropiedad.get(r.id) ?? null,
   }));
 
+  const todas: PersonaOption[] = (personasData ?? []).map((r) => ({
+    id: r.id as string,
+    nombre_completo: r.nombre_completo as string,
+    dni: Number(r.dni),
+    tipo_cliente: r.tipo_cliente as PersonaOption["tipo_cliente"],
+    email: (r.email as string) ?? null,
+    telefono: (r.telefono as string) ?? null,
+  }));
+  const propietariosOpts = todas.filter((p) => p.tipo_cliente === "Propietario" || p.tipo_cliente === "Ambos");
+  const inquilinosOpts = todas.filter((p) => p.tipo_cliente === "Inquilino" || p.tipo_cliente === "Ambos");
+
   return (
-    <PropiedadesTable
-      rows={rows}
-      propietarios={(propietariosData ?? []) as PersonaOption[]}
-      clientes={(clientesData ?? []) as PersonaOption[]}
-    />
+    <PropiedadesTable rows={rows} propietarios={propietariosOpts} clientes={inquilinosOpts} />
   );
 }

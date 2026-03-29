@@ -194,7 +194,7 @@ export function CobranzasClient({
                         <TableCell className="font-medium whitespace-nowrap">
                           {c.propiedad?.nombre ?? "—"}
                         </TableCell>
-                        <TableCell className="whitespace-nowrap">{c.inquilino?.nombre ?? "—"}</TableCell>
+                        <TableCell className="whitespace-nowrap">{c.inquilino?.nombre_completo ?? "—"}</TableCell>
                         <TableCell className="whitespace-nowrap tabular-nums text-sm">
                           {fechaFmt.format(new Date(c.fecha_inicio + "T12:00:00"))}
                         </TableCell>

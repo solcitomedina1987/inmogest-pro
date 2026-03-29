@@ -99,13 +99,14 @@ export async function getExecutiveDashboardData(): Promise<ExecutiveDashboardDat
         monto_esperado,
         updated_at,
         contratos_cobranza (
-          inquilino:clientes ( nombre )
+          is_active,
+          inquilino:clientes!contratos_cobranza_cliente_id_fkey ( nombre_completo )
         )
       `,
       )
       .eq("estado", "Atrasado")
       .order("updated_at", { ascending: false })
-      .limit(5),
+      .limit(24),
   ]);
 
   if (
@@ -179,7 +180,7 @@ export async function getExecutiveDashboardData(): Promise<ExecutiveDashboardDat
       monto_esperado: number;
       contratos_cobranza: {
         is_active?: boolean;
-        inquilino?: { nombre?: string } | { nombre?: string }[] | null;
+        inquilino?: { nombre_completo?: string } | { nombre_completo?: string }[] | null;
       } | null;
     };
     const cc = unwrapFk(p.contratos_cobranza);
@@ -188,7 +189,7 @@ export async function getExecutiveDashboardData(): Promise<ExecutiveDashboardDat
       id: p.id,
       mes_periodo: p.mes_periodo,
       monto_esperado: Number(p.monto_esperado),
-      inquilino_nombre: inq?.nombre?.trim() || "—",
+      inquilino_nombre: inq?.nombre_completo?.trim() || "—",
     };
   });
 

@@ -13,8 +13,8 @@ export type ContratoCobranzaRow = {
   ultima_actualizacion: string | null;
   is_active: boolean;
   propiedad?: { nombre: string } | null;
-  inquilino?: { nombre: string } | null;
-  locador?: { nombre: string } | null;
+  inquilino?: { nombre_completo: string } | null;
+  locador?: { nombre_completo: string } | null;
 };
 
 export type PagoRow = {

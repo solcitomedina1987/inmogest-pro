@@ -5,7 +5,7 @@ import type { ContratoCobranzaRow, PagoRow } from "@/lib/cobranzas/types";
 import { CobranzasClient } from "@/components/cobranzas/cobranzas-client";
 import type { SelectOption } from "@/components/cobranzas/contrato-form-dialog";
 
-function unwrapFk<T extends { nombre?: string }>(v: T | T[] | null | undefined): T | null {
+function unwrapFk<T>(v: T | T[] | null | undefined): T | null {
   if (v == null) {
     return null;
   }
@@ -26,8 +26,8 @@ function normalizeContratoRow(row: Record<string, unknown>): ContratoCobranzaRow
     ultima_actualizacion: (row.ultima_actualizacion as string) ?? null,
     is_active: Boolean(row.is_active),
     propiedad: unwrapFk(row.propiedad as { nombre: string } | { nombre: string }[] | null),
-    inquilino: unwrapFk(row.inquilino as { nombre: string } | { nombre: string }[] | null),
-    locador: unwrapFk(row.locador as { nombre: string } | { nombre: string }[] | null),
+    inquilino: unwrapFk(row.inquilino as { nombre_completo: string } | { nombre_completo: string }[] | null),
+    locador: unwrapFk(row.locador as { nombre_completo: string } | { nombre_completo: string }[] | null),
   };
 }
 
@@ -63,8 +63,8 @@ export default async function DashboardCobranzasPage() {
       ultima_actualizacion,
       is_active,
       propiedad:propiedades ( nombre ),
-      inquilino:clientes ( nombre ),
-      locador:propietarios ( nombre )
+      inquilino:clientes!contratos_cobranza_cliente_id_fkey ( nombre_completo ),
+      locador:clientes!contratos_cobranza_locador_id_fkey ( nombre_completo )
     `,
     )
     .order("is_active", { ascending: false })
@@ -106,21 +106,23 @@ export default async function DashboardCobranzasPage() {
     );
   }
 
-  const { data: propRows } = await supabase
-    .from("propiedades")
-    .select("id, nombre, direccion")
-    .eq("is_active", true)
-    .order("nombre");
+  const [{ data: propRows }, { data: personasRows, error: personasErr }] = await Promise.all([
+    supabase.from("propiedades").select("id, nombre, direccion").eq("is_active", true).order("nombre"),
+    supabase
+      .from("clientes")
+      .select("id, nombre_completo, dni, tipo_cliente, email, telefono")
+      .eq("is_active", true)
+      .order("nombre_completo"),
+  ]);
 
-  const { data: cliRows } = await supabase
-    .from("clientes")
-    .select("id, nombre, email, contacto")
-    .order("nombre");
-
-  const { data: locRows } = await supabase
-    .from("propietarios")
-    .select("id, nombre, email, contacto")
-    .order("nombre");
+  if (personasErr) {
+    return (
+      <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-4 text-sm">
+        <p className="font-medium">Error al cargar clientes</p>
+        <p className="text-muted-foreground mt-1">{personasErr.message}</p>
+      </div>
+    );
+  }
 
   function optLabel(nombre: string, extra?: string | null) {
     const e = extra?.trim();
@@ -133,17 +135,26 @@ export default async function DashboardCobranzasPage() {
       label: optLabel(p.nombre as string, (p.direccion as string) || null),
     })) ?? [];
 
-  const clientes: SelectOption[] =
-    cliRows?.map((p) => ({
+  const personas = personasRows ?? [];
+  const clientes: SelectOption[] = personas
+    .filter((p) => p.tipo_cliente === "Inquilino" || p.tipo_cliente === "Ambos")
+    .map((p) => ({
       id: p.id as string,
-      label: optLabel(p.nombre as string, (p.email as string) || (p.contacto as string) || null),
-    })) ?? [];
+      label: optLabel(
+        p.nombre_completo as string,
+        (p.email as string) || `DNI ${p.dni}` || (p.telefono as string) || null,
+      ),
+    }));
 
-  const locadores: SelectOption[] =
-    locRows?.map((p) => ({
+  const locadores: SelectOption[] = personas
+    .filter((p) => p.tipo_cliente === "Propietario" || p.tipo_cliente === "Ambos")
+    .map((p) => ({
       id: p.id as string,
-      label: optLabel(p.nombre as string, (p.email as string) || (p.contacto as string) || null),
-    })) ?? [];
+      label: optLabel(
+        p.nombre_completo as string,
+        (p.email as string) || `DNI ${p.dni}` || (p.telefono as string) || null,
+      ),
+    }));
 
   return (
     <CobranzasClient
