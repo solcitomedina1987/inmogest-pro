@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Pencil } from "lucide-react";
+import { ArrowLeft, CheckCircle2, CircleDollarSign, Clock, Pencil, TrendingUp } from "lucide-react";
 import type { ContratoCobranzaRow, PagoRow } from "@/lib/cobranzas/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -59,6 +59,20 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
   const [imprimirPendiente, setImprimirPendiente] = useState(false);
 
   const nombreInquilino = contrato.inquilino?.nombre_completo?.trim() || "—";
+
+  const stats = useMemo(() => {
+    const total = pagos.length;
+    const pagados = pagos.filter((p) => p.estado === "Pagado");
+    const pendientes = pagos.filter((p) => p.estado === "Pendiente");
+    const atrasados = pagos.filter((p) => p.estado === "Atrasado");
+    const totalCobrado = pagados.reduce((acc, p) => acc + Number(p.monto_pagado ?? 0), 0);
+    const totalPendiente = [...pendientes, ...atrasados].reduce(
+      (acc, p) => acc + Number(p.monto_esperado ?? 0),
+      0,
+    );
+    const progreso = total > 0 ? Math.round((pagados.length / total) * 100) : 0;
+    return { total, pagados: pagados.length, pendientes: pendientes.length, atrasados: atrasados.length, totalCobrado, totalPendiente, progreso };
+  }, [pagos]);
 
   useEffect(() => {
     if (!imprimirPendiente || !reciboProps) {
@@ -160,6 +174,64 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
           </Button>
         </div>
       </div>
+
+      {pagos.length > 0 ? (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 print:hidden">
+          <div className="flex items-start gap-3 rounded-xl border bg-emerald-50 p-4">
+            <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-600" aria-hidden />
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-emerald-700">Pagadas</p>
+              <p className="mt-0.5 text-2xl font-bold tabular-nums text-emerald-800">
+                {stats.pagados}
+                <span className="text-sm font-normal text-emerald-600">/{stats.total}</span>
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3 rounded-xl border bg-amber-50 p-4">
+            <Clock className="mt-0.5 size-5 shrink-0 text-amber-600" aria-hidden />
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-amber-700">Pendientes</p>
+              <p className="mt-0.5 text-2xl font-bold tabular-nums text-amber-800">
+                {stats.pendientes + stats.atrasados}
+                {stats.atrasados > 0 ? (
+                  <span className="ml-1 text-xs font-medium text-destructive">
+                    ({stats.atrasados} atras.)
+                  </span>
+                ) : null}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3 rounded-xl border bg-sky-50 p-4">
+            <CircleDollarSign className="mt-0.5 size-5 shrink-0 text-sky-600" aria-hidden />
+            <div className="min-w-0 overflow-hidden">
+              <p className="text-xs font-medium text-sky-700">Total cobrado</p>
+              <p className="mt-0.5 truncate text-lg font-bold tabular-nums text-sky-800">
+                {precioFmt.format(stats.totalCobrado)}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3 rounded-xl border bg-stone-50 p-4">
+            <TrendingUp className="mt-0.5 size-5 shrink-0 text-stone-500" aria-hidden />
+            <div className="min-w-0 overflow-hidden">
+              <p className="text-xs font-medium text-stone-600">Progreso</p>
+              <p className="mt-0.5 text-2xl font-bold tabular-nums text-stone-800">
+                {stats.progreso}
+                <span className="text-sm font-normal text-stone-500">%</span>
+              </p>
+              <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-stone-200">
+                <div
+                  className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                  style={{ width: `${stats.progreso}%` }}
+                  role="progressbar"
+                  aria-valuenow={stats.progreso}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <Card className="border shadow-sm">
         <CardHeader>

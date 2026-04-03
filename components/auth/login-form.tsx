@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { safeRedirectPath } from "@/lib/safe-redirect";
 import { Button } from "@/components/ui/button";
@@ -97,7 +98,14 @@ export function LoginForm({ redirectTo }: Props) {
         </CardContent>
         <CardFooter className="flex flex-col gap-3 pt-2">
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Ingresando…" : "Entrar"}
+            {loading ? (
+              <span className="inline-flex items-center gap-2">
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+                Ingresando…
+              </span>
+            ) : (
+              "Entrar"
+            )}
           </Button>
           <p className="text-muted-foreground text-center text-xs leading-relaxed">
             ¿No tenés cuenta?{" "}

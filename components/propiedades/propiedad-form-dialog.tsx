@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2 } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import { useForm, type Resolver } from "react-hook-form";
 import { toast } from "sonner";
 import { createProperty, updateProperty } from "@/app/actions/propiedades";
@@ -99,41 +99,78 @@ type Props = {
 export function PropiedadFormDialog({ open, onOpenChange, editing, propietarios, clientes }: Props) {
   const router = useRouter();
   const [files, setFiles] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
   const [actionError, setActionError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<PropiedadFormClientValues>({
     resolver: zodResolver(propiedadFormClientSchema) as Resolver<PropiedadFormClientValues>,
     defaultValues: defaults,
   });
 
+  /** Limpia URLs de objeto para evitar memory leaks */
+  const revokePreviews = useCallback((urls: string[]) => {
+    urls.forEach((u) => URL.revokeObjectURL(u));
+  }, []);
+
   useEffect(() => {
     if (!open) {
       return;
     }
     setActionError(null);
+    setPreviews((prev) => { revokePreviews(prev); return []; });
     setFiles([]);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
     if (editing) {
       form.reset(rowToFormValues(editing));
     } else {
       form.reset(defaults);
     }
-  }, [open, editing, form]);
+  }, [open, editing, form, revokePreviews]);
+
+  /** Limpia URLs al desmontar el componente */
+  useEffect(() => {
+    return () => { revokePreviews(previews); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function handleImageInputChange(fileList: FileList | null) {
-    const list = Array.from(fileList ?? []).filter((f) => f.size > 0);
-    const rejectedSize = list.filter((f) => f.size > MAX_BYTES_PROPIEDAD_IMAGEN);
-    if (rejectedSize.length > 0) {
-      toast.error(
-        `Cada imagen debe pesar como máximo 5 MB. Revisá: ${rejectedSize.map((f) => f.name).join(", ")}`,
-      );
+    try {
+      const list = Array.from(fileList ?? []).filter((f) => f.size > 0);
+      const rejectedSize = list.filter((f) => f.size > MAX_BYTES_PROPIEDAD_IMAGEN);
+      if (rejectedSize.length > 0) {
+        toast.error(
+          `Cada imagen debe pesar como máximo 5 MB. Revisá: ${rejectedSize.map((f) => f.name).join(", ")}`,
+        );
+      }
+      const accepted = list.filter((f) => f.size <= MAX_BYTES_PROPIEDAD_IMAGEN);
+      const trimmed = accepted.slice(0, MAX_IMAGENES_PROPIEDAD);
+      if (accepted.length > MAX_IMAGENES_PROPIEDAD) {
+        toast.warning(`Solo se pueden subir hasta ${MAX_IMAGENES_PROPIEDAD} imágenes por propiedad.`);
+      }
+
+      const newPreviews = trimmed.map((f) => URL.createObjectURL(f));
+      setPreviews((prev) => { revokePreviews(prev); return newPreviews; });
+      setFiles(trimmed);
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    } catch (err) {
+      toast.error("Error al procesar las imágenes. Intentá de nuevo.");
+      console.error("[PropiedadFormDialog] handleImageInputChange:", err);
     }
-    const accepted = list.filter((f) => f.size <= MAX_BYTES_PROPIEDAD_IMAGEN);
-    const trimmed = accepted.slice(0, MAX_IMAGENES_PROPIEDAD);
-    if (accepted.length > MAX_IMAGENES_PROPIEDAD) {
-      toast.warning(`Solo se pueden subir hasta ${MAX_IMAGENES_PROPIEDAD} imágenes por propiedad.`);
-    }
-    setFiles(trimmed);
+  }
+
+  function removeFile(index: number) {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
+    setPreviews((prev) => {
+      URL.revokeObjectURL(prev[index]);
+      return prev.filter((_, i) => i !== index);
+    });
   }
 
   function buildFormData(values: PropiedadFormClientValues) {
@@ -481,27 +518,47 @@ export function PropiedadFormDialog({ open, onOpenChange, editing, propietarios,
             <div className="space-y-2">
               <Label htmlFor="prop-images">Imágenes</Label>
               <Input
+                ref={fileInputRef}
                 id="prop-images"
                 type="file"
                 accept="image/*"
                 multiple
                 disabled={pending}
-                onChange={(e) => {
-                  handleImageInputChange(e.target.files);
-                  e.target.value = "";
-                }}
+                onChange={(e) => handleImageInputChange(e.target.files)}
               />
               <p className="text-muted-foreground text-xs">
-                Hasta {MAX_IMAGENES_PROPIEDAD} archivos, máximo 5 MB cada uno. Si no subís ninguna, se usa la
-                imagen por defecto (/img/casa-default.png)
-                {editing ? ". Al elegir archivos nuevos, se reemplazan todas las fotos actuales." : "."}
+                Hasta {MAX_IMAGENES_PROPIEDAD} archivos, máximo 5 MB cada uno. Sin imágenes se usa la
+                foto por defecto.
+                {editing ? " Elegir archivos nuevos reemplaza todas las fotos actuales." : ""}
               </p>
-              {files.length > 0 ? (
-                <p className="text-muted-foreground text-xs">
-                  {files.length === 1
-                    ? "1 archivo listo para subir."
-                    : `${files.length} archivos listos para subir.`}
-                </p>
+
+              {previews.length > 0 ? (
+                <div className="grid grid-cols-3 gap-2 pt-1 sm:grid-cols-5">
+                  {previews.map((src, i) => (
+                    <div
+                      key={src}
+                      className="group relative aspect-video overflow-hidden rounded-md border border-stone-200 bg-stone-100"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={src}
+                        alt={`Vista previa ${i + 1}`}
+                        className="h-full w-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        aria-label={`Quitar imagen ${i + 1}`}
+                        onClick={() => removeFile(i)}
+                        className="absolute right-0.5 top-0.5 hidden size-5 items-center justify-center rounded-full bg-black/60 text-white transition-opacity hover:bg-black/80 group-hover:flex"
+                      >
+                        <X className="size-3" aria-hidden />
+                      </button>
+                      <span className="absolute bottom-0.5 left-1 text-[10px] font-medium text-white drop-shadow">
+                        {i + 1}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               ) : null}
             </div>
 

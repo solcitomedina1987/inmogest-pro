@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
-import { AlertTriangle, CalendarClock, Eye } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { AlertTriangle, CalendarClock, Eye, Loader2 } from "lucide-react";
 import type { ContratoCobranzaRow, PagoRow } from "@/lib/cobranzas/types";
 import {
   estadoCobranzaContrato,
@@ -93,7 +93,9 @@ export function CobranzasClient({
   clientes,
   locadores,
 }: Props) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [navigatingId, setNavigatingId] = useState<string | null>(null);
   const mes = mesPeriodoActual();
 
   const pagosMap = useMemo(() => {
@@ -221,10 +223,22 @@ export function CobranzasClient({
                           )}
                         </TableCell>
                         <TableCell className="text-center">
-                          <Button variant="ghost" size="icon" className="size-8" asChild>
-                            <Link href={`/dashboard/cobranzas/${c.id}`} aria-label="Ver detalle del contrato">
-                              <Eye className="size-4" />
-                            </Link>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-8"
+                            aria-label="Ver detalle del contrato"
+                            disabled={navigatingId === c.id}
+                            onClick={() => {
+                              setNavigatingId(c.id);
+                              router.push(`/dashboard/cobranzas/${c.id}`);
+                            }}
+                          >
+                            {navigatingId === c.id ? (
+                              <Loader2 className="size-4 animate-spin" aria-hidden />
+                            ) : (
+                              <Eye className="size-4" aria-hidden />
+                            )}
                           </Button>
                         </TableCell>
                       </TableRow>
