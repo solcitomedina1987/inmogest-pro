@@ -4,12 +4,29 @@ import { Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type Props = {
-  /** Dispara la preparación del recibo e impresión (padre monta ReciboAlquiler y llama window.print). */
   onPrint: () => void;
   disabled?: boolean;
+  /** Muestra solo el ícono (sin texto), para usar dentro de la tabla con Tooltip externo. */
+  iconOnly?: boolean;
 };
 
-export function ReciboPrintButton({ onPrint, disabled }: Props) {
+export function ReciboPrintButton({ onPrint, disabled, iconOnly = false }: Props) {
+  if (iconOnly) {
+    return (
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="size-8 text-stone-500 hover:text-stone-800"
+        disabled={disabled}
+        onClick={onPrint}
+        aria-label="Imprimir recibo"
+      >
+        <Printer className="size-4" aria-hidden />
+      </Button>
+    );
+  }
+
   return (
     <Button
       type="button"
@@ -17,9 +34,7 @@ export function ReciboPrintButton({ onPrint, disabled }: Props) {
       size="sm"
       className="gap-1.5"
       disabled={disabled}
-      onClick={() => {
-        onPrint();
-      }}
+      onClick={onPrint}
     >
       <Printer className="size-3.5 shrink-0" aria-hidden />
       Imprimir recibo

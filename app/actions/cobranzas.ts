@@ -5,7 +5,7 @@ import { requireAdmin } from "@/lib/supabase/require-admin";
 import { mesPeriodoActual, mesPeriodoDesdeFecha } from "@/lib/cobranzas/estado-contrato";
 import { mesesPeriodoEntreFechasContrato } from "@/lib/cobranzas/meses-contrato";
 import { contratoCobranzaSchema } from "@/lib/validations/contrato-cobranza";
-import { registroPagoSchema } from "@/lib/validations/registro-pago";
+import { registroPagoSchema, editarPagoSchema } from "@/lib/validations/registro-pago";
 import { updateContratoCobranzaSchema } from "@/lib/validations/update-contrato-cobranza";
 
 export type CobranzaActionResult = { ok: true } | { ok: false; error: string };
@@ -86,7 +86,8 @@ export async function registrarPagoContrato(input: unknown): Promise<CobranzaAct
   }
 
   const v = parsed.data;
-  const mes_periodo = mesPeriodoDesdeFecha(v.fecha_pago);
+  // mes_periodo viene explícito del formulario (fila seleccionada), NO se deriva de fecha_pago
+  const { mes_periodo } = v;
 
   const { data: contrato, error: cErr } = await supabase
     .from("contratos_cobranza")
@@ -107,7 +108,8 @@ export async function registrarPagoContrato(input: unknown): Promise<CobranzaAct
     .eq("mes_periodo", mes_periodo)
     .maybeSingle();
 
-  const monto_esperado = existente?.monto_esperado != null ? Number(existente.monto_esperado) : montoMensual;
+  const monto_esperado =
+    existente?.monto_esperado != null ? Number(existente.monto_esperado) : montoMensual;
   const estado = v.monto_pagado >= monto_esperado ? "Pagado" : "Pendiente";
 
   const payload = {
@@ -123,18 +125,90 @@ export async function registrarPagoContrato(input: unknown): Promise<CobranzaAct
 
   if (existente?.id) {
     const { error: upErr } = await supabase.from("pagos").update(payload).eq("id", existente.id);
-    if (upErr) {
-      return { ok: false, error: upErr.message };
-    }
+    if (upErr) return { ok: false, error: upErr.message };
   } else {
     const { error: insErr } = await supabase.from("pagos").insert(payload);
-    if (insErr) {
-      return { ok: false, error: insErr.message };
-    }
+    if (insErr) return { ok: false, error: insErr.message };
   }
 
   revalidatePath("/dashboard/cobranzas");
   revalidatePath(`/dashboard/cobranzas/${v.contrato_id}`);
+  return { ok: true };
+}
+
+/** Edita los datos de un pago ya registrado (fecha real, monto, forma, notas). */
+export async function editarPago(input: unknown): Promise<CobranzaActionResult> {
+  const gate = await requireAdmin();
+  if (!gate.ok) {
+    return { ok: false, error: gate.code === "no-auth" ? "Iniciá sesión." : "Sin permisos." };
+  }
+  const { supabase } = gate;
+
+  const parsed = editarPagoSchema.safeParse(input);
+  if (!parsed.success) {
+    const first = Object.values(parsed.error.flatten().fieldErrors).flat()[0] ?? "Datos inválidos";
+    return { ok: false, error: first };
+  }
+
+  const v = parsed.data;
+
+  const { data: pago, error: pErr } = await supabase
+    .from("pagos")
+    .select("id, monto_esperado")
+    .eq("id", v.pago_id)
+    .maybeSingle();
+
+  if (pErr || !pago) return { ok: false, error: "Pago no encontrado." };
+
+  const monto_esperado = Number(pago.monto_esperado);
+  const estado = v.monto_pagado >= monto_esperado ? "Pagado" : "Pendiente";
+
+  const { error: upErr } = await supabase
+    .from("pagos")
+    .update({
+      monto_pagado: v.monto_pagado,
+      fecha_pago_realizado: v.fecha_pago,
+      forma_pago: v.forma_pago,
+      observaciones: v.observaciones?.trim() || null,
+      estado,
+    })
+    .eq("id", v.pago_id);
+
+  if (upErr) return { ok: false, error: upErr.message };
+
+  revalidatePath("/dashboard/cobranzas");
+  revalidatePath(`/dashboard/cobranzas/${v.contrato_id}`);
+  return { ok: true };
+}
+
+/** Anula un pago: vuelve el período a 'Pendiente' limpiando los datos de cobro. */
+export async function anularPago(
+  pagoId: string,
+  contratoId: string,
+): Promise<CobranzaActionResult> {
+  const gate = await requireAdmin();
+  if (!gate.ok) {
+    return { ok: false, error: gate.code === "no-auth" ? "Iniciá sesión." : "Sin permisos." };
+  }
+  const { supabase } = gate;
+
+  if (!pagoId || !contratoId) return { ok: false, error: "Datos inválidos." };
+
+  const { error } = await supabase
+    .from("pagos")
+    .update({
+      estado: "Pendiente",
+      monto_pagado: null,
+      fecha_pago_realizado: null,
+      forma_pago: null,
+      observaciones: null,
+    })
+    .eq("id", pagoId);
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/dashboard/cobranzas");
+  revalidatePath(`/dashboard/cobranzas/${contratoId}`);
   return { ok: true };
 }
 

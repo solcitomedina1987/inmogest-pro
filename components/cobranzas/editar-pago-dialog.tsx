@@ -5,12 +5,10 @@ import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { useForm, type Resolver } from "react-hook-form";
-import { registrarPagoContrato } from "@/app/actions/cobranzas";
+import { editarPago } from "@/app/actions/cobranzas";
 import { FORMAS_PAGO } from "@/lib/constants/cobranzas";
-import {
-  registroPagoSchema,
-  type RegistroPagoValues,
-} from "@/lib/validations/registro-pago";
+import { editarPagoSchema, type EditarPagoValues } from "@/lib/validations/registro-pago";
+import type { PagoRow } from "@/lib/cobranzas/types";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -42,11 +40,6 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 const DIALOG_SELECT_CONTENT_CLASS =
   "z-[300] max-h-[min(18rem,var(--radix-select-content-available-height))]";
 
-function hoyISO(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
 function formatMesPeriodo(mes: string): string {
   if (!/^\d{4}-\d{2}$/.test(mes)) return mes;
   const [y, m] = mes.split("-");
@@ -55,63 +48,47 @@ function formatMesPeriodo(mes: string): string {
 }
 
 type Props = {
+  pago: PagoRow | null;
   contratoId: string;
-  montoSugerido: number;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Contratos finalizados no permiten registrar pagos. */
-  disabled?: boolean;
-  /** Período YYYY-MM de la fila: queda BLOQUEADO en el formulario. */
-  mesPeriodoPredefinido?: string | null;
 };
 
-export function RegistrarPagoDialog({
-  contratoId,
-  montoSugerido,
-  open,
-  onOpenChange,
-  disabled = false,
-  mesPeriodoPredefinido = null,
-}: Props) {
+export function EditarPagoDialog({ pago, contratoId, open, onOpenChange }: Props) {
   const router = useRouter();
   const [actionError, setActionError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const form = useForm<RegistroPagoValues>({
-    resolver: zodResolver(registroPagoSchema) as Resolver<RegistroPagoValues>,
+  const form = useForm<EditarPagoValues>({
+    resolver: zodResolver(editarPagoSchema) as Resolver<EditarPagoValues>,
     defaultValues: {
+      pago_id: "",
       contrato_id: contratoId,
-      mes_periodo: mesPeriodoPredefinido ?? "",
-      fecha_pago: hoyISO(),
+      fecha_pago: "",
       forma_pago: "Transferencia",
-      monto_pagado: montoSugerido,
+      monto_pagado: 0,
       observaciones: "",
     },
   });
 
   useEffect(() => {
-    if (disabled && open) onOpenChange(false);
-  }, [disabled, open, onOpenChange]);
-
-  useEffect(() => {
-    if (open) {
+    if (open && pago) {
       setActionError(null);
       form.reset({
+        pago_id: pago.id,
         contrato_id: contratoId,
-        mes_periodo: mesPeriodoPredefinido ?? "",
-        fecha_pago: hoyISO(),
-        forma_pago: "Transferencia",
-        monto_pagado: montoSugerido,
-        observaciones: "",
+        fecha_pago: pago.fecha_pago_realizado ?? "",
+        forma_pago: (pago.forma_pago as EditarPagoValues["forma_pago"]) ?? "Transferencia",
+        monto_pagado: pago.monto_pagado != null ? Number(pago.monto_pagado) : 0,
+        observaciones: pago.observaciones ?? "",
       });
     }
-  }, [open, contratoId, montoSugerido, mesPeriodoPredefinido, form]);
+  }, [open, pago, contratoId, form]);
 
-  function onSubmit(values: RegistroPagoValues) {
-    if (disabled) return;
+  function onSubmit(values: EditarPagoValues) {
     setActionError(null);
     startTransition(async () => {
-      const res = await registrarPagoContrato(values);
+      const res = await editarPago(values);
       if (!res.ok) {
         setActionError(res.error);
         return;
@@ -121,41 +98,36 @@ export function RegistrarPagoDialog({
     });
   }
 
+  if (!pago) return null;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Registrar pago mensual</DialogTitle>
+          <DialogTitle>Editar pago registrado</DialogTitle>
           <DialogDescription>
-            El <strong>período contable</strong> queda fijo según la fila seleccionada. La fecha
-            real puede ser cualquier día del mes.
-            {disabled ? (
-              <span className="mt-2 block text-destructive">
-                Este contrato está finalizado; no se pueden cargar pagos.
-              </span>
-            ) : null}
+            Corregí la fecha real, monto o forma de pago del período{" "}
+            <strong>{formatMesPeriodo(pago.mes_periodo)}</strong>.
           </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <input type="hidden" {...form.register("pago_id")} />
             <input type="hidden" {...form.register("contrato_id")} />
-            <input type="hidden" {...form.register("mes_periodo")} />
 
-            {/* Período bloqueado — solo informativo */}
-            {mesPeriodoPredefinido ? (
-              <div className="rounded-md border border-stone-200 bg-stone-50 px-3 py-2.5">
-                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
-                  Período contable
-                </p>
-                <p className="mt-0.5 font-semibold tabular-nums">
-                  {formatMesPeriodo(mesPeriodoPredefinido)}
-                  <span className="text-muted-foreground ml-2 text-xs font-normal">
-                    ({mesPeriodoPredefinido}) — no editable
-                  </span>
-                </p>
-              </div>
-            ) : null}
+            {/* Período — solo informativo, no editable */}
+            <div className="rounded-md border border-stone-200 bg-stone-50 px-3 py-2.5">
+              <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+                Período contable
+              </p>
+              <p className="mt-0.5 font-semibold">
+                {formatMesPeriodo(pago.mes_periodo)}
+                <span className="text-muted-foreground ml-2 text-xs font-normal">
+                  ({pago.mes_periodo}) — no editable
+                </span>
+              </p>
+            </div>
 
             {actionError ? (
               <Alert variant="destructive">
@@ -243,14 +215,14 @@ export function RegistrarPagoDialog({
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={pending || disabled}>
+              <Button type="submit" disabled={pending}>
                 {pending ? (
                   <span className="inline-flex items-center gap-2">
                     <Loader2 className="size-4 animate-spin" aria-hidden />
                     Guardando…
                   </span>
                 ) : (
-                  "Guardar pago"
+                  "Guardar cambios"
                 )}
               </Button>
             </DialogFooter>
