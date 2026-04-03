@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, X } from "lucide-react";
+import { CheckCircle2, Loader2, UploadCloud, X } from "lucide-react";
 import { useForm, type Resolver } from "react-hook-form";
 import { toast } from "sonner";
 import { createProperty, updateProperty } from "@/app/actions/propiedades";
+import { createClient } from "@/lib/supabase/client";
 import {
   ESTADO_PROPIEDAD_VALUES,
   MAX_BYTES_PROPIEDAD_IMAGEN,
@@ -96,11 +97,46 @@ type Props = {
   clientes: PersonaOption[];
 };
 
+/** Sube archivos directamente al bucket de Supabase desde el navegador.
+ *  Evita el límite de 4.5 MB de Vercel en serverless functions. */
+async function uploadFilesToSupabase(
+  files: File[],
+  onProgress: (msg: string) => void,
+): Promise<string[]> {
+  const supabase = createClient();
+  const ts = Date.now();
+  const urls: string[] = [];
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    onProgress(`Subiendo foto ${i + 1} de ${files.length}…`);
+
+    const ext = file.name.split(".").pop()?.replace(/[^a-zA-Z0-9]/g, "") || "jpg";
+    const uid = Math.random().toString(36).slice(2, 10);
+    const path = `uploads/${ts}-${i}-${uid}.${ext}`;
+
+    const { error } = await supabase.storage.from("propiedades").upload(path, file, {
+      cacheControl: "3600",
+      upsert: false,
+    });
+
+    if (error) {
+      throw new Error(`No se pudo subir "${file.name}": ${error.message}`);
+    }
+
+    const { data: { publicUrl } } = supabase.storage.from("propiedades").getPublicUrl(path);
+    urls.push(publicUrl);
+  }
+
+  return urls;
+}
+
 export function PropiedadFormDialog({ open, onOpenChange, editing, propietarios, clientes }: Props) {
   const router = useRouter();
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [uploadMsg, setUploadMsg] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -173,7 +209,9 @@ export function PropiedadFormDialog({ open, onOpenChange, editing, propietarios,
     });
   }
 
-  function buildFormData(values: PropiedadFormClientValues) {
+  /** Las imágenes ya NO se envían como File a través del servidor.
+   *  Se pasan como URLs (strings) luego de subirse directamente a Supabase Storage. */
+  function buildFormData(values: PropiedadFormClientValues, imageUrls: string[] = []) {
     const fd = new FormData();
     fd.append("nombre", values.nombre);
     fd.append("direccion", values.direccion);
@@ -187,7 +225,7 @@ export function PropiedadFormDialog({ open, onOpenChange, editing, propietarios,
     fd.append("m2_totales", String(values.m2_totales));
     fd.append("m2_cubiertos", String(values.m2_cubiertos));
     fd.append("ubicacion_texto", values.ubicacion_texto ?? "");
-    files.forEach((f) => fd.append("images", f));
+    imageUrls.forEach((url) => fd.append("imageUrls", url));
     return fd;
   }
 
@@ -199,7 +237,21 @@ export function PropiedadFormDialog({ open, onOpenChange, editing, propietarios,
     }
 
     startTransition(async () => {
-      const fd = buildFormData(values);
+      // Paso 1: subir archivos directo a Supabase desde el browser (evita límite 4.5 MB de Vercel)
+      let imageUrls: string[] = [];
+      if (files.length > 0) {
+        try {
+          imageUrls = await uploadFilesToSupabase(files, (msg) => setUploadMsg(msg));
+        } catch (e) {
+          setActionError(e instanceof Error ? e.message : "Error al subir imágenes.");
+          setUploadMsg(null);
+          return;
+        }
+        setUploadMsg(null);
+      }
+
+      // Paso 2: enviar solo URLs + datos del formulario al Server Action (sin bytes de archivo)
+      const fd = buildFormData(values, imageUrls);
       if (editing) {
         fd.append("id", editing.id);
       }
@@ -241,10 +293,12 @@ export function PropiedadFormDialog({ open, onOpenChange, editing, propietarios,
                 className="flex items-center gap-2 rounded-md border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm text-stone-800"
                 aria-live="polite"
               >
-                <Loader2 className="text-muted-foreground size-4 shrink-0 animate-spin" aria-hidden />
-                <span>
-                  {files.length > 0 ? "Subiendo imágenes y guardando la propiedad…" : "Guardando la propiedad…"}
-                </span>
+                {uploadMsg ? (
+                  <UploadCloud className="text-muted-foreground size-4 shrink-0 animate-pulse" aria-hidden />
+                ) : (
+                  <Loader2 className="text-muted-foreground size-4 shrink-0 animate-spin" aria-hidden />
+                )}
+                <span>{uploadMsg ?? "Guardando la propiedad…"}</span>
               </div>
             ) : null}
             {actionError ? (
@@ -527,11 +581,18 @@ export function PropiedadFormDialog({ open, onOpenChange, editing, propietarios,
                 onChange={(e) => handleImageInputChange(e.target.files)}
               />
               <p className="text-muted-foreground text-xs">
-                Hasta {MAX_IMAGENES_PROPIEDAD} archivos, máximo 5 MB cada uno. Sin imágenes se usa la
-                foto por defecto.
+                Hasta {MAX_IMAGENES_PROPIEDAD} fotos, máx. 5 MB cada una. Las fotos se suben directamente a
+                Supabase sin pasar por el servidor.
                 {editing ? " Elegir archivos nuevos reemplaza todas las fotos actuales." : ""}
               </p>
 
+              {previews.length > 0 ? (
+                <p className="flex items-center gap-1.5 text-xs text-emerald-700">
+                  <CheckCircle2 className="size-3.5 shrink-0" aria-hidden />
+                  {previews.length === 1 ? "1 foto lista" : `${previews.length} fotos listas`}
+                  {" · se subirán al guardar"}
+                </p>
+              ) : null}
               {previews.length > 0 ? (
                 <div className="grid grid-cols-3 gap-2 pt-1 sm:grid-cols-5">
                   {previews.map((src, i) => (
@@ -569,13 +630,17 @@ export function PropiedadFormDialog({ open, onOpenChange, editing, propietarios,
               <Button type="submit" disabled={pending} className="min-w-[8.5rem]">
                 {pending ? (
                   <span className="inline-flex items-center gap-2">
-                    <Loader2 className="size-4 animate-spin" />
-                    Cargando…
+                    {uploadMsg ? (
+                      <UploadCloud className="size-4 animate-pulse" aria-hidden />
+                    ) : (
+                      <Loader2 className="size-4 animate-spin" aria-hidden />
+                    )}
+                    {uploadMsg ? "Subiendo…" : "Guardando…"}
                   </span>
                 ) : editing ? (
                   "Guardar cambios"
                 ) : (
-                  "Crear"
+                  "Crear propiedad"
                 )}
               </Button>
             </DialogFooter>

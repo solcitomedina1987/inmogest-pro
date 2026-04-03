@@ -1,10 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { randomUUID } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
-  MAX_BYTES_PROPIEDAD_IMAGEN,
   MAX_IMAGENES_PROPIEDAD,
   PROPIEDAD_IMAGEN_PLACEHOLDER,
 } from "@/lib/constants/propiedades";
@@ -14,60 +12,41 @@ import { parsePropiedadFormData, toPropiedadDbPayload } from "@/lib/validations/
 
 const BUCKET = "propiedades";
 
-function collectImages(formData: FormData): File[] {
+/**
+ * Las imágenes se suben directamente a Supabase Storage desde el navegador
+ * (evita el límite de 4.5 MB de Vercel en serverless functions).
+ * El Server Action solo recibe las URLs resultantes como strings en el FormData.
+ */
+function collectImageUrls(formData: FormData): string[] {
   return formData
-    .getAll("images")
-    .filter((x): x is File => x instanceof File && x.size > 0)
+    .getAll("imageUrls")
+    .filter((x): x is string => typeof x === "string" && x.startsWith("https://"))
     .slice(0, MAX_IMAGENES_PROPIEDAD);
 }
 
-function validateImageFiles(files: File[]): string | null {
-  const over = files.find((f) => f.size > MAX_BYTES_PROPIEDAD_IMAGEN);
-  if (over) {
-    return `Cada imagen debe pesar como máximo 5 MB (${over.name}).`;
-  }
-  return null;
-}
-
-async function insertImagenes(supabase: SupabaseClient, propiedadId: string, files: File[]) {
-  if (files.length === 0) {
-    await supabase.from("propiedades_img").insert({
+async function insertImagenesFromUrls(
+  supabase: SupabaseClient,
+  propiedadId: string,
+  urls: string[],
+) {
+  if (urls.length === 0) {
+    const { error } = await supabase.from("propiedades_img").insert({
       propiedad_id: propiedadId,
       url_imagen: PROPIEDAD_IMAGEN_PLACEHOLDER,
       orden: 0,
     });
+    if (error) throw new Error(error.message);
     return;
   }
 
-  const ts = Date.now();
-  const publicUrls = await Promise.all(
-    files.map(async (file, i) => {
-      const ext = file.name.split(".").pop()?.replace(/[^a-zA-Z0-9]/g, "") || "jpg";
-      const path = `${propiedadId}/${propiedadId}-${ts}-${i}-${randomUUID().slice(0, 10)}.${ext}`;
-      const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, file, {
-        cacheControl: "3600",
-        upsert: false,
-      });
-      if (upErr) {
-        throw new Error(upErr.message);
-      }
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from(BUCKET).getPublicUrl(path);
-      return publicUrl;
-    }),
-  );
-
-  const rows = publicUrls.map((url_imagen, orden) => ({
+  const rows = urls.map((url_imagen, orden) => ({
     propiedad_id: propiedadId,
     url_imagen,
     orden,
   }));
 
-  const { error: insErr } = await supabase.from("propiedades_img").insert(rows);
-  if (insErr) {
-    throw new Error(insErr.message);
-  }
+  const { error } = await supabase.from("propiedades_img").insert(rows);
+  if (error) throw new Error(error.message);
 }
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -90,11 +69,7 @@ export async function createProperty(formData: FormData): Promise<ActionResult> 
   }
 
   const row = toPropiedadDbPayload(parsed.data);
-  const files = collectImages(formData);
-  const sizeErr = validateImageFiles(files);
-  if (sizeErr) {
-    return { ok: false, error: sizeErr };
-  }
+  const imageUrls = collectImageUrls(formData);
 
   const { data: created, error: insErr } = await supabase
     .from("propiedades")
@@ -111,9 +86,9 @@ export async function createProperty(formData: FormData): Promise<ActionResult> 
   }
 
   try {
-    await insertImagenes(supabase, created.id as string, files);
+    await insertImagenesFromUrls(supabase, created.id as string, imageUrls);
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Error al subir imágenes." };
+    return { ok: false, error: e instanceof Error ? e.message : "Error al guardar imágenes." };
   }
 
   revalidatePath("/dashboard/propiedades");
@@ -144,11 +119,7 @@ export async function updateProperty(formData: FormData): Promise<ActionResult> 
   }
 
   const row = toPropiedadDbPayload(parsed.data);
-  const files = collectImages(formData);
-  const sizeErr = validateImageFiles(files);
-  if (sizeErr) {
-    return { ok: false, error: sizeErr };
-  }
+  const imageUrls = collectImageUrls(formData);
 
   const { error: upErr } = await supabase
     .from("propiedades")
@@ -163,7 +134,7 @@ export async function updateProperty(formData: FormData): Promise<ActionResult> 
     return { ok: false, error: upErr.message };
   }
 
-  if (files.length > 0) {
+  if (imageUrls.length > 0) {
     const { data: imgs } = await supabase.from("propiedades_img").select("url_imagen").eq("propiedad_id", id);
 
     const paths =
@@ -178,9 +149,9 @@ export async function updateProperty(formData: FormData): Promise<ActionResult> 
     await supabase.from("propiedades_img").delete().eq("propiedad_id", id);
 
     try {
-      await insertImagenes(supabase, id, files);
+      await insertImagenesFromUrls(supabase, id, imageUrls);
     } catch (e) {
-      return { ok: false, error: e instanceof Error ? e.message : "Error al subir imágenes." };
+      return { ok: false, error: e instanceof Error ? e.message : "Error al guardar imágenes." };
     }
   }
 
