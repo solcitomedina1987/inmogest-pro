@@ -40,6 +40,7 @@ export async function createContratoCobranza(input: unknown): Promise<CobranzaAc
       monto_mensual: v.monto_mensual,
       dia_limite_pago: v.dia_limite_pago,
       meses_actualizacion: v.meses_actualizacion,
+      indice_actualizacion: v.indice_actualizacion ?? "ICL",
       ultima_actualizacion: null,
       is_active: true,
     })
@@ -262,6 +263,7 @@ export async function updateContract(input: unknown): Promise<CobranzaActionResu
       dia_limite_pago: v.dia_limite_pago,
       fecha_vencimiento: v.fecha_vencimiento,
       meses_actualizacion: v.meses_actualizacion,
+      indice_actualizacion: v.indice_actualizacion ?? "ICL",
       is_active: v.is_active,
     })
     .eq("id", v.contrato_id);

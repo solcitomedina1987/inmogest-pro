@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, CalendarClock, Eye, Loader2 } from "lucide-react";
+import { AlertTriangle, CalendarClock, Eye, Loader2, MessageCircle } from "lucide-react";
+import { toast } from "sonner";
 import type { ContratoCobranzaRow, PagoRow } from "@/lib/cobranzas/types";
 import {
   estadoCobranzaContrato,
@@ -12,6 +13,7 @@ import {
   type EstadoVisualCobranza,
   type PagoMesInfo,
 } from "@/lib/cobranzas/estado-contrato";
+import { enviarRecordatorioWhatsApp } from "@/app/actions/whatsapp";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +25,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { ContratoFormDialog, type SelectOption } from "@/components/cobranzas/contrato-form-dialog";
 
 const precioFmt = new Intl.NumberFormat("es-AR", {
@@ -96,6 +104,8 @@ export function CobranzasClient({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [navigatingId, setNavigatingId] = useState<string | null>(null);
+  const [waLoadingId, setWaLoadingId] = useState<string | null>(null);
+  const [, startWaTransition] = useTransition();
   const mes = mesPeriodoActual();
 
   const pagosMap = useMemo(() => {
@@ -111,6 +121,19 @@ export function CobranzasClient({
   const contratosActivos = useMemo(() => contratos.filter((c) => c.is_active), [contratos]);
 
   const proximas = useMemo(() => filtrarProximasActualizaciones(contratosActivos, 90), [contratosActivos]);
+
+  function handleEnviarWA(contratoId: string) {
+    setWaLoadingId(contratoId);
+    startWaTransition(async () => {
+      const res = await enviarRecordatorioWhatsApp(contratoId);
+      setWaLoadingId(null);
+      if (res.ok) {
+        toast.success(res.mensaje);
+      } else {
+        toast.error(res.mensaje);
+      }
+    });
+  }
 
   return (
     <div className="flex max-w-full min-w-0 flex-col gap-8">
@@ -184,7 +207,7 @@ export function CobranzasClient({
                     <TableHead>Límite</TableHead>
                     <TableHead>Estado cobro</TableHead>
                     <TableHead>Contrato</TableHead>
-                    <TableHead className="w-[72px] text-center">Ver</TableHead>
+                    <TableHead className="w-[96px] text-center">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -223,23 +246,56 @@ export function CobranzasClient({
                           )}
                         </TableCell>
                         <TableCell className="text-center">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="size-8"
-                            aria-label="Ver detalle del contrato"
-                            disabled={navigatingId === c.id}
-                            onClick={() => {
-                              setNavigatingId(c.id);
-                              router.push(`/dashboard/cobranzas/${c.id}`);
-                            }}
-                          >
-                            {navigatingId === c.id ? (
-                              <Loader2 className="size-4 animate-spin" aria-hidden />
-                            ) : (
-                              <Eye className="size-4" aria-hidden />
-                            )}
-                          </Button>
+                          <TooltipProvider delayDuration={300}>
+                            <div className="flex items-center justify-center gap-1">
+                              {/* Botón WhatsApp */}
+                              {c.is_active && (c.inquilino as { nombre_completo: string; telefono?: string | null } | null)?.telefono ? (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="size-8 text-green-600 hover:bg-green-50 hover:text-green-700"
+                                      aria-label="Enviar recordatorio por WhatsApp"
+                                      disabled={waLoadingId === c.id}
+                                      onClick={() => handleEnviarWA(c.id)}
+                                    >
+                                      {waLoadingId === c.id ? (
+                                        <Loader2 className="size-4 animate-spin" aria-hidden />
+                                      ) : (
+                                        <MessageCircle className="size-4" aria-hidden />
+                                      )}
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Enviar recordatorio por WhatsApp</TooltipContent>
+                                </Tooltip>
+                              ) : null}
+
+                              {/* Botón Ver detalle */}
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="size-8"
+                                    aria-label="Ver detalle del contrato"
+                                    disabled={navigatingId === c.id}
+                                    onClick={() => {
+                                      setNavigatingId(c.id);
+                                      router.push(`/dashboard/cobranzas/${c.id}`);
+                                    }}
+                                  >
+                                    {navigatingId === c.id ? (
+                                      <Loader2 className="size-4 animate-spin" aria-hidden />
+                                    ) : (
+                                      <Eye className="size-4" aria-hidden />
+                                    )}
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Ver detalle del contrato</TooltipContent>
+                              </Tooltip>
+                            </div>
+                          </TooltipProvider>
                         </TableCell>
                       </TableRow>
                     );

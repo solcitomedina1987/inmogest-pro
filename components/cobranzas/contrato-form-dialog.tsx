@@ -7,6 +7,7 @@ import { useForm, type Resolver } from "react-hook-form";
 import { createContratoCobranza } from "@/app/actions/cobranzas";
 import {
   contratoCobranzaSchema,
+  INDICES_ACTUALIZACION,
   type ContratoCobranzaFormValues,
 } from "@/lib/validations/contrato-cobranza";
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,11 @@ function defaultVencimientoDesdeInicio(fechaInicio: string): string {
   return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
 }
 
+const INDICE_LABELS: Record<string, string> = {
+  ICL: "ICL — Índice de Contratos de Locación (oficial)",
+  IPC: "IPC — Índice de Precios al Consumidor",
+};
+
 const defaults: ContratoCobranzaFormValues = {
   propiedad_id: "",
   cliente_id: "",
@@ -60,6 +66,7 @@ const defaults: ContratoCobranzaFormValues = {
   fecha_vencimiento: "",
   dia_limite_pago: 10,
   meses_actualizacion: 6,
+  indice_actualizacion: "ICL",
 };
 
 type Props = {
@@ -309,6 +316,31 @@ export function ContratoFormDialog({ open, onOpenChange, propiedades, clientes, 
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="indice_actualizacion"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Índice de actualización</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Seleccioná índice" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent position="popper" className={DIALOG_SELECT_CONTENT_CLASS}>
+                      {INDICES_ACTUALIZACION.map((idx) => (
+                        <SelectItem key={idx} value={idx}>
+                          {INDICE_LABELS[idx] ?? idx}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <DialogFooter className="gap-2 sm:gap-0">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

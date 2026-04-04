@@ -1,5 +1,7 @@
 export type EstadoPagoCobranza = "Pendiente" | "Pagado" | "Atrasado";
 
+export type IndiceActualizacion = "IPC" | "ICL";
+
 export type ContratoCobranzaRow = {
   id: string;
   propiedad_id: string;
@@ -10,10 +12,11 @@ export type ContratoCobranzaRow = {
   monto_mensual: number;
   dia_limite_pago: number;
   meses_actualizacion: number;
+  indice_actualizacion: IndiceActualizacion;
   ultima_actualizacion: string | null;
   is_active: boolean;
-  propiedad?: { nombre: string } | null;
-  inquilino?: { nombre_completo: string } | null;
+  propiedad?: { nombre: string; direccion?: string } | null;
+  inquilino?: { nombre_completo: string; email?: string | null; telefono?: string | null } | null;
   locador?: { nombre_completo: string } | null;
 };
 

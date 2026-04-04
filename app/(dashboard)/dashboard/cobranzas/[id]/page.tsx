@@ -23,6 +23,7 @@ function normalizeContratoRow(row: Record<string, unknown>): ContratoCobranzaRow
     monto_mensual: Number(row.monto_mensual),
     dia_limite_pago: Number(row.dia_limite_pago),
     meses_actualizacion: Number(row.meses_actualizacion),
+    indice_actualizacion: (row.indice_actualizacion as "IPC" | "ICL") ?? "ICL",
     ultima_actualizacion: (row.ultima_actualizacion as string) ?? null,
     is_active: Boolean(row.is_active),
     propiedad: unwrapFk(row.propiedad as { nombre: string } | { nombre: string }[] | null),

@@ -11,6 +11,7 @@ import {
   updateContratoCobranzaSchema,
   type UpdateContratoCobranzaFormValues,
 } from "@/lib/validations/update-contrato-cobranza";
+import { INDICES_ACTUALIZACION } from "@/lib/validations/contrato-cobranza";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -62,6 +63,7 @@ export function EditarContratoDialog({ open, onOpenChange, contrato }: Props) {
       dia_limite_pago: contrato.dia_limite_pago,
       fecha_vencimiento: contrato.fecha_vencimiento,
       meses_actualizacion: contrato.meses_actualizacion,
+      indice_actualizacion: contrato.indice_actualizacion ?? "ICL",
       is_active: contrato.is_active,
       actualizar_monto_mes_actual: false,
     },
@@ -79,6 +81,7 @@ export function EditarContratoDialog({ open, onOpenChange, contrato }: Props) {
       dia_limite_pago: contrato.dia_limite_pago,
       fecha_vencimiento: contrato.fecha_vencimiento,
       meses_actualizacion: contrato.meses_actualizacion,
+      indice_actualizacion: contrato.indice_actualizacion ?? "ICL",
       is_active: contrato.is_active,
       actualizar_monto_mes_actual: false,
     });
@@ -249,6 +252,33 @@ export function EditarContratoDialog({ open, onOpenChange, contrato }: Props) {
                     />
                   </FormControl>
                   <FormDescription>Cada cuántos meses se revisa el valor del alquiler.</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="indice_actualizacion"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Índice de actualización</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent className={DIALOG_SELECT_CONTENT_CLASS}>
+                      {INDICES_ACTUALIZACION.map((idx) => (
+                        <SelectItem key={idx} value={idx}>
+                          {idx === "ICL"
+                            ? "ICL — Índice de Contratos de Locación (oficial)"
+                            : "IPC — Índice de Precios al Consumidor"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

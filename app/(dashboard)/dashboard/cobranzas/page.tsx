@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { mesPeriodoActual } from "@/lib/cobranzas/estado-contrato";
+import { contratosConAlertaEnMes } from "@/lib/cobranzas/alertas-actualizacion";
 import type { ContratoCobranzaRow, PagoRow } from "@/lib/cobranzas/types";
 import { CobranzasClient } from "@/components/cobranzas/cobranzas-client";
+import { BannerActualizaciones } from "@/components/cobranzas/banner-actualizaciones";
 import type { SelectOption } from "@/components/cobranzas/contrato-form-dialog";
 
 export const metadata: Metadata = {
@@ -28,10 +30,11 @@ function normalizeContratoRow(row: Record<string, unknown>): ContratoCobranzaRow
     monto_mensual: Number(row.monto_mensual),
     dia_limite_pago: Number(row.dia_limite_pago),
     meses_actualizacion: Number(row.meses_actualizacion),
+    indice_actualizacion: (row.indice_actualizacion as "IPC" | "ICL") ?? "ICL",
     ultima_actualizacion: (row.ultima_actualizacion as string) ?? null,
     is_active: Boolean(row.is_active),
-    propiedad: unwrapFk(row.propiedad as { nombre: string } | { nombre: string }[] | null),
-    inquilino: unwrapFk(row.inquilino as { nombre_completo: string } | { nombre_completo: string }[] | null),
+    propiedad: unwrapFk(row.propiedad as { nombre: string; direccion?: string } | { nombre: string; direccion?: string }[] | null),
+    inquilino: unwrapFk(row.inquilino as { nombre_completo: string; telefono?: string | null } | { nombre_completo: string; telefono?: string | null }[] | null),
     locador: unwrapFk(row.locador as { nombre_completo: string } | { nombre_completo: string }[] | null),
   };
 }
@@ -65,10 +68,11 @@ export default async function DashboardCobranzasPage() {
       monto_mensual,
       dia_limite_pago,
       meses_actualizacion,
+      indice_actualizacion,
       ultima_actualizacion,
       is_active,
-      propiedad:propiedades ( nombre ),
-      inquilino:clientes!contratos_cobranza_cliente_id_fkey ( nombre_completo ),
+      propiedad:propiedades ( nombre, direccion ),
+      inquilino:clientes!contratos_cobranza_cliente_id_fkey ( nombre_completo, telefono ),
       locador:clientes!contratos_cobranza_locador_id_fkey ( nombre_completo )
     `,
     )
@@ -161,13 +165,18 @@ export default async function DashboardCobranzasPage() {
       ),
     }));
 
+  const contratosAlerta = contratosConAlertaEnMes(contratos);
+
   return (
-    <CobranzasClient
-      contratos={contratos}
-      pagosMesActual={pagosMes}
-      propiedades={propiedades}
-      clientes={clientes}
-      locadores={locadores}
-    />
+    <div className="flex flex-col gap-6">
+      <BannerActualizaciones contratos={contratosAlerta} />
+      <CobranzasClient
+        contratos={contratos}
+        pagosMesActual={pagosMes}
+        propiedades={propiedades}
+        clientes={clientes}
+        locadores={locadores}
+      />
+    </div>
   );
 }
