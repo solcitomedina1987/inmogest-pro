@@ -2,112 +2,101 @@
  * Servicio de WhatsApp via CallMeBot
  * https://www.callmebot.com/blog/free-api-whatsapp-messages/
  *
- * Sin costo, sin aprobación de templates — texto libre.
+ * Importante: CallMeBot envía al número que REGISTRÓ el API key.
+ * Por eso todos los mensajes van al WhatsApp de la Consultora (+5492664791345)
+ * con los datos completos del inquilino en el cuerpo del mensaje.
  *
- * ⚠️  NOTA: CallMeBot requiere que el destinatario haya activado su número
- * enviando "I allow callmebot to send me messages" al +34 644 44 71 74 en WA.
- * Para uso interno (admin → admin) funciona de inmediato.
- * Para enviar a inquilinos, cada inquilino debe activar su número una sola vez.
- *
- * Variable de entorno requerida:
- *   CALLMEBOT_API_KEY  – API key obtenida al activar el número
- *
- * Si querés enviar a múltiples destinatarios con claves distintas,
- * guardá la api_key por cliente en la tabla `clientes`.
+ * Variables de entorno:
+ *   CALLMEBOT_API_KEY  – API key obtenida al activar el número en CallMeBot (ej: 9853763)
+ *   CALLMEBOT_PHONE    – Número WhatsApp destino (ej: +5492664791345)
  */
 
 const CALLMEBOT_URL = "https://api.callmebot.com/whatsapp.php";
-const CONTACTO_FIJO = "+54 9 2664791345";
 
-// ── Normalización de teléfonos argentinos ────────────────────────────────────
+// Destino fijo: el WhatsApp de la Consultora
+const PHONE_DESTINO =
+  process.env.CALLMEBOT_PHONE ?? "+5492664791345";
 
-/**
- * Convierte cualquier formato de número argentino al formato E.164 sin '+'.
- * CallMeBot espera, por ejemplo: 5492664791345
- *
- * Acepta: +54 9 2664 791345 | 02664 79xxxx | 549266... | 266...
- */
-export function normalizarTelefono(tel: string): string {
-  let digits = tel.replace(/\D/g, "");
-
-  // 0266... → 54266...
-  if (digits.startsWith("0")) {
-    digits = "54" + digits.slice(1);
-  }
-
-  // 54266... (sin 9 de celular) → 549266...
-  if (digits.startsWith("54") && !digits.startsWith("549")) {
-    digits = "549" + digits.slice(2);
-  }
-
-  // Sin código de país → 549...
-  if (!digits.startsWith("54")) {
-    digits = "549" + digits;
-  }
-
-  return digits;
-}
-
-// ── Envío de mensaje ──────────────────────────────────────────────────────────
+// ── Tipos ─────────────────────────────────────────────────────────────────────
 
 export type WaResult = { ok: boolean; info: string; rawText?: string };
 
-/**
- * Envía un mensaje de WhatsApp via CallMeBot.
- * @param phone   Número del destinatario (cualquier formato argentino)
- * @param message Texto a enviar (se codifica automáticamente)
- * @param apiKey  API key del destinatario (o CALLMEBOT_API_KEY global)
- */
-export async function sendWhatsAppAlert(
-  phone: string,
-  message: string,
-  apiKey?: string,
-): Promise<WaResult> {
-  const key = apiKey ?? process.env.CALLMEBOT_API_KEY;
+// ── Función principal de envío ────────────────────────────────────────────────
 
-  if (!key) {
+/**
+ * Envía un mensaje de texto libre al WhatsApp de la Consultora via CallMeBot.
+ * El [phone] en la URL debe ser el mismo número que registró el apikey.
+ */
+export async function sendWhatsAppAlert(message: string): Promise<WaResult> {
+  const apiKey = process.env.CALLMEBOT_API_KEY;
+
+  if (!apiKey) {
     return {
       ok: false,
       info: "CALLMEBOT_API_KEY no configurada en las variables de entorno",
     };
   }
 
-  const to = normalizarTelefono(phone);
-  const url =
-    `${CALLMEBOT_URL}?phone=${to}&text=${encodeURIComponent(message)}&apikey=${key}`;
+  // Construir URL — el teléfono va SIN el + para evitar problemas de encoding
+  const phoneClean = PHONE_DESTINO.replace(/^\+/, "");
+  const url = `${CALLMEBOT_URL}?phone=${phoneClean}&text=${encodeURIComponent(message)}&apikey=${apiKey}`;
 
   try {
-    const res = await fetch(url, { method: "GET" });
-    const text = await res.text();
+    const res = await fetch(url, {
+      method: "GET",
+      // Sin caché para evitar respuestas obsoletas
+      cache: "no-store",
+    });
 
-    // CallMeBot devuelve texto, no JSON.
-    // Respuesta exitosa contiene "Message queued" o "Message sent".
-    const ok = res.ok && !text.toLowerCase().includes("error");
+    const rawText = await res.text();
 
-    return { ok, info: ok ? `Enviado a ${to}` : `Error CallMeBot: ${text}`, rawText: text };
-  } catch (e) {
+    // CallMeBot responde con texto plano. Éxito si contiene "queued" o "sent".
+    const ok =
+      res.ok &&
+      (rawText.toLowerCase().includes("queued") ||
+        rawText.toLowerCase().includes("sent") ||
+        rawText.toLowerCase().includes("message"));
+
+    if (!ok) {
+      console.error("[CallMeBot] Respuesta inesperada:", rawText);
+    }
+
     return {
-      ok: false,
-      info: e instanceof Error ? e.message : String(e),
+      ok,
+      info: ok ? `Mensaje enviado a ${PHONE_DESTINO}` : `Error CallMeBot: ${rawText}`,
+      rawText,
     };
+  } catch (e) {
+    const err = e instanceof Error ? e.message : String(e);
+    console.error("[CallMeBot] Excepción al enviar:", err);
+    return { ok: false, info: err };
   }
 }
 
 // ── Mensaje de recordatorio de actualización ─────────────────────────────────
 
+/**
+ * Construye el texto del recordatorio según el formato solicitado.
+ * Este mensaje llega al WhatsApp de la Consultora con todos los datos del inquilino.
+ */
 export function mensajeRecordatorioActualizacion(params: {
-  nombreInquilino: string;
   direccionPropiedad: string;
+  nombreInquilino: string;
+  telefonoInquilino: string | null;
   mesActualizacionHumano: string;
   indice: string;
 }): string {
+  const telInquilino = params.telefonoInquilino
+    ? `, teléfono ${params.telefonoInquilino}`
+    : "";
+
   return (
-    `Hola ${params.nombreInquilino}! 👋 ` +
-    `Le recordamos desde Consultora Medina & Asociados que el próximo mes ` +
-    `(${params.mesActualizacionHumano}) corresponde la actualización del valor ` +
-    `de su alquiler en ${params.direccionPropiedad}. ` +
+    `Recordatorio de actualización de contrato para propiedad ` +
+    `${params.direccionPropiedad}, ` +
+    `inquilino ${params.nombreInquilino}${telInquilino}. ` +
+    `Próxima actualización: ${params.mesActualizacionHumano}. ` +
     `Índice: ${params.indice}. ` +
-    `Consultas al ${CONTACTO_FIJO}.`
+    `Consultas al +54 9 2664791345.`
   );
 }
 

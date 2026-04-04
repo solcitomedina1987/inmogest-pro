@@ -170,31 +170,29 @@ export async function GET(request: Request) {
     }
 
     // ── c) WhatsApp via CallMeBot ────────────────────────────────────────────
-    if (telefonoInquilino) {
-      const yaEnviado = await notificacionYaEnviada(supabase, c.id, mesAlerta, "whatsapp");
-      if (!yaEnviado) {
-        if (waActivo) {
-          const mensaje = mensajeRecordatorioActualizacion({
-            nombreInquilino,
-            direccionPropiedad: direccion,
-            mesActualizacionHumano,
-            indice,
-          });
-          const result = await sendWhatsAppAlert(telefonoInquilino, mensaje);
-          if (result.ok) {
-            await registrarNotificacion(supabase, c.id, mesAlerta, "whatsapp", telefonoInquilino);
-            acciones.push(`✓ whatsapp → ${telefonoInquilino}`);
-          } else {
-            acciones.push(`✗ whatsapp ERROR: ${result.info}`);
-          }
+    // El mensaje va al WhatsApp de la Consultora con los datos del inquilino
+    const yaEnviadoWa = await notificacionYaEnviada(supabase, c.id, mesAlerta, "whatsapp");
+    if (!yaEnviadoWa) {
+      if (waActivo) {
+        const mensaje = mensajeRecordatorioActualizacion({
+          direccionPropiedad: direccion,
+          nombreInquilino,
+          telefonoInquilino,
+          mesActualizacionHumano,
+          indice,
+        });
+        const result = await sendWhatsAppAlert(mensaje);
+        if (result.ok) {
+          await registrarNotificacion(supabase, c.id, mesAlerta, "whatsapp", "consultora");
+          acciones.push(`✓ whatsapp → consultora (+5492664791345)`);
         } else {
-          acciones.push("⚠ whatsapp: CALLMEBOT_API_KEY no configurada");
+          acciones.push(`✗ whatsapp ERROR: ${result.info}`);
         }
       } else {
-        acciones.push("— whatsapp ya enviado");
+        acciones.push("⚠ whatsapp: CALLMEBOT_API_KEY no configurada");
       }
     } else {
-      acciones.push("— whatsapp: sin teléfono registrado");
+      acciones.push("— whatsapp ya enviado");
     }
 
     resultados.push({ contratoId: c.id, acciones });
