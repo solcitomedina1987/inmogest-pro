@@ -556,16 +556,16 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
                                   <TooltipTrigger asChild>
                                     <Button
                                       type="button"
-                                      variant="ghost"
-                                      size="icon"
-                                      className="size-8 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-800"
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-7 px-2 text-xs font-bold text-emerald-700 border-emerald-400 hover:bg-emerald-50 hover:text-emerald-900 hover:border-emerald-600"
                                       onClick={() => {
                                         setMesPeriodoPago(p.mes_periodo);
                                         setPagoOpen(true);
                                       }}
                                       aria-label="Registrar pago"
                                     >
-                                      <CheckCircle2 className="size-4" aria-hidden />
+                                      +$
                                     </Button>
                                   </TooltipTrigger>
                                   <TooltipContent>Registrar pago</TooltipContent>
