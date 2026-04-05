@@ -50,26 +50,29 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (user && isAuthPage && path !== "/update-password") {
-    const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
-    url.search = "";
-    return NextResponse.redirect(url);
-  }
-
-  /* Solo administradores acceden a /dashboard/* fuera de la raíz. */
-  if (user && isDashboard && !isDashboardRoot(path)) {
+  /* Usuarios logueados en páginas de auth o en /dashboard → redirigir según rol. */
+  if (user && (isAuthPage || isDashboard) && path !== "/update-password") {
     const { data: perfil } = await supabase
       .from("perfiles")
       .select("rol")
       .eq("id", user.id)
       .maybeSingle();
 
-    if (perfil?.rol !== "admin") {
+    const esAdmin = perfil?.rol === "admin";
+
+    if (isAuthPage) {
+      /* Después del login: admin → dashboard, inquilino → portal. */
       const url = request.nextUrl.clone();
-      url.pathname = "/dashboard";
+      url.pathname = esAdmin ? "/dashboard" : "/portal";
       url.search = "";
-      url.searchParams.set("restringido", "1");
+      return NextResponse.redirect(url);
+    }
+
+    /* Inquilino intentando acceder a /dashboard → redirigir al portal. */
+    if (isDashboard && !esAdmin) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/portal";
+      url.search = "";
       return NextResponse.redirect(url);
     }
   }

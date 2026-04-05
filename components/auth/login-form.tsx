@@ -31,28 +31,41 @@ export function LoginForm({ redirectTo }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const target = safeRedirectPath(redirectTo, "/dashboard");
-
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
     const supabase = createClient();
 
-    const { error: signError } = await supabase.auth.signInWithPassword({
+    const { data, error: signError } = await supabase.auth.signInWithPassword({
       email: email.trim(),
       password,
     });
 
-    setLoading(false);
-
-    if (signError) {
-      setError(signError.message);
+    if (signError || !data.user) {
+      setLoading(false);
+      setError(signError?.message ?? "Error al iniciar sesión.");
       return;
     }
 
+    /* Determinar destino según el parámetro redirect o el rol del usuario. */
+    const explicit = safeRedirectPath(redirectTo, "");
+    if (explicit) {
+      router.refresh();
+      router.push(explicit);
+      return;
+    }
+
+    /* Sin redirect explícito: consultar rol para elegir destino. */
+    const { data: perfil } = await supabase
+      .from("perfiles")
+      .select("rol")
+      .eq("id", data.user.id)
+      .maybeSingle();
+
+    setLoading(false);
     router.refresh();
-    router.push(target);
+    router.push(perfil?.rol === "admin" ? "/dashboard" : "/portal");
   }
 
   return (
