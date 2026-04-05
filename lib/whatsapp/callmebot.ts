@@ -3,7 +3,7 @@
  * https://www.callmebot.com/blog/free-api-whatsapp-messages/
  *
  * Importante: CallMeBot envía al número que REGISTRÓ el API key.
- * Por eso todos los mensajes van al WhatsApp de la Consultora (+5492664791345)
+ * Todos los mensajes van al WhatsApp de la Consultora (+5492664791345)
  * con los datos completos del inquilino en el cuerpo del mensaje.
  *
  * Variables de entorno:
@@ -12,20 +12,27 @@
  */
 
 const CALLMEBOT_URL = "https://api.callmebot.com/whatsapp.php";
-
-// Destino fijo: el WhatsApp de la Consultora
-const PHONE_DESTINO =
-  process.env.CALLMEBOT_PHONE ?? "+5492664791345";
+const PHONE_DESTINO = process.env.CALLMEBOT_PHONE ?? "+5492664791345";
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 
 export type WaResult = { ok: boolean; info: string; rawText?: string };
 
+// ── Normalización de teléfono ─────────────────────────────────────────────────
+
+/**
+ * Limpia el número de teléfono: elimina espacios, guiones, paréntesis y el '+' inicial.
+ * CallMeBot espera el número como dígitos puros, ej: 5492664791345
+ */
+function limpiarTelefono(tel: string): string {
+  return tel.replace(/[\s\-().+]/g, "");
+}
+
 // ── Función principal de envío ────────────────────────────────────────────────
 
 /**
  * Envía un mensaje de texto libre al WhatsApp de la Consultora via CallMeBot.
- * El [phone] en la URL debe ser el mismo número que registró el apikey.
+ * El `phone` de la URL DEBE ser el número que registró el API key (CALLMEBOT_PHONE).
  */
 export async function sendWhatsAppAlert(message: string): Promise<WaResult> {
   const apiKey = process.env.CALLMEBOT_API_KEY;
@@ -37,28 +44,19 @@ export async function sendWhatsAppAlert(message: string): Promise<WaResult> {
     };
   }
 
-  // Construir URL — el teléfono va SIN el + para evitar problemas de encoding
-  const phoneClean = PHONE_DESTINO.replace(/^\+/, "");
-  const url = `${CALLMEBOT_URL}?phone=${phoneClean}&text=${encodeURIComponent(message)}&apikey=${apiKey}`;
+  const phoneClean = limpiarTelefono(PHONE_DESTINO);
+  const url =
+    `${CALLMEBOT_URL}?phone=${phoneClean}&text=${encodeURIComponent(message)}&apikey=${apiKey}`;
 
   try {
-    const res = await fetch(url, {
-      method: "GET",
-      // Sin caché para evitar respuestas obsoletas
-      cache: "no-store",
-    });
-
+    const res = await fetch(url, { method: "GET", cache: "no-store" });
     const rawText = await res.text();
 
-    // CallMeBot responde con texto plano. Éxito si contiene "queued" o "sent".
-    const ok =
-      res.ok &&
-      (rawText.toLowerCase().includes("queued") ||
-        rawText.toLowerCase().includes("sent") ||
-        rawText.toLowerCase().includes("message"));
+    // CallMeBot responde con texto plano. Éxito si no contiene "error".
+    const ok = res.ok && !rawText.toLowerCase().includes("error");
 
     if (!ok) {
-      console.error("[CallMeBot] Respuesta inesperada:", rawText);
+      console.error("[CallMeBot] Respuesta:", rawText, "| URL:", url);
     }
 
     return {
@@ -68,17 +66,60 @@ export async function sendWhatsAppAlert(message: string): Promise<WaResult> {
     };
   } catch (e) {
     const err = e instanceof Error ? e.message : String(e);
-    console.error("[CallMeBot] Excepción al enviar:", err);
+    console.error("[CallMeBot] Excepción:", err);
     return { ok: false, info: err };
   }
 }
 
-// ── Mensaje de recordatorio de actualización ─────────────────────────────────
+// ── Mensajes ──────────────────────────────────────────────────────────────────
 
 /**
- * Construye el texto del recordatorio según el formato solicitado.
- * Este mensaje llega al WhatsApp de la Consultora con todos los datos del inquilino.
+ * [FLUJO A - BOTÓN MANUAL Y CRON DÍA 1]
+ * Recordatorio de actualización de precio — mes EN CURSO.
  */
+export function mensajeActualizacionPrecio(params: {
+  direccionPropiedad: string;
+  nombreInquilino: string;
+  telefonoInquilino: string | null;
+  indice: string;
+}): string {
+  const tel = params.telefonoInquilino
+    ? `, teléfono ${params.telefonoInquilino}`
+    : "";
+
+  return (
+    `Hola! 👋 Le recordamos desde Consultora Medina & Asociados que este mes ` +
+    `corresponde la actualización del valor de su alquiler en ` +
+    `${params.direccionPropiedad}. ` +
+    `Inquilino: ${params.nombreInquilino}${tel}. ` +
+    `Índice: ${params.indice}. ` +
+    `Consultas al +54 9 2664791345.`
+  );
+}
+
+/**
+ * [FLUJO B - CRON DÍA 2]
+ * Aviso de vencimiento de contrato próximo (en 2 meses).
+ */
+export function mensajeVencimientoContrato(params: {
+  direccionPropiedad: string;
+  nombreInquilino: string;
+  telefonoInquilino: string | null;
+  fechaVencimiento: string;
+}): string {
+  const tel = params.telefonoInquilino ?? "sin teléfono";
+
+  return (
+    `⚠️ Recordatorio de VENCIMIENTO DE CONTRATO para la propiedad ` +
+    `${params.direccionPropiedad}. ` +
+    `Inquilino: ${params.nombreInquilino}, ` +
+    `Teléfono: ${tel}. ` +
+    `Le recordamos el próximo vencimiento y/o posible renovación de su contrato. ` +
+    `Fecha de vencimiento: ${params.fechaVencimiento}.`
+  );
+}
+
+/** @deprecated Usar mensajeActualizacionPrecio */
 export function mensajeRecordatorioActualizacion(params: {
   direccionPropiedad: string;
   nombreInquilino: string;
@@ -86,18 +127,7 @@ export function mensajeRecordatorioActualizacion(params: {
   mesActualizacionHumano: string;
   indice: string;
 }): string {
-  const telInquilino = params.telefonoInquilino
-    ? `, teléfono ${params.telefonoInquilino}`
-    : "";
-
-  return (
-    `Recordatorio de actualización de contrato para propiedad ` +
-    `${params.direccionPropiedad}, ` +
-    `inquilino ${params.nombreInquilino}${telInquilino}. ` +
-    `Próxima actualización: ${params.mesActualizacionHumano}. ` +
-    `Índice: ${params.indice}. ` +
-    `Consultas al +54 9 2664791345.`
-  );
+  return mensajeActualizacionPrecio(params);
 }
 
 export function callmebotConfigurado(): boolean {
