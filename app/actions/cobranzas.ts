@@ -7,6 +7,7 @@ import { mesesPeriodoEntreFechasContrato } from "@/lib/cobranzas/meses-contrato"
 import { contratoCobranzaSchema } from "@/lib/validations/contrato-cobranza";
 import { registroPagoSchema, editarPagoSchema } from "@/lib/validations/registro-pago";
 import { updateContratoCobranzaSchema } from "@/lib/validations/update-contrato-cobranza";
+import { crearEventosContrato, googleCalendarConfigurado } from "@/lib/google/calendar";
 
 export type CobranzaActionResult = { ok: true } | { ok: false; error: string };
 
@@ -63,6 +64,42 @@ export async function createContratoCobranza(input: unknown): Promise<CobranzaAc
     const { error: pagoErr } = await supabase.from("pagos").insert(pagosRows);
     if (pagoErr) {
       return { ok: false, error: pagoErr.message };
+    }
+  }
+
+  // ── Google Calendar: crear eventos de vencimiento y actualizaciones ────────
+  // Se ejecuta en background; no falla la creación del contrato si hay error.
+  if (googleCalendarConfigurado()) {
+    try {
+      // Obtener dirección de la propiedad y datos del inquilino
+      const { data: detalles } = await supabase
+        .from("contratos_cobranza")
+        .select(
+          "propiedad:propiedades!contratos_cobranza_propiedad_id_fkey(nombre)," +
+          "inquilino:clientes!contratos_cobranza_cliente_id_fkey(nombre_completo, telefono)",
+        )
+        .eq("id", contratoId)
+        .maybeSingle();
+
+      const row = detalles as Record<string, unknown> | null;
+      const propiedad = (row?.propiedad ?? null) as { nombre?: string } | null;
+      const inquilinoData = (row?.inquilino ?? null) as {
+        nombre_completo?: string;
+        telefono?: string;
+      } | null;
+
+      await crearEventosContrato({
+        fechaInicio: v.fecha_inicio,
+        fechaVencimiento: v.fecha_vencimiento,
+        mesesActualizacion: v.meses_actualizacion,
+        direccion: propiedad?.nombre ?? `Propiedad ${v.propiedad_id}`,
+        inquilino: inquilinoData?.nombre_completo ?? "Inquilino",
+        telefono: inquilinoData?.telefono ?? null,
+        contratoId,
+      });
+    } catch (calErr) {
+      // Solo log — no interrumpir el flujo principal
+      console.error("[Google Calendar] No se pudieron crear los eventos:", calErr);
     }
   }
 

@@ -10,6 +10,7 @@ import { ExecutiveDashboardPanel } from "@/components/dashboard/executive-dashbo
 import { ExecutiveDashboardSkeleton } from "@/components/dashboard/executive-dashboard-skeleton";
 import { FirstLoginWelcomeDialog } from "@/components/dashboard/first-login-welcome-dialog";
 import { BannerActualizaciones } from "@/components/cobranzas/banner-actualizaciones";
+import { ProximosEventosCalendar } from "@/components/dashboard/proximos-eventos-calendar";
 
 export const metadata: Metadata = {
   title: "Panel",
@@ -101,6 +102,12 @@ export default async function DashboardHomePage() {
       ) : (
         <p className="text-muted-foreground text-sm">No hay métricas disponibles para tu rol.</p>
       )}
+
+      {rol === "admin" ? (
+        <Suspense fallback={null}>
+          <ProximosEventosCalendar />
+        </Suspense>
+      ) : null}
     </div>
   );
 }
