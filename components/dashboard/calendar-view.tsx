@@ -711,14 +711,14 @@ export function CalendarView() {
         {status === "unconfigured" ? (
           <div className="flex items-center gap-2 border-b bg-muted/30 px-4 py-2 text-sm text-muted-foreground">
             <CalendarDays className="size-4 shrink-0" />
-            <span>Google Calendar no configurado. Completar las variables de entorno y usar "Diagnosticar conexión".</span>
+            <span>Google Calendar no configurado. Completar las variables de entorno y usar &quot;Diagnosticar conexión&quot;.</span>
           </div>
         ) : null}
 
         {status === "ok" && events.length === 0 ? (
           <div className="flex items-center gap-2 border-b bg-blue-50/50 px-4 py-2 text-xs text-blue-700 dark:bg-blue-950/20 dark:text-blue-400">
             <CalendarDays className="size-3.5 shrink-0" />
-            <span>No hay eventos en este período. Si ya configuraste Google Calendar, usá <strong>"Sincronizar contratos"</strong> para crear los eventos de los contratos existentes.</span>
+            <span>No hay eventos en este período. Si ya configuraste Google Calendar, usá <strong>&quot;Sincronizar contratos&quot;</strong> para crear los eventos de los contratos existentes.</span>
           </div>
         ) : null}
 

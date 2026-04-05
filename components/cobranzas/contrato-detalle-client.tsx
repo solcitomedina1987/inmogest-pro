@@ -8,7 +8,6 @@ import {
   CircleDollarSign,
   Clock,
   Pencil,
-  Printer,
   SquarePen,
   Trash2,
   TrendingUp,

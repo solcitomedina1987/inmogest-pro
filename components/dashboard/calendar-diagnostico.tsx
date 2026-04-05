@@ -173,9 +173,9 @@ export function CalendarDiagnostico() {
                     </p>
                     <ol className="mt-1 list-decimal pl-4 text-xs text-amber-700 dark:text-amber-400 space-y-0.5">
                       <li>Abrí <strong>calendar.google.com</strong></li>
-                      <li>En tu calendario → "Configuración y uso compartido"</li>
-                      <li>Sección "Compartir con personas" → Agregar <strong>{process.env.NEXT_PUBLIC_GOOGLE_CLIENT_EMAIL_HINT ?? "el email de la service account"}</strong></li>
-                      <li>Permiso: <strong>"Realizar cambios en los eventos"</strong></li>
+                      <li>En tu calendario → &quot;Configuración y uso compartido&quot;</li>
+                      <li>Sección &quot;Compartir con personas&quot; → Agregar el email de la service account</li>
+                      <li>Permiso: <strong>&quot;Realizar cambios en los eventos&quot;</strong></li>
                     </ol>
                   </div>
                 ) : null}

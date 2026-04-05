@@ -30,11 +30,6 @@ export type ExecutiveDashboardData = {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function hoyISO(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
 /** Rango del mes con offset 0=actual, 1=próximo, 2=subsiguiente. */
 function mesRango(offset: number): { start: string; end: string } {
   const d = new Date();
@@ -71,7 +66,6 @@ export async function getExecutiveDashboardData(): Promise<ExecutiveDashboardDat
   if (rol !== "admin" && rol !== "cliente") return null;
 
   const mes = mesPeriodoActual();
-  const hoy = hoyISO();
   const m0 = mesRango(0);
   const m1 = mesRango(1);
   const m2 = mesRango(2);
@@ -175,7 +169,6 @@ export async function getExecutiveDashboardData(): Promise<ExecutiveDashboardDat
   const ocupacionPct = total > 0 ? Math.round((alq / total) * 100) : 0;
 
   // ── Lista de atrasados ────────────────────────────────────────────────────
-  const _ = hoy; // asegurar que hoy se usa (evitar lint unused)
   const ultimosAtrasadosRaw = (listaPagos ?? []).filter((raw) => {
     const p = raw as { contratos_cobranza: { is_active?: boolean } | null };
     const cc = unwrapFk(p.contratos_cobranza);

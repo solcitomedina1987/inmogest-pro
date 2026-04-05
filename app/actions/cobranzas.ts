@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/supabase/require-admin";
-import { mesPeriodoActual, mesPeriodoDesdeFecha } from "@/lib/cobranzas/estado-contrato";
+import { mesPeriodoActual } from "@/lib/cobranzas/estado-contrato";
 import { mesesPeriodoEntreFechasContrato } from "@/lib/cobranzas/meses-contrato";
 import { contratoCobranzaSchema } from "@/lib/validations/contrato-cobranza";
 import { registroPagoSchema, editarPagoSchema } from "@/lib/validations/registro-pago";
