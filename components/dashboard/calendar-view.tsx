@@ -14,8 +14,14 @@ import {
   User,
   CalendarIcon,
   Clock,
+  Plus,
+  List,
+  Trash2,
+  StickyNote,
+  Phone,
 } from "lucide-react";
-import type { EventoCalendario, TipoEvento } from "@/lib/google/calendar";
+import type { EventoCalendario, TipoEvento } from "@/lib/google/calendar-types";
+import { esEventoPersonalizado, LABEL_TIPO_EVENTO } from "@/lib/google/calendar-types";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -23,11 +29,24 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { NewEventDialog } from "@/components/dashboard/new-event-dialog";
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 
 type ViewMode = "month" | "week";
+type DisplayMode = "calendario" | "agenda";
 
 // ── Utilitarios de fecha ──────────────────────────────────────────────────────
 
@@ -127,14 +146,30 @@ function eventStyle(tipo: TipoEvento) {
       dotCard: "border-l-blue-600",
     };
   }
-  // alerta_actualizacion — celeste
+  if (tipo === "alerta_actualizacion") {
+    return {
+      pill: "bg-sky-100 text-sky-800 border border-sky-300 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800",
+      dot: "bg-sky-400",
+      dialogHeader: "bg-sky-500 text-white",
+      badge: "bg-sky-50 border-sky-200 text-sky-800 dark:bg-sky-950/40 dark:text-sky-300",
+      label: "🔔 Alerta: Actualización próxima",
+      dotCard: "border-l-sky-400",
+    };
+  }
+  // Eventos personalizados — verde
+  const labelMap: Record<string, string> = {
+    visita_inquilino: "📋 Visita a Inquilino",
+    visita_propietario: "🤝 Visita a Propietario",
+    muestra_propiedad: "🏠 Muestra de Propiedad",
+    tramite: "📝 Trámite",
+  };
   return {
-    pill: "bg-sky-100 text-sky-800 border border-sky-300 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800",
-    dot: "bg-sky-400",
-    dialogHeader: "bg-sky-500 text-white",
-    badge: "bg-sky-50 border-sky-200 text-sky-800 dark:bg-sky-950/40 dark:text-sky-300",
-    label: "🔔 Alerta: Actualización próxima",
-    dotCard: "border-l-sky-400",
+    pill: "bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800",
+    dot: "bg-emerald-500",
+    dialogHeader: "bg-emerald-600 text-white",
+    badge: "bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300",
+    label: labelMap[tipo] ?? "📅 Evento",
+    dotCard: "border-l-emerald-500",
   };
 }
 
@@ -193,19 +228,42 @@ function waMessage(tipo: TipoEvento, nombre: string, direccion: string, indice?:
 function EventDetailDialog({
   event,
   onClose,
+  onDeleted,
 }: {
   event: EventoCalendario | null;
   onClose: () => void;
+  onDeleted: (id: string) => void;
 }) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
   if (!event) return null;
 
   const st = eventStyle(event.tipo);
-  const tel = normTel(event.telefono);
+  const isPersonalizado = esEventoPersonalizado(event.tipo);
+  const tel = normTel(isPersonalizado ? (event.telefono ?? event.telefonoInteresado ?? null) : event.telefono);
   const diasR = event.fechaVencimiento ? diasRestantes(event.fechaVencimiento) : null;
   const diasREvento = event.tipo === "vencimiento_real" ? diasRestantes(event.fecha) : null;
 
-  // Mensaje WhatsApp pre-cargado
-  const waText = event.inquilino
+  async function handleDelete() {
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/calendar/events/${event!.id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error ?? "Error al eliminar");
+      toast.success("Evento eliminado.");
+      onDeleted(event!.id);
+      onClose();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo eliminar el evento.");
+    } finally {
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
+  }
+
+  // Mensaje WhatsApp pre-cargado (solo para eventos no personalizados con inquilino)
+  const waText = !isPersonalizado && event.inquilino
     ? waMessage(event.tipo, event.inquilino, event.direccion, event.indice)
     : null;
   const waHref =
@@ -217,6 +275,10 @@ function EventDetailDialog({
 
   // Texto del contexto por tipo
   const contextInfo = (() => {
+    if (isPersonalizado) {
+      if (event.notas) return { icon: "📝", text: event.notas };
+      return null;
+    }
     if (event.tipo === "vencimiento_real" && diasREvento !== null) {
       if (diasREvento > 0)
         return { icon: "⏳", text: `${diasREvento} día${diasREvento !== 1 ? "s" : ""} para el vencimiento` };
@@ -249,13 +311,18 @@ function EventDetailDialog({
     return null;
   })();
 
+  const contacto = isPersonalizado
+    ? (event.inquilino || null)
+    : (event.inquilino || null);
+  const telInteresado = normTel(event.telefonoInteresado ?? null);
+
   return (
+    <>
     <Dialog open={!!event} onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent className="max-w-sm overflow-hidden p-0 sm:max-w-md">
 
         {/* ── Header coloreado ── */}
         <div className={cn("relative px-5 pb-4 pt-5", st.dialogHeader)}>
-          {/* Botón cerrar */}
           <button
             onClick={onClose}
             className="absolute right-3 top-3 rounded-md p-1.5 text-white/70 transition-colors hover:bg-white/20 hover:text-white"
@@ -271,6 +338,7 @@ function EventDetailDialog({
             <p className="flex items-center gap-1.5 text-sm text-white/80">
               <CalendarIcon className="size-3.5 shrink-0" aria-hidden />
               {formatDateISO(event.fecha)}
+              {event.hora ? <span className="ml-1">· {event.hora} hs</span> : null}
             </p>
           </DialogHeader>
         </div>
@@ -278,40 +346,60 @@ function EventDetailDialog({
         {/* ── Cuerpo ── */}
         <div className="flex flex-col gap-0 divide-y px-0">
 
-          {/* Fila: Propiedad */}
-          <div className="flex items-start gap-3 px-5 py-3">
-            <MapPin className="text-muted-foreground mt-0.5 size-4 shrink-0" aria-hidden />
-            <div className="min-w-0">
-              <p className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">
-                Propiedad
-              </p>
-              {event.contratoId ? (
-                <a
-                  href={`/dashboard/cobranzas/${event.contratoId}`}
-                  className="mt-0.5 block font-medium leading-snug underline-offset-2 hover:underline"
-                  onClick={onClose}
-                >
-                  {event.direccion || "—"}
-                </a>
-              ) : (
-                <p className="mt-0.5 font-medium leading-snug">{event.direccion || "—"}</p>
-              )}
+          {/* Fila: Propiedad / Dirección */}
+          {event.direccion ? (
+            <div className="flex items-start gap-3 px-5 py-3">
+              <MapPin className="text-muted-foreground mt-0.5 size-4 shrink-0" aria-hidden />
+              <div className="min-w-0">
+                <p className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">
+                  {isPersonalizado ? "Propiedad" : "Propiedad"}
+                </p>
+                {event.contratoId ? (
+                  <a
+                    href={`/dashboard/cobranzas/${event.contratoId}`}
+                    className="mt-0.5 block font-medium leading-snug underline-offset-2 hover:underline"
+                    onClick={onClose}
+                  >
+                    {event.direccion}
+                  </a>
+                ) : (
+                  <p className="mt-0.5 font-medium leading-snug">{event.direccion}</p>
+                )}
+              </div>
             </div>
-          </div>
+          ) : null}
 
-          {/* Fila: Inquilino */}
-          <div className="flex items-start gap-3 px-5 py-3">
-            <User className="text-muted-foreground mt-0.5 size-4 shrink-0" aria-hidden />
-            <div className="min-w-0">
-              <p className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">
-                Inquilino
-              </p>
-              <p className="mt-0.5 font-medium">{event.inquilino || "—"}</p>
-              {event.telefono ? (
-                <p className="text-muted-foreground mt-0.5 text-xs">{event.telefono}</p>
-              ) : null}
+          {/* Fila: Contacto (inquilino/propietario) */}
+          {contacto ? (
+            <div className="flex items-start gap-3 px-5 py-3">
+              <User className="text-muted-foreground mt-0.5 size-4 shrink-0" aria-hidden />
+              <div className="min-w-0">
+                <p className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">
+                  {isPersonalizado ? "Persona" : "Inquilino"}
+                </p>
+                <p className="mt-0.5 font-medium">{contacto}</p>
+                {event.telefono ? (
+                  <p className="text-muted-foreground mt-0.5 text-xs">{event.telefono}</p>
+                ) : null}
+              </div>
             </div>
-          </div>
+          ) : null}
+
+          {/* Fila: Interesado (muestra_propiedad) */}
+          {event.nombreInteresado ? (
+            <div className="flex items-start gap-3 px-5 py-3">
+              <User className="text-muted-foreground mt-0.5 size-4 shrink-0" aria-hidden />
+              <div className="min-w-0">
+                <p className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">
+                  Interesado
+                </p>
+                <p className="mt-0.5 font-medium">{event.nombreInteresado}</p>
+                {event.telefonoInteresado ? (
+                  <p className="text-muted-foreground mt-0.5 text-xs">{event.telefonoInteresado}</p>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
 
           {/* Fila: Fecha clave */}
           <div className="flex items-start gap-3 px-5 py-3">
@@ -320,12 +408,26 @@ function EventDetailDialog({
               <p className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">
                 Fecha del evento
               </p>
-              <p className="mt-0.5 font-medium">{formatDateISO(event.fecha)}</p>
+              <p className="mt-0.5 font-medium">
+                {formatDateISO(event.fecha)}
+                {event.hora ? <span className="ml-1 text-muted-foreground">— {event.hora} hs</span> : null}
+              </p>
             </div>
           </div>
 
+          {/* Fila: Notas */}
+          {event.notas ? (
+            <div className="flex items-start gap-3 px-5 py-3">
+              <StickyNote className="text-muted-foreground mt-0.5 size-4 shrink-0" aria-hidden />
+              <div className="min-w-0">
+                <p className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">Notas</p>
+                <p className="mt-0.5 text-sm">{event.notas}</p>
+              </div>
+            </div>
+          ) : null}
+
           {/* Caja de contexto */}
-          {contextInfo ? (
+          {contextInfo && !event.notas ? (
             <div className={cn("mx-5 my-3 rounded-lg border px-4 py-3", st.badge)}>
               <p className="text-sm font-medium">
                 {contextInfo.icon} {contextInfo.text}
@@ -333,43 +435,63 @@ function EventDetailDialog({
             </div>
           ) : null}
 
-          {/* ── Botón WhatsApp ── */}
-          {waHref ? (
-            <div className="px-5 pb-4 pt-3">
+          {/* ── Footer de acciones ── */}
+          <div className="flex items-center justify-between gap-2 px-5 pb-4 pt-3">
+            {/* WhatsApp */}
+            {waHref ? (
               <a
                 href={waHref}
                 target="_blank"
                 rel="noopener noreferrer"
                 className={cn(
-                  "flex w-full items-center justify-center gap-2.5 rounded-lg px-4 py-3",
+                  "flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2.5",
                   "bg-[#25D366] text-white font-semibold text-sm shadow-sm",
                   "transition-all hover:bg-[#1ebe5d] hover:shadow-md active:scale-[0.98]",
                 )}
               >
-                <MessageCircle className="size-5" aria-hidden />
-                Enviar aviso por WhatsApp
+                <MessageCircle className="size-4" aria-hidden />
+                WhatsApp
               </a>
-              {event.htmlLink ? (
-                <a
-                  href={event.htmlLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-muted-foreground hover:text-foreground mx-auto mt-2 flex w-fit items-center gap-1.5 text-xs transition-colors"
-                >
-                  <ExternalLink className="size-3" />
-                  Ver en Google Calendar
-                </a>
-              ) : null}
-            </div>
-          ) : event.htmlLink ? (
-            <div className="px-5 pb-4 pt-3">
+            ) : telInteresado ? (
+              <a
+                href={`https://wa.me/${telInteresado}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(
+                  "flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2.5",
+                  "bg-[#25D366] text-white font-semibold text-sm shadow-sm",
+                  "transition-all hover:bg-[#1ebe5d] hover:shadow-md active:scale-[0.98]",
+                )}
+              >
+                <Phone className="size-4" aria-hidden />
+                Contactar interesado
+              </a>
+            ) : (
+              <span />
+            )}
+
+            {/* Eliminar */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30"
+              onClick={() => setConfirmDelete(true)}
+            >
+              <Trash2 className="size-3.5 mr-1" />
+              Eliminar
+            </Button>
+          </div>
+
+          {/* Google Calendar link */}
+          {event.htmlLink ? (
+            <div className="px-5 pb-3">
               <a
                 href={event.htmlLink}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-muted-foreground hover:text-foreground flex items-center gap-1.5 text-xs transition-colors"
               >
-                <ExternalLink className="size-3.5" />
+                <ExternalLink className="size-3" />
                 Ver en Google Calendar
               </a>
             </div>
@@ -378,6 +500,30 @@ function EventDetailDialog({
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* AlertDialog de confirmación de eliminación */}
+    <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>¿Eliminar este evento?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Se eliminará permanentemente de Google Calendar. Esta acción no se puede deshacer.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleDelete}
+            disabled={deleting}
+            className="bg-destructive text-white hover:bg-destructive/90"
+          >
+            {deleting ? <Loader2 className="size-4 animate-spin mr-1" /> : <Trash2 className="size-4 mr-1" />}
+            Eliminar
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
 
@@ -393,12 +539,19 @@ function EventPill({
   onClick: (ev: EventoCalendario) => void;
 }) {
   const st = eventStyle(event.tipo);
-  const label =
-    event.tipo === "vencimiento_real"
-      ? compact ? "Vcto." : "Vencimiento"
-      : event.tipo === "actualizacion"
-        ? compact ? "Act." : "Actualización"
-        : compact ? "⚠️ Alerta" : "⚠️ Alerta Vcto.";
+  const label = (() => {
+    if (esEventoPersonalizado(event.tipo)) {
+      const l = LABEL_TIPO_EVENTO[event.tipo];
+      return compact ? l.split(" ")[0] : l;
+    }
+    if (event.tipo === "vencimiento_real") return compact ? "Vcto." : "Vencimiento";
+    if (event.tipo === "actualizacion") return compact ? "Act." : "Actualización";
+    return compact ? "⚠️ Alerta" : "⚠️ Alerta Vcto.";
+  })();
+
+  const detail = esEventoPersonalizado(event.tipo)
+    ? (event.inquilino || event.direccion || event.titulo)
+    : event.direccion;
 
   return (
     <button
@@ -409,10 +562,10 @@ function EventPill({
         "text-[10px] font-medium leading-tight truncate text-left transition-opacity hover:opacity-80",
         st.pill,
       )}
-      title={`${st.label}: ${event.direccion}`}
+      title={`${st.label}: ${detail}`}
     >
       <span className={cn("size-1.5 shrink-0 rounded-full", st.dot)} aria-hidden />
-      <span className="truncate">{compact ? label : `${label}: ${event.direccion}`}</span>
+      <span className="truncate">{compact ? label : `${label}: ${detail}`}</span>
     </button>
   );
 }
@@ -596,6 +749,114 @@ function WeekView({
   );
 }
 
+// ── Vista Agenda (Lista Cronológica) ─────────────────────────────────────────
+
+function AgendaView({
+  events,
+  status,
+  onEventClick,
+}: {
+  events: EventoCalendario[];
+  status: string;
+  onEventClick: (ev: EventoCalendario) => void;
+}) {
+  if (status === "loading") {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="text-muted-foreground size-5 animate-spin" />
+      </div>
+    );
+  }
+  if (events.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
+        <CalendarDays className="size-8 opacity-30" />
+        <p className="text-sm">Sin eventos en los próximos 90 días.</p>
+      </div>
+    );
+  }
+
+  // Agrupar por fecha
+  const groups: Map<string, EventoCalendario[]> = new Map();
+  for (const ev of events) {
+    const key = ev.fecha;
+    const arr = groups.get(key) ?? [];
+    arr.push(ev);
+    groups.set(key, arr);
+  }
+  const sortedDates = Array.from(groups.keys()).sort();
+
+  return (
+    <div className="flex flex-col divide-y overflow-auto">
+      {sortedDates.map((fecha) => {
+        const dayEvents = groups.get(fecha)!;
+        const [y, m, d] = fecha.split("-").map(Number);
+        const dateObj = new Date(y, m - 1, d);
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        const isToday = dateObj.getTime() === hoy.getTime();
+        const dayFmt = new Intl.DateTimeFormat("es-AR", { weekday: "short", day: "numeric", month: "short" })
+          .format(dateObj)
+          .replace(".", "");
+
+        return (
+          <div key={fecha} className="flex min-h-[48px] gap-0">
+            {/* Columna de fecha */}
+            <div
+              className={cn(
+                "flex w-20 shrink-0 flex-col items-center justify-start gap-0.5 border-r px-2 py-3",
+                isToday && "bg-primary/5",
+              )}
+            >
+              <span className={cn("text-[10px] font-medium uppercase", isToday ? "text-primary" : "text-muted-foreground")}>
+                {dayFmt.split(" ")[0]}
+              </span>
+              <span className={cn("text-lg font-bold leading-none tabular-nums", isToday ? "text-primary" : "text-foreground")}>
+                {d}
+              </span>
+              <span className={cn("text-[10px]", isToday ? "text-primary/70" : "text-muted-foreground")}>
+                {MESES[m - 1].slice(0, 3)}
+              </span>
+            </div>
+
+            {/* Eventos del día */}
+            <div className="flex flex-1 flex-col gap-1 px-3 py-2">
+              {dayEvents.map((ev) => {
+                const st = eventStyle(ev.tipo);
+                const detail = esEventoPersonalizado(ev.tipo)
+                  ? (ev.inquilino || ev.direccion || ev.nombreInteresado || "")
+                  : (ev.direccion || "");
+                return (
+                  <button
+                    key={ev.id}
+                    type="button"
+                    onClick={() => onEventClick(ev)}
+                    className={cn(
+                      "flex w-full items-start gap-2 rounded-md border px-3 py-2 text-left transition-opacity hover:opacity-80",
+                      st.badge,
+                    )}
+                  >
+                    <span className={cn("mt-1 size-2 shrink-0 rounded-full", st.dot)} aria-hidden />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold leading-snug">{st.label}</p>
+                      {detail ? (
+                        <p className="mt-0.5 truncate text-xs opacity-80">{detail}</p>
+                      ) : null}
+                      {ev.hora ? (
+                        <p className="mt-0.5 text-[10px] opacity-60">{ev.hora} hs</p>
+                      ) : null}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Componente principal ──────────────────────────────────────────────────────
 
 type FetchState = "idle" | "loading" | "error" | "ok" | "unconfigured";
@@ -604,10 +865,14 @@ export function CalendarView({ refreshToken }: { refreshToken?: number } = {}) {
   const today = useRef(new Date()).current;
   const [refDate, setRefDate] = useState(() => new Date(today));
   const [view, setView] = useState<ViewMode>("month");
+  const [displayMode, setDisplayMode] = useState<DisplayMode>("calendario");
   const [events, setEvents] = useState<EventoCalendario[]>([]);
+  const [agendaEvents, setAgendaEvents] = useState<EventoCalendario[]>([]);
+  const [agendaStatus, setAgendaStatus] = useState<FetchState>("idle");
   const [status, setStatus] = useState<FetchState>("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [selectedEvent, setSelectedEvent] = useState<EventoCalendario | null>(null);
+  const [newEventOpen, setNewEventOpen] = useState(false);
 
   const getRange = useCallback(
     (date: Date, v: ViewMode): { start: string; end: string } => {
@@ -644,7 +909,26 @@ export function CalendarView({ refreshToken }: { refreshToken?: number } = {}) {
     [getRange],
   );
 
+  const fetchAgendaEvents = useCallback(async () => {
+    setAgendaStatus("loading");
+    const start = toISO(today);
+    const end = toISO(addDays(today, 90));
+    try {
+      const res = await fetch(`/api/calendar/events?start=${start}&end=${end}`);
+      const json = (await res.json()) as { events?: EventoCalendario[]; configured?: boolean; error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Error");
+      if (json.configured === false) { setAgendaStatus("unconfigured"); return; }
+      setAgendaEvents(json.events ?? []);
+      setAgendaStatus("ok");
+    } catch {
+      setAgendaStatus("error");
+    }
+  }, [today]);
+
   useEffect(() => { fetchEvents(refDate, view); }, [refDate, view, fetchEvents, refreshToken]);
+  useEffect(() => {
+    if (displayMode === "agenda") fetchAgendaEvents();
+  }, [displayMode, fetchAgendaEvents, refreshToken]);
 
   function prev() {
     if (view === "month") setRefDate((d) => addMonths(d, -1));
@@ -671,40 +955,85 @@ export function CalendarView({ refreshToken }: { refreshToken?: number } = {}) {
       <div className="flex flex-col gap-0 overflow-hidden rounded-xl border bg-card shadow-sm">
         {/* ── Header ── */}
         <div className="flex flex-wrap items-center gap-2 border-b px-4 py-3">
-          <div className="flex items-center gap-1">
-            <Button variant="outline" size="icon" className="size-8" onClick={prev} aria-label="Anterior">
-              <ChevronLeft className="size-4" />
-            </Button>
-            <Button variant="outline" size="icon" className="size-8" onClick={next} aria-label="Siguiente">
-              <ChevronRight className="size-4" />
-            </Button>
-          </div>
+          {/* Nav arrows — solo en modo calendario */}
+          {displayMode === "calendario" && (
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="icon" className="size-8" onClick={prev} aria-label="Anterior">
+                <ChevronLeft className="size-4" />
+              </Button>
+              <Button variant="outline" size="icon" className="size-8" onClick={next} aria-label="Siguiente">
+                <ChevronRight className="size-4" />
+              </Button>
+            </div>
+          )}
 
-          <h2 className="flex-1 text-sm font-semibold tabular-nums sm:text-base">{title}</h2>
+          <h2 className="flex-1 text-sm font-semibold tabular-nums sm:text-base">
+            {displayMode === "agenda" ? "Agenda — próximos 90 días" : title}
+          </h2>
 
           <div className="flex items-center gap-2">
-            {status === "loading" ? <Loader2 className="text-muted-foreground size-4 animate-spin" aria-hidden /> : null}
-            <Button variant="ghost" size="sm" className="h-8 px-2.5 text-xs" onClick={goToday}>Hoy</Button>
-            <div className="flex rounded-md border bg-muted/40 p-0.5">
-              {(["month", "week"] as const).map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => setView(v)}
-                  className={cn(
-                    "rounded px-2.5 py-1 text-xs font-medium transition-colors",
-                    view === v ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {v === "month" ? "Mes" : "Semana"}
-                </button>
-              ))}
-            </div>
+            {(status === "loading" || agendaStatus === "loading") ? (
+              <Loader2 className="text-muted-foreground size-4 animate-spin" aria-hidden />
+            ) : null}
+
+            {/* Botón Nuevo Evento */}
+            <Button
+              size="sm"
+              className="h-8 gap-1.5 bg-emerald-600 px-2.5 text-xs text-white hover:bg-emerald-700"
+              onClick={() => setNewEventOpen(true)}
+            >
+              <Plus className="size-3.5" />
+              <span className="hidden sm:inline">Nuevo Evento</span>
+            </Button>
+
+            {/* Toggle Hoy — solo calendario */}
+            {displayMode === "calendario" && (
+              <Button variant="ghost" size="sm" className="h-8 px-2.5 text-xs" onClick={goToday}>Hoy</Button>
+            )}
+
+            {/* Toggle Vista mes/semana — solo calendario */}
+            {displayMode === "calendario" && (
+              <div className="flex rounded-md border bg-muted/40 p-0.5">
+                {(["month", "week"] as const).map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setView(v)}
+                    className={cn(
+                      "rounded px-2.5 py-1 text-xs font-medium transition-colors",
+                      view === v ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {v === "month" ? "Mes" : "Semana"}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
+        {/* ── Barra de modo Calendario / Lista ── */}
+        <div className="flex items-center gap-1 border-b bg-muted/30 px-4 py-1.5">
+          {(["calendario", "agenda"] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => setDisplayMode(m)}
+              className={cn(
+                "flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors",
+                displayMode === m
+                  ? "bg-background text-foreground shadow-sm border"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {m === "calendario" ? <CalendarDays className="size-3.5" /> : <List className="size-3.5" />}
+              {m === "calendario" ? "Calendario" : "Lista de Agenda"}
+            </button>
+          ))}
+        </div>
+
         {/* Alertas */}
-        {status === "error" ? (
+        {status === "error" && displayMode === "calendario" ? (
           <div className="flex flex-col gap-1 border-b bg-destructive/5 px-4 py-3">
             <div className="flex items-start gap-2 text-sm text-destructive">
               <AlertCircle className="mt-0.5 size-4 shrink-0" />
@@ -729,38 +1058,45 @@ export function CalendarView({ refreshToken }: { refreshToken?: number } = {}) {
           </div>
         ) : null}
 
-        {status === "ok" && events.length === 0 ? (
+        {status === "ok" && events.length === 0 && displayMode === "calendario" ? (
           <div className="flex items-center gap-2 border-b bg-blue-50/50 px-4 py-2 text-xs text-blue-700 dark:bg-blue-950/20 dark:text-blue-400">
             <CalendarDays className="size-3.5 shrink-0" />
             <span>No hay eventos en este período. Si ya configuraste Google Calendar, usá <strong>&quot;Sincronizar contratos&quot;</strong> para crear los eventos de los contratos existentes.</span>
           </div>
         ) : null}
 
-        {/* Leyenda */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b bg-muted/20 px-4 py-2">
-          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className="size-2.5 rounded-full bg-rose-600" aria-hidden /> Vencimiento contrato
-          </span>
-          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className="size-2.5 rounded-full bg-amber-400" aria-hidden /> Alerta vencimiento
-          </span>
-          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className="size-2.5 rounded-full bg-blue-600" aria-hidden /> Actualización alquiler
-          </span>
-          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className="size-2.5 rounded-full bg-sky-400" aria-hidden /> Alerta actualización
-          </span>
-        </div>
+        {/* Leyenda — solo en modo calendario */}
+        {displayMode === "calendario" && (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b bg-muted/20 px-4 py-2">
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span className="size-2.5 rounded-full bg-rose-600" aria-hidden /> Vencimiento contrato
+            </span>
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span className="size-2.5 rounded-full bg-amber-400" aria-hidden /> Alerta vencimiento
+            </span>
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span className="size-2.5 rounded-full bg-blue-600" aria-hidden /> Actualización alquiler
+            </span>
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span className="size-2.5 rounded-full bg-sky-400" aria-hidden /> Alerta actualización
+            </span>
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span className="size-2.5 rounded-full bg-emerald-500" aria-hidden /> Evento operativo
+            </span>
+          </div>
+        )}
 
         {/* Vista */}
-        <div className="relative min-h-[320px]">
-          {status === "loading" ? (
+        <div className={cn("relative", displayMode === "agenda" ? "min-h-[200px]" : "min-h-[320px]")}>
+          {status === "loading" && displayMode === "calendario" ? (
             <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/60 backdrop-blur-[1px]">
               <Loader2 className="text-primary size-6 animate-spin" aria-hidden />
             </div>
           ) : null}
 
-          {view === "month" ? (
+          {displayMode === "agenda" ? (
+            <AgendaView events={agendaEvents} status={agendaStatus} onEventClick={setSelectedEvent} />
+          ) : view === "month" ? (
             <MonthView refDate={refDate} events={events} today={today} onEventClick={setSelectedEvent} />
           ) : (
             <WeekView refDate={refDate} events={events} today={today} onEventClick={setSelectedEvent} />
@@ -769,7 +1105,25 @@ export function CalendarView({ refreshToken }: { refreshToken?: number } = {}) {
       </div>
 
       {/* Dialog de detalle */}
-      <EventDetailDialog event={selectedEvent} onClose={() => setSelectedEvent(null)} />
+      <EventDetailDialog
+        event={selectedEvent}
+        onClose={() => setSelectedEvent(null)}
+        onDeleted={(id) => {
+          setEvents((prev) => prev.filter((e) => e.id !== id));
+          setAgendaEvents((prev) => prev.filter((e) => e.id !== id));
+          setSelectedEvent(null);
+        }}
+      />
+
+      {/* Dialog nuevo evento */}
+      <NewEventDialog
+        open={newEventOpen}
+        onClose={() => setNewEventOpen(false)}
+        onCreated={() => {
+          fetchEvents(refDate, view);
+          if (displayMode === "agenda") fetchAgendaEvents();
+        }}
+      />
     </>
   );
 }

@@ -8,6 +8,12 @@
  */
 
 import { google } from "googleapis";
+import { LABEL_TIPO_EVENTO } from "./calendar-types";
+import type { TipoEvento, TipoEventoPersonalizado, EventoCalendario } from "./calendar-types";
+
+// Re-export for consumers
+export type { TipoEvento, TipoEventoPersonalizado, EventoCalendario };
+export { esEventoPersonalizado, LABEL_TIPO_EVENTO, TIPOS_EVENTO_PERSONALIZADO } from "./calendar-types";
 
 const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID ?? "primary";
 
@@ -45,48 +51,23 @@ function getCalendar() {
   return google.calendar({ version: "v3", auth });
 }
 
-// ── Tipos ─────────────────────────────────────────────────────────────────────
-
-/**
- * Cuatro tipos de evento con semántica distinta y color propio:
- *  - vencimiento_real     → ROJO      — fecha exacta de vencimiento del contrato
- *  - alerta_vencimiento   → AMARILLO  — día 1 del mes anterior al vencimiento
- *  - actualizacion        → AZUL      — día en que corresponde actualizar el alquiler
- *  - alerta_actualizacion → CELESTE   — día 1 del mes anterior a cada actualización
- */
-export type TipoEvento =
-  | "vencimiento_real"
-  | "alerta_vencimiento"
-  | "actualizacion"
-  | "alerta_actualizacion";
-
-export type EventoCalendario = {
-  id: string;
-  titulo: string;
-  fecha: string;            // YYYY-MM-DD
-  tipo: TipoEvento;
-  direccion: string;
-  inquilino: string;
-  telefono: string | null;
-  contratoId: string;
-  htmlLink: string;
-  // Metadata extra (extraída de extendedProperties)
-  fechaVencimiento?: string;
-  montoMensual?: number;
-  indice?: string;            // "IPC" | "ICL"
-};
+// ── Tipos (re-exportados desde calendar-types.ts) ─────────────────────────────
 
 export type CalendarResult =
   | { ok: true; eventIds: string[]; creados: number; omitidos: number }
   | { ok: false; error: string; creados: number; omitidos: number };
 
 // ── colorId de Google Calendar por tipo ──────────────────────────────────────
-// 11=Tomato(rojo), 5=Banana(amarillo), 9=Blueberry(azul), 7=Peacock(celeste)
+// 11=Tomato(rojo), 5=Banana(amarillo), 9=Blueberry(azul), 7=Peacock(celeste), 2=Sage(verde)
 const COLOR_ID: Record<TipoEvento, string> = {
   vencimiento_real: "11",
   alerta_vencimiento: "5",
   actualizacion: "9",
   alerta_actualizacion: "7",
+  visita_inquilino: "2",
+  visita_propietario: "2",
+  muestra_propiedad: "2",
+  tramite: "2",
 };
 
 // ── Helpers de fechas ─────────────────────────────────────────────────────────
@@ -355,10 +336,13 @@ function mapItem(e: {
   extendedProperties?: { private?: Record<string, string> | null } | null;
 }): EventoCalendario {
   const priv = e.extendedProperties?.private ?? {};
+  const startDT = e.start?.dateTime;
+  const hora = startDT ? startDT.slice(11, 16) : undefined;
   return {
     id: e.id ?? "",
     titulo: e.summary ?? "",
-    fecha: e.start?.date ?? e.start?.dateTime?.slice(0, 10) ?? "",
+    fecha: e.start?.date ?? startDT?.slice(0, 10) ?? "",
+    hora,
     tipo: (priv.tipo as TipoEvento) ?? "alerta_vencimiento",
     direccion: priv.direccion ?? e.summary ?? "",
     inquilino: priv.inquilino ?? "",
@@ -368,5 +352,92 @@ function mapItem(e: {
     fechaVencimiento: priv.fechaVencimiento || undefined,
     montoMensual: priv.montoMensual ? Number(priv.montoMensual) : undefined,
     indice: priv.indice || undefined,
+    notas: priv.notas || undefined,
+    nombreInteresado: priv.nombreInteresado || undefined,
+    telefonoInteresado: priv.telefonoInteresado || undefined,
   };
+}
+
+// ── Crear evento personalizado (VERDE) ────────────────────────────────────────
+
+export type DatosEventoPersonalizado = {
+  tipo: TipoEventoPersonalizado;
+  fecha: string;             // YYYY-MM-DD
+  hora?: string;             // HH:MM
+  notas?: string;
+  nombreCliente?: string;
+  telefonoCliente?: string;
+  nombrePropiedad?: string;
+  nombreInteresado?: string;
+  telefonoInteresado?: string;
+};
+
+export async function crearEventoPersonalizado(
+  datos: DatosEventoPersonalizado,
+): Promise<{ ok: boolean; id?: string; error?: string }> {
+  try {
+    const calendar = getCalendar();
+    const label = LABEL_TIPO_EVENTO[datos.tipo];
+
+    // Armar start/end: si hay hora, usar dateTime; si no, all-day
+    let startObj: { date?: string; dateTime?: string; timeZone?: string };
+    let endObj: { date?: string; dateTime?: string; timeZone?: string };
+    if (datos.hora) {
+      const tz = "America/Argentina/Buenos_Aires";
+      startObj = { dateTime: `${datos.fecha}T${datos.hora}:00`, timeZone: tz };
+      const [hh, mm] = datos.hora.split(":").map(Number);
+      const endH = String(hh + 1).padStart(2, "0");
+      endObj = { dateTime: `${datos.fecha}T${endH}:${String(mm).padStart(2, "0")}:00`, timeZone: tz };
+    } else {
+      startObj = { date: datos.fecha };
+      endObj = { date: datos.fecha };
+    }
+
+    const priv: Record<string, string> = {
+      tipo: datos.tipo,
+      ...(datos.notas ? { notas: datos.notas } : {}),
+      ...(datos.nombreCliente ? { inquilino: datos.nombreCliente } : {}),
+      ...(datos.telefonoCliente ? { telefono: datos.telefonoCliente } : {}),
+      ...(datos.nombrePropiedad ? { direccion: datos.nombrePropiedad } : {}),
+      ...(datos.nombreInteresado ? { nombreInteresado: datos.nombreInteresado } : {}),
+      ...(datos.telefonoInteresado ? { telefonoInteresado: datos.telefonoInteresado } : {}),
+    };
+
+    const summaryParts = [label];
+    if (datos.nombrePropiedad) summaryParts.push(datos.nombrePropiedad);
+    else if (datos.nombreCliente) summaryParts.push(datos.nombreCliente);
+
+    const res = await calendar.events.insert({
+      calendarId: CALENDAR_ID,
+      requestBody: {
+        summary: summaryParts.join(": "),
+        start: startObj,
+        end: endObj,
+        colorId: COLOR_ID[datos.tipo],
+        extendedProperties: { private: priv },
+        description: datos.notas ?? undefined,
+      },
+    });
+    return { ok: true, id: res.data.id ?? undefined };
+  } catch (e) {
+    const err = e instanceof Error ? e.message : String(e);
+    console.error("[Google Calendar] Error al crear evento personalizado:", err);
+    return { ok: false, error: err };
+  }
+}
+
+// ── Eliminar evento ───────────────────────────────────────────────────────────
+
+export async function eliminarEvento(
+  eventId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const calendar = getCalendar();
+    await calendar.events.delete({ calendarId: CALENDAR_ID, eventId });
+    return { ok: true };
+  } catch (e) {
+    const err = e instanceof Error ? e.message : String(e);
+    console.error("[Google Calendar] Error al eliminar evento:", err);
+    return { ok: false, error: err };
+  }
 }
