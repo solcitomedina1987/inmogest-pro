@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -12,6 +13,7 @@ import {
 } from "@/components/ui/table";
 import type { ContratoCobranzaRow, PagoRow } from "@/lib/cobranzas/types";
 import { ContratoWidgets, type ContratoWidgetData } from "@/components/portal/contrato-widgets";
+import { cn } from "@/lib/utils";
 
 const precioFmt = new Intl.NumberFormat("es-AR", {
   style: "currency",
@@ -39,6 +41,27 @@ type Props = {
 };
 
 export function PortalView({ contrato, pagos, widgets }: Props) {
+  /* Calcula los meses donde corresponde actualización de alquiler */
+  const mesesActualizacion = useMemo((): Set<string> => {
+    const { fecha_inicio, fecha_vencimiento, meses_actualizacion } = contrato;
+    if (!fecha_inicio || !fecha_vencimiento || !meses_actualizacion) return new Set();
+
+    const [sy, sm] = fecha_inicio.split("-").map(Number);
+    const [ey, em] = fecha_vencimiento.split("-").map(Number);
+    const limiteMs = ey * 12 + em;
+    const periodos = new Set<string>();
+
+    let y = sy;
+    let m = sm + meses_actualizacion;
+    while (m > 12) { m -= 12; y += 1; }
+
+    while (y * 12 + m <= limiteMs) {
+      periodos.add(`${y}-${String(m).padStart(2, "0")}`);
+      m += meses_actualizacion;
+      while (m > 12) { m -= 12; y += 1; }
+    }
+    return periodos;
+  }, [contrato]);
   return (
     <div className="flex flex-col gap-8 px-4 py-8 md:px-8 max-w-4xl mx-auto">
 
@@ -112,9 +135,21 @@ export function PortalView({ contrato, pagos, widgets }: Props) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {pagos.map((p) => (
-                    <TableRow key={p.id}>
-                      <TableCell className="font-medium tabular-nums">{p.mes_periodo}</TableCell>
+                  {pagos.map((p) => {
+                    const esActualizacion = mesesActualizacion.has(p.mes_periodo);
+                    return (
+                    <TableRow
+                      key={p.id}
+                      className={cn(esActualizacion ? "bg-yellow-50 dark:bg-yellow-950/20" : undefined)}
+                    >
+                      <TableCell className="font-medium tabular-nums">
+                        {p.mes_periodo}
+                        {esActualizacion && (
+                          <span className="ml-2 inline-flex items-center rounded-full bg-yellow-200 px-1.5 py-0.5 text-[10px] font-semibold text-yellow-800">
+                            Actualización
+                          </span>
+                        )}
+                      </TableCell>
                       <TableCell className="tabular-nums">
                         {p.fecha_pago_realizado ? fmtFecha(p.fecha_pago_realizado) : "—"}
                       </TableCell>
@@ -124,7 +159,8 @@ export function PortalView({ contrato, pagos, widgets }: Props) {
                       <TableCell className="text-sm">{p.forma_pago ?? "—"}</TableCell>
                       <TableCell>{estadoBadge(p.estado)}</TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
