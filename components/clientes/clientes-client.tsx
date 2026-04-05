@@ -2,9 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { MessageCircle, Pencil, UserMinus, UserPlus } from "lucide-react";
+import { KeyRound, Loader2, MessageCircle, Pencil, UserMinus, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { deactivateCliente } from "@/app/actions/clientes";
+import { crearAccesoPortal } from "@/app/actions/portal-acceso";
 import type { TipoCliente } from "@/lib/constants/clientes";
 import { TIPO_CLIENTE_VALUES } from "@/lib/constants/clientes";
 import {
@@ -35,6 +36,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { ClienteFormDialog } from "@/components/clientes/cliente-form-dialog";
 import type { ClienteListRow } from "@/components/clientes/types";
 import { cn } from "@/lib/utils";
@@ -71,6 +78,7 @@ export function ClientesClient({ initial }: Props) {
   const [tipoFiltro, setTipoFiltro] = useState<"todos" | TipoCliente>("todos");
   const [verInactivos, setVerInactivos] = useState(false);
   const [cascadeTarget, setCascadeTarget] = useState<ClienteListRow | null>(null);
+  const [accesoLoading, setAccesoLoading] = useState<string | null>(null); // id del cliente en proceso
 
   const filtrados = useMemo(() => {
     const nq = normalizar(qNombre);
@@ -119,6 +127,22 @@ export function ClientesClient({ initial }: Props) {
       return;
     }
     toast.error(res.error);
+  }
+
+  async function handleCrearAcceso(row: ClienteListRow) {
+    setAccesoLoading(row.id);
+    const res = await crearAccesoPortal(row.id);
+    setAccesoLoading(null);
+    if (res.ok) {
+      toast.success(
+        res.created
+          ? `Acceso creado para ${row.nombre_completo}. Contraseña: DNI ${row.dni}.`
+          : `Contraseña restablecida a DNI ${row.dni} para ${row.nombre_completo}.`,
+        { duration: 6000 },
+      );
+    } else {
+      toast.error(res.error);
+    }
   }
 
   function solicitarBaja(row: ClienteListRow) {
@@ -252,7 +276,7 @@ export function ClientesClient({ initial }: Props) {
                     <TableHead>Tipo</TableHead>
                     <TableHead>Estado</TableHead>
                     <TableHead>Teléfono</TableHead>
-                    <TableHead className="w-[120px] text-right">Acciones</TableHead>
+                    <TableHead className="w-[150px] text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -292,24 +316,59 @@ export function ClientesClient({ initial }: Props) {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button type="button" variant="ghost" size="icon" onClick={() => abrirEditar(r)}>
-                            <Pencil className="size-4" aria-hidden />
-                            <span className="sr-only">Editar</span>
-                          </Button>
-                          {r.is_active ? (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                              onClick={() => solicitarBaja(r)}
-                            >
-                              <UserMinus className="size-4" aria-hidden />
-                              <span className="sr-only">Dar de baja</span>
-                            </Button>
-                          ) : null}
-                        </div>
+                        <TooltipProvider delayDuration={300}>
+                          <div className="flex justify-end gap-1">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button type="button" variant="ghost" size="icon" onClick={() => abrirEditar(r)}>
+                                  <Pencil className="size-4" aria-hidden />
+                                  <span className="sr-only">Editar</span>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Editar</TooltipContent>
+                            </Tooltip>
+
+                            {/* Botón portal: solo inquilinos activos con email y DNI */}
+                            {r.is_active && (r.tipo_cliente === "Inquilino" || r.tipo_cliente === "Ambos") && r.email && r.dni ? (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-indigo-600 hover:bg-indigo-50 hover:text-indigo-800"
+                                    disabled={accesoLoading === r.id}
+                                    onClick={() => handleCrearAcceso(r)}
+                                  >
+                                    {accesoLoading === r.id
+                                      ? <Loader2 className="size-4 animate-spin" aria-hidden />
+                                      : <KeyRound className="size-4" aria-hidden />}
+                                    <span className="sr-only">Crear/restablecer acceso portal</span>
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Crear / restablecer acceso al Portal</TooltipContent>
+                              </Tooltip>
+                            ) : null}
+
+                            {r.is_active ? (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                    onClick={() => solicitarBaja(r)}
+                                  >
+                                    <UserMinus className="size-4" aria-hidden />
+                                    <span className="sr-only">Dar de baja</span>
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Dar de baja</TooltipContent>
+                              </Tooltip>
+                            ) : null}
+                          </div>
+                        </TooltipProvider>
                       </TableCell>
                     </TableRow>
                   ))}
