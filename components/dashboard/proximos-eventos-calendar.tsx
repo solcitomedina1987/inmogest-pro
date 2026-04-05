@@ -113,7 +113,7 @@ export async function ProximosEventosCalendar() {
               <li key={ev.id} className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0">
                 {/* Tipo + fecha */}
                 <div className="flex flex-wrap items-center gap-2">
-                  {ev.tipo === "vencimiento" ? (
+                  {ev.tipo === "vencimiento_real" ? (
                     <Badge
                       variant="outline"
                       className="border-red-500/60 bg-red-50 text-red-700 dark:bg-red-950/40"

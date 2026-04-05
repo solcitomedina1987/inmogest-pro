@@ -10,7 +10,7 @@ import { ExecutiveDashboardPanel } from "@/components/dashboard/executive-dashbo
 import { ExecutiveDashboardSkeleton } from "@/components/dashboard/executive-dashboard-skeleton";
 import { FirstLoginWelcomeDialog } from "@/components/dashboard/first-login-welcome-dialog";
 import { BannerActualizaciones } from "@/components/cobranzas/banner-actualizaciones";
-import { ProximosEventosCalendar } from "@/components/dashboard/proximos-eventos-calendar";
+import { CalendarView } from "@/components/dashboard/calendar-view";
 
 export const metadata: Metadata = {
   title: "Panel",
@@ -38,7 +38,7 @@ export default async function DashboardHomePage() {
   const rol = perfil?.rol ?? "cliente";
   const mostrarMetricas = rol === "admin" || rol === "cliente";
 
-  // Cargar contratos activos para el banner de alertas (solo admins)
+  // Banner de próximas actualizaciones (solo admin)
   let contratosAlerta: ContratoCobranzaRow[] = [];
   if (rol === "admin") {
     const { data: contratosRaw } = await supabase
@@ -65,7 +65,9 @@ export default async function DashboardHomePage() {
         indice_actualizacion: ((row.indice_actualizacion as string) ?? "ICL") as "IPC" | "ICL",
         ultima_actualizacion: (row.ultima_actualizacion as string) ?? null,
         is_active: true,
-        propiedad: Array.isArray(row.propiedad) ? (row.propiedad[0] ?? null) : (row.propiedad as ContratoCobranzaRow["propiedad"]) ?? null,
+        propiedad: Array.isArray(row.propiedad)
+          ? (row.propiedad[0] ?? null)
+          : (row.propiedad as ContratoCobranzaRow["propiedad"]) ?? null,
       };
     });
 
@@ -77,11 +79,12 @@ export default async function DashboardHomePage() {
       <Suspense fallback={null}>
         <FirstLoginWelcomeDialog />
       </Suspense>
+
       <header className="flex flex-col gap-2 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6">
         <div className="min-w-0 space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Dashboard</h1>
           {mostrarMetricas ? (
-            <p className="text-muted-foreground text-sm">Métricas clave y cobros atrasados</p>
+            <p className="text-muted-foreground text-sm">Centro de control — datos en tiempo real</p>
           ) : (
             <p className="text-muted-foreground text-sm">Resumen de tu cuenta en {BRAND_NAME}</p>
           )}
@@ -104,9 +107,15 @@ export default async function DashboardHomePage() {
       )}
 
       {rol === "admin" ? (
-        <Suspense fallback={null}>
-          <ProximosEventosCalendar />
-        </Suspense>
+        <section className="flex flex-col gap-3">
+          <div>
+            <h2 className="text-lg font-semibold tracking-tight">Calendario</h2>
+            <p className="text-muted-foreground text-sm">
+              Vencimientos y actualizaciones de contratos. Clic en un evento para ver el detalle.
+            </p>
+          </div>
+          <CalendarView />
+        </section>
       ) : null}
     </div>
   );

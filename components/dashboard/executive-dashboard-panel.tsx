@@ -17,87 +17,126 @@ const precioFmt = new Intl.NumberFormat("es-AR", {
   maximumFractionDigits: 0,
 });
 
+const MESES_CORTO = [
+  "Ene", "Feb", "Mar", "Abr", "May", "Jun",
+  "Jul", "Ago", "Sep", "Oct", "Nov", "Dic",
+];
+
+function mesLabel(offset: number): string {
+  const d = new Date();
+  d.setMonth(d.getMonth() + offset);
+  return `${MESES_CORTO[d.getMonth()]} ${d.getFullYear()}`;
+}
+
 type PanelProps = {
-  /** Enlaces a secciones solo para administradores (cliente ve métricas sin acceso a listados). */
   showAdminLinks?: boolean;
 };
 
 export async function ExecutiveDashboardPanel({ showAdminLinks = false }: PanelProps = {}) {
   const data = await getExecutiveDashboardData();
-  if (!data) {
-    return null;
-  }
+  if (!data) return null;
+
+  const vencimientosTotal =
+    data.vencimientosEsteMes + data.vencimientosProximoMes + data.vencimientosSubsiguiente;
 
   return (
-    <div className="max-w-full space-y-10">
-      <div className="grid max-w-full grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-8 xl:grid-cols-4 xl:gap-10">
-        <Card
-          className={cn(
-            "min-h-[148px] border shadow-sm transition-shadow hover:shadow-md",
-            "border-l-4 border-l-red-600 bg-red-50/40 dark:bg-red-950/20",
-          )}
-        >
-          <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Cobros atrasados</CardTitle>
-            <div className="rounded-lg bg-red-600/15 p-2.5 text-red-700 dark:bg-red-600/25 dark:text-red-400">
-              <AlertTriangle className="size-4" aria-hidden />
-            </div>
-          </CardHeader>
-          <CardContent className="pb-6 pt-0">
-            <p className="text-3xl font-bold tabular-nums tracking-tight text-red-700 dark:text-red-400 xl:text-4xl">
-              {data.cobrosAtrasados}
-            </p>
-            <CardDescription className="mt-2 text-xs">
-              Contratos en mora (atrasados o pasado el límite del mes)
-            </CardDescription>
-          </CardContent>
-        </Card>
+    <div className="max-w-full space-y-8">
+      {/* ── 4 Widgets ── */}
+      <div className="grid max-w-full grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 xl:gap-6">
 
+        {/* Widget 1 — Próximos Vencimientos */}
         <Card
           className={cn(
-            "min-h-[148px] border shadow-sm transition-shadow hover:shadow-md",
-            "border-l-4 border-l-emerald-600 bg-emerald-50/40 dark:bg-emerald-950/20",
-          )}
-        >
-          <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ocupación</CardTitle>
-            <div className="rounded-lg bg-emerald-600/15 p-2.5 text-emerald-700 dark:bg-emerald-600/25 dark:text-emerald-400">
-              <Percent className="size-4" aria-hidden />
-            </div>
-          </CardHeader>
-          <CardContent className="pb-6 pt-0">
-            <p className="text-3xl font-bold tabular-nums tracking-tight text-emerald-700 dark:text-emerald-400 xl:text-4xl">
-              {data.ocupacionPct}%
-            </p>
-            <CardDescription className="mt-2 text-xs">
-              Propiedades alquiladas sobre activas en cartera
-            </CardDescription>
-          </CardContent>
-        </Card>
-
-        <Card
-          className={cn(
-            "min-h-[148px] border shadow-sm transition-shadow hover:shadow-md",
-            "border-l-4 border-l-amber-600 bg-amber-50/35 dark:bg-amber-950/20",
+            "border shadow-sm transition-shadow hover:shadow-md",
+            "border-l-4 border-l-amber-500 bg-amber-50/40 dark:bg-amber-950/20",
           )}
         >
           <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Próximos vencimientos</CardTitle>
-            <div className="rounded-lg bg-amber-600/15 p-2.5 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300">
+            <div className="rounded-lg bg-amber-500/15 p-2.5 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
               <CalendarClock className="size-4" aria-hidden />
             </div>
           </CardHeader>
-          <CardContent className="pb-6 pt-0">
-            <p className="text-3xl font-bold tabular-nums tracking-tight text-amber-900 dark:text-amber-300 xl:text-4xl">
-              {data.vencimientos30}
+          <CardContent className="pb-5 pt-0">
+            <p className="text-4xl font-bold tabular-nums tracking-tight text-amber-900 dark:text-amber-300 xl:text-5xl">
+              {vencimientosTotal}
             </p>
-            <CardDescription className="mt-2 text-xs">Contratos que vencen en los próximos 30 días</CardDescription>
+            <p className="mt-1 text-[11px] font-medium text-amber-800/80 dark:text-amber-400/80">
+              Contratos que vencen próximamente
+            </p>
+            <div className="mt-3 flex flex-col gap-0.5 border-t border-amber-200/60 pt-2.5 dark:border-amber-800/40">
+              <span className="flex items-center justify-between text-[11px]">
+                <span className="text-muted-foreground">Este mes ({mesLabel(0)})</span>
+                <span className="font-semibold tabular-nums text-amber-900 dark:text-amber-300">
+                  {data.vencimientosEsteMes}
+                </span>
+              </span>
+              <span className="flex items-center justify-between text-[11px]">
+                <span className="text-muted-foreground">Próximo ({mesLabel(1)})</span>
+                <span className="font-semibold tabular-nums text-amber-900 dark:text-amber-300">
+                  {data.vencimientosProximoMes}
+                </span>
+              </span>
+              <span className="flex items-center justify-between text-[11px]">
+                <span className="text-muted-foreground">Subsiguiente ({mesLabel(2)})</span>
+                <span className="font-semibold tabular-nums text-amber-900 dark:text-amber-300">
+                  {data.vencimientosSubsiguiente}
+                </span>
+              </span>
+            </div>
           </CardContent>
         </Card>
 
+        {/* Widget 2 — Cobros Pendientes */}
         <Card
           className={cn(
-            "min-h-[148px] border shadow-sm transition-shadow hover:shadow-md",
+            "border shadow-sm transition-shadow hover:shadow-md",
+            "border-l-4 border-l-red-600 bg-red-50/40 dark:bg-red-950/20",
+          )}
+        >
+          <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Cobros pendientes</CardTitle>
+            <div className="rounded-lg bg-red-600/15 p-2.5 text-red-700 dark:bg-red-600/25 dark:text-red-400">
+              <AlertTriangle className="size-4" aria-hidden />
+            </div>
+          </CardHeader>
+          <CardContent className="pb-5 pt-0">
+            <p className="text-4xl font-bold tabular-nums tracking-tight text-red-700 dark:text-red-400 xl:text-5xl">
+              {data.cobrosPendientes}
+            </p>
+            <p className="mt-1 text-[11px] font-medium text-red-700/70 dark:text-red-400/70">
+              Alquileres sin pago registrado este mes
+            </p>
+            <div className="mt-3 flex flex-col gap-0.5 border-t border-red-200/60 pt-2.5 dark:border-red-800/40">
+              <span className="flex items-center justify-between text-[11px]">
+                <span className="text-muted-foreground">% Morosidad</span>
+                <span
+                  className={cn(
+                    "font-semibold tabular-nums",
+                    data.morosidadPct > 50
+                      ? "text-red-700 dark:text-red-400"
+                      : data.morosidadPct > 20
+                        ? "text-amber-700 dark:text-amber-400"
+                        : "text-emerald-700 dark:text-emerald-400",
+                  )}
+                >
+                  {data.morosidadPct}%
+                </span>
+              </span>
+              <span className="flex items-center justify-between text-[11px]">
+                <span className="text-muted-foreground">Total contratos activos</span>
+                <span className="font-semibold tabular-nums text-foreground/80">
+                  {data.totalContratosActivos}
+                </span>
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Widget 3 — Total Propiedades */}
+        <Card
+          className={cn(
+            "border shadow-sm transition-shadow hover:shadow-md",
             "border-l-4 border-l-blue-600 bg-blue-50/40 dark:bg-blue-950/20",
           )}
         >
@@ -107,23 +146,81 @@ export async function ExecutiveDashboardPanel({ showAdminLinks = false }: PanelP
               <Building2 className="size-4" aria-hidden />
             </div>
           </CardHeader>
-          <CardContent className="pb-6 pt-0">
-            <p className="text-3xl font-bold tabular-nums tracking-tight text-blue-700 dark:text-blue-400 xl:text-4xl">
+          <CardContent className="pb-5 pt-0">
+            <p className="text-4xl font-bold tabular-nums tracking-tight text-blue-700 dark:text-blue-400 xl:text-5xl">
               {data.totalPropiedades}
             </p>
-            <CardDescription className="mt-2 text-xs">Inmuebles activos en cartera</CardDescription>
+            <p className="mt-1 text-[11px] font-medium text-blue-700/70 dark:text-blue-400/70">
+              Inmuebles activos en cartera
+            </p>
+            <div className="mt-3 flex flex-col gap-0.5 border-t border-blue-200/60 pt-2.5 dark:border-blue-800/40">
+              <span className="flex items-center justify-between text-[11px]">
+                <span className="text-muted-foreground">Alquiladas</span>
+                <span className="font-semibold tabular-nums text-blue-700 dark:text-blue-400">
+                  {data.alquiladasCount}
+                </span>
+              </span>
+              <span className="flex items-center justify-between text-[11px]">
+                <span className="text-muted-foreground">Disponibles</span>
+                <span className="font-semibold tabular-nums text-foreground/80">
+                  {data.totalPropiedades - data.alquiladasCount}
+                </span>
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Widget 4 — Ocupación */}
+        <Card
+          className={cn(
+            "border shadow-sm transition-shadow hover:shadow-md",
+            "border-l-4 border-l-emerald-600 bg-emerald-50/40 dark:bg-emerald-950/20",
+          )}
+        >
+          <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Ocupación</CardTitle>
+            <div className="rounded-lg bg-emerald-600/15 p-2.5 text-emerald-700 dark:bg-emerald-600/25 dark:text-emerald-400">
+              <Percent className="size-4" aria-hidden />
+            </div>
+          </CardHeader>
+          <CardContent className="pb-5 pt-0">
+            <p className="text-4xl font-bold tabular-nums tracking-tight text-emerald-700 dark:text-emerald-400 xl:text-5xl">
+              {data.ocupacionPct}%
+            </p>
+            <p className="mt-1 text-[11px] font-medium text-emerald-700/70 dark:text-emerald-400/70">
+              Propiedades alquiladas sobre el total
+            </p>
+            {/* Barra de progreso */}
+            <div className="mt-3 border-t border-emerald-200/60 pt-2.5 dark:border-emerald-800/40">
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-emerald-200/60 dark:bg-emerald-900/40">
+                <div
+                  className="h-full rounded-full bg-emerald-600 dark:bg-emerald-500 transition-all duration-500"
+                  style={{ width: `${data.ocupacionPct}%` }}
+                  role="progressbar"
+                  aria-valuenow={data.ocupacionPct}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                />
+              </div>
+              <p className="mt-1.5 text-[11px] text-muted-foreground">
+                {data.alquiladasCount} de {data.totalPropiedades} propiedades
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>
 
+      {/* ── Panel de atención inmediata ── */}
       <Card className="border shadow-sm">
         <CardHeader>
-          <CardTitle className="text-lg">Atención inmediata</CardTitle>
+          <CardTitle className="text-base">Atención inmediata</CardTitle>
           <CardDescription>Últimos pagos marcados como atrasados (máx. 5)</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {data.ultimosAtrasados.length === 0 ? (
-            <p className="text-muted-foreground py-4 text-center text-sm">No hay pagos atrasados registrados.</p>
+            <p className="text-muted-foreground py-4 text-center text-sm">
+              No hay pagos atrasados registrados.
+            </p>
           ) : (
             <ul className="divide-border divide-y rounded-lg border">
               {data.ultimosAtrasados.map((p) => (

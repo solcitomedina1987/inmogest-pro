@@ -5,13 +5,6 @@
  *   GOOGLE_CLIENT_EMAIL  – email de la service account
  *   GOOGLE_PRIVATE_KEY   – clave privada (con \n reales o escapados)
  *   GOOGLE_CALENDAR_ID   – ID del calendario destino (compartirlo con la service account)
- *
- * Configuración rápida:
- *   1. console.cloud.google.com → "APIs y servicios" → habilitar Google Calendar API
- *   2. IAM → Cuentas de servicio → crear una → descargar clave JSON
- *   3. Abrir Google Calendar → Configuración del calendario → Compartir con
- *      el GOOGLE_CLIENT_EMAIL con permiso "Hacer cambios en los eventos"
- *   4. Copiar el "ID del calendario" y pegarlo en GOOGLE_CALENDAR_ID
  */
 
 import { google } from "googleapis";
@@ -30,7 +23,6 @@ function getCalendar() {
     );
   }
 
-  // Las claves en .env tienen \\n como texto literal; las convertimos a saltos reales
   const privateKey = rawKey.replace(/\\n/g, "\n");
 
   const auth = new google.auth.GoogleAuth({
@@ -43,37 +35,52 @@ function getCalendar() {
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 
+/**
+ * Tres tipos de evento con semántica distinta y color propio:
+ *  - alerta_vencimiento  → AMARILLO  — día 1 del mes anterior al vencimiento
+ *  - vencimiento_real    → ROJO      — fecha exacta de vencimiento del contrato
+ *  - actualizacion       → NARANJA   — fecha de revisión del precio de alquiler
+ */
+export type TipoEvento = "alerta_vencimiento" | "vencimiento_real" | "actualizacion";
+
 export type EventoCalendario = {
   id: string;
   titulo: string;
-  fecha: string;          // YYYY-MM-DD
-  tipo: "vencimiento" | "actualizacion";
+  fecha: string;            // YYYY-MM-DD
+  tipo: TipoEvento;
   direccion: string;
   inquilino: string;
   telefono: string | null;
   contratoId: string;
   htmlLink: string;
+  // Metadata extra (extraída de extendedProperties)
+  fechaVencimiento?: string;  // vencimiento_real y alerta_vencimiento
+  montoMensual?: number;      // actualizacion
+  indice?: string;            // actualizacion: "IPC" | "ICL"
 };
 
 export type CalendarResult = { ok: true; eventIds: string[] } | { ok: false; error: string };
 
+// ── colorId de Google Calendar por tipo ──────────────────────────────────────
+// 5 = Banana (amarillo), 6 = Tangerine (naranja), 11 = Tomato (rojo)
+const COLOR_ID: Record<TipoEvento, string> = {
+  alerta_vencimiento: "5",
+  actualizacion: "6",
+  vencimiento_real: "11",
+};
+
 // ── Helpers de fechas ─────────────────────────────────────────────────────────
 
-/**
- * Devuelve YYYY-MM-01 del mes previo a la fecha de vencimiento.
- * Ej: 2027-12-31 → 2027-11-01
- */
+/** Devuelve YYYY-MM-01 del mes previo al vencimiento. Ej: 2027-12-31 → 2027-11-01 */
 function fechaAlertaVencimiento(fechaVencimiento: string): string {
   const [y, m] = fechaVencimiento.split("-").map(Number);
-  // 1 mes antes: new Date(y, m-2, 1) → mes m-2 (0-based)
   const d = new Date(y, m - 2, 1);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
 }
 
 /**
- * Genera las fechas YYYY-MM-01 de cada actualización de precio durante la vigencia.
- * Ej: inicio=2026-01-01, cada 4 meses, vencimiento=2028-01-01
- *   → ["2026-04-01", "2026-08-01", "2026-12-01", "2027-04-01", "2027-08-01", "2027-12-01"]
+ * Genera fechas YYYY-MM-01 de cada ciclo de actualización de precio.
+ * Ej: inicio=2026-01-01, cada 4 meses → 2026-04-01, 2026-08-01, …
  */
 function fechasActualizacion(
   fechaInicio: string,
@@ -87,65 +94,66 @@ function fechasActualizacion(
   const fechas: string[] = [];
   let y = sy;
   let m = sm + mesesActualizacion;
-
-  // Normalizar meses > 12
-  while (m > 12) {
-    m -= 12;
-    y += 1;
-  }
+  while (m > 12) { m -= 12; y += 1; }
 
   while (y * 12 + m <= limiteMs) {
     fechas.push(`${y}-${String(m).padStart(2, "0")}-01`);
     m += mesesActualizacion;
-    while (m > 12) {
-      m -= 12;
-      y += 1;
-    }
+    while (m > 12) { m -= 12; y += 1; }
   }
-
   return fechas;
 }
 
-// ── Creación de eventos ───────────────────────────────────────────────────────
+// ── Creación interna de un evento ─────────────────────────────────────────────
 
 type DatosEvento = {
   direccion: string;
   inquilino: string;
   telefono: string | null;
   contratoId: string;
+  fechaVencimiento?: string;
+  montoMensual?: number;
+  indice?: string;
 };
 
 async function crearEvento(
   titulo: string,
-  fecha: string,  // YYYY-MM-DD
-  tipo: "vencimiento" | "actualizacion",
+  fecha: string,
+  tipo: TipoEvento,
   datos: DatosEvento,
 ): Promise<string> {
   const calendar = getCalendar();
   const tel = datos.telefono ?? "sin teléfono";
 
+  const extended: Record<string, string> = {
+    tipo,
+    contratoId: datos.contratoId,
+    inquilino: datos.inquilino,
+    telefono: datos.telefono ?? "",
+    direccion: datos.direccion,
+  };
+  if (datos.fechaVencimiento) extended.fechaVencimiento = datos.fechaVencimiento;
+  if (datos.montoMensual != null) extended.montoMensual = String(datos.montoMensual);
+  if (datos.indice) extended.indice = datos.indice;
+
+  const lines = [
+    `Inquilino: ${datos.inquilino}`,
+    `Teléfono: ${tel}`,
+    `Dirección: ${datos.direccion}`,
+    datos.fechaVencimiento ? `Vencimiento: ${datos.fechaVencimiento}` : null,
+    datos.montoMensual != null ? `Monto mensual: $${datos.montoMensual.toLocaleString("es-AR")}` : null,
+    datos.indice ? `Índice: ${datos.indice}` : null,
+  ].filter(Boolean).join("\n");
+
   const response = await calendar.events.insert({
     calendarId: CALENDAR_ID,
     requestBody: {
       summary: titulo,
-      description:
-        `Inquilino: ${datos.inquilino}\n` +
-        `Teléfono: ${tel}\n` +
-        `Dirección: ${datos.direccion}\n` +
-        `Contrato ID: ${datos.contratoId}`,
+      description: lines,
       start: { date: fecha },
-      end: { date: fecha },   // all-day event
-      // Metadatos estructurados para recuperar en el widget
-      extendedProperties: {
-        private: {
-          tipo,
-          contratoId: datos.contratoId,
-          inquilino: datos.inquilino,
-          telefono: datos.telefono ?? "",
-          direccion: datos.direccion,
-        },
-      },
-      colorId: tipo === "vencimiento" ? "11" : "5", // rojo vs amarillo
+      end: { date: fecha },
+      colorId: COLOR_ID[tipo],
+      extendedProperties: { private: extended },
       reminders: {
         useDefault: false,
         overrides: [{ method: "popup", minutes: 60 }],
@@ -159,52 +167,69 @@ async function crearEvento(
 // ── API pública ───────────────────────────────────────────────────────────────
 
 /**
- * Crea todos los eventos de un contrato: un evento de vencimiento +
- * todos los eventos de actualización de precio durante la vigencia.
+ * Crea los 3 tipos de eventos para un contrato:
+ *   1. alerta_vencimiento (AMARILLO) — día 1 del mes anterior al vencimiento
+ *   2. vencimiento_real   (ROJO)     — fecha exacta de vencimiento
+ *   3. actualizacion      (NARANJA)  — una por cada ciclo de revisión de precio
  */
 export async function crearEventosContrato(params: {
-  fechaInicio: string;       // YYYY-MM-DD
-  fechaVencimiento: string;  // YYYY-MM-DD
+  fechaInicio: string;
+  fechaVencimiento: string;
   mesesActualizacion: number;
   direccion: string;
   inquilino: string;
   telefono: string | null;
   contratoId: string;
+  montoMensual?: number;
+  indiceActualizacion?: string;
 }): Promise<CalendarResult> {
   try {
     const {
       fechaInicio, fechaVencimiento, mesesActualizacion,
       direccion, inquilino, telefono, contratoId,
+      montoMensual, indiceActualizacion,
     } = params;
 
-    const datos: DatosEvento = { direccion, inquilino, telefono, contratoId };
+    const base: DatosEvento = { direccion, inquilino, telefono, contratoId };
     const eventIds: string[] = [];
 
-    // 1. Evento de vencimiento (día 1 del mes anterior a la fecha fin)
-    const fechaVenc = fechaAlertaVencimiento(fechaVencimiento);
-    const idVenc = await crearEvento(
-      `Alerta Vencimiento Contrato: ${direccion}`,
-      fechaVenc,
-      "vencimiento",
-      datos,
+    // 1. Alerta preventiva — AMARILLO
+    const fechaAlerta = fechaAlertaVencimiento(fechaVencimiento);
+    eventIds.push(
+      await crearEvento(
+        `⚠️ Alerta Vencimiento Contrato: ${direccion}`,
+        fechaAlerta,
+        "alerta_vencimiento",
+        { ...base, fechaVencimiento },
+      ),
     );
-    eventIds.push(idVenc);
 
-    // 2. Eventos de actualización de valor (uno por cada ciclo)
+    // 2. Vencimiento real — ROJO
+    eventIds.push(
+      await crearEvento(
+        `🔴 Vencimiento Contrato: ${direccion}`,
+        fechaVencimiento,
+        "vencimiento_real",
+        { ...base, fechaVencimiento },
+      ),
+    );
+
+    // 3. Actualizaciones de precio — NARANJA
     const fechasAct = fechasActualizacion(fechaInicio, mesesActualizacion, fechaVencimiento);
     for (const fecha of fechasAct) {
-      const id = await crearEvento(
-        `Alerta Actualización de Valor de Alquiler: ${direccion}`,
-        fecha,
-        "actualizacion",
-        datos,
+      eventIds.push(
+        await crearEvento(
+          `🟠 Actualización Alquiler: ${direccion}`,
+          fecha,
+          "actualizacion",
+          { ...base, fechaVencimiento, montoMensual, indice: indiceActualizacion },
+        ),
       );
-      eventIds.push(id);
     }
 
     console.log(
-      `[Google Calendar] Contrato ${contratoId}: ${eventIds.length} evento(s) creados ` +
-      `(1 vencimiento + ${fechasAct.length} actualizaciones)`,
+      `[Google Calendar] Contrato ${contratoId}: ${eventIds.length} evento(s) ` +
+      `(1 alerta + 1 vencimiento + ${fechasAct.length} actualizaciones)`,
     );
 
     return { ok: true, eventIds };
@@ -215,12 +240,9 @@ export async function crearEventosContrato(params: {
   }
 }
 
-/**
- * Obtiene los próximos N eventos del calendario con metadatos de la service account.
- */
+/** Obtiene los próximos N eventos del calendario. */
 export async function obtenerProximosEventos(maxResults = 5): Promise<EventoCalendario[]> {
   const calendar = getCalendar();
-
   const response = await calendar.events.list({
     calendarId: CALENDAR_ID,
     timeMin: new Date().toISOString(),
@@ -229,23 +251,17 @@ export async function obtenerProximosEventos(maxResults = 5): Promise<EventoCale
     orderBy: "startTime",
     fields: "items(id,summary,start,htmlLink,extendedProperties)",
   });
-
   return mapItems(response.data.items ?? []);
 }
 
-/**
- * Obtiene todos los eventos dentro de un rango de fechas (para el calendario completo).
- */
+/** Obtiene todos los eventos en un rango YYYY-MM-DD → YYYY-MM-DD. */
 export async function obtenerEventosPorRango(
-  start: string, // YYYY-MM-DD
-  end: string,   // YYYY-MM-DD
+  start: string,
+  end: string,
 ): Promise<EventoCalendario[]> {
   const calendar = getCalendar();
-
-  // timeMin/timeMax requieren ISO 8601 con hora
   const timeMin = new Date(`${start}T00:00:00`).toISOString();
   const timeMax = new Date(`${end}T23:59:59`).toISOString();
-
   const response = await calendar.events.list({
     calendarId: CALENDAR_ID,
     timeMin,
@@ -255,9 +271,14 @@ export async function obtenerEventosPorRango(
     orderBy: "startTime",
     fields: "items(id,summary,start,htmlLink,extendedProperties)",
   });
-
   return mapItems(response.data.items ?? []);
 }
+
+export function googleCalendarConfigurado(): boolean {
+  return Boolean(process.env.GOOGLE_CLIENT_EMAIL && process.env.GOOGLE_PRIVATE_KEY);
+}
+
+// ── Helpers internos ──────────────────────────────────────────────────────────
 
 function mapItems(items: Parameters<typeof mapItem>[0][]): EventoCalendario[] {
   return items.map(mapItem);
@@ -275,15 +296,14 @@ function mapItem(e: {
     id: e.id ?? "",
     titulo: e.summary ?? "",
     fecha: e.start?.date ?? e.start?.dateTime?.slice(0, 10) ?? "",
-    tipo: (priv.tipo as "vencimiento" | "actualizacion") ?? "actualizacion",
+    tipo: (priv.tipo as TipoEvento) ?? "alerta_vencimiento",
     direccion: priv.direccion ?? e.summary ?? "",
     inquilino: priv.inquilino ?? "",
     telefono: priv.telefono || null,
     contratoId: priv.contratoId ?? "",
     htmlLink: e.htmlLink ?? "",
+    fechaVencimiento: priv.fechaVencimiento || undefined,
+    montoMensual: priv.montoMensual ? Number(priv.montoMensual) : undefined,
+    indice: priv.indice || undefined,
   };
-}
-
-export function googleCalendarConfigurado(): boolean {
-  return Boolean(process.env.GOOGLE_CLIENT_EMAIL && process.env.GOOGLE_PRIVATE_KEY);
 }

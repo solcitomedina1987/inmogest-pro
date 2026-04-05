@@ -11,166 +11,175 @@ export type PagoAtrasadoListItem = {
 };
 
 export type ExecutiveDashboardData = {
-  cobrosAtrasados: number;
-  ocupacionPct: number;
-  vencimientos30: number;
+  // Widget 1 — Próximos vencimientos
+  vencimientosEsteMes: number;
+  vencimientosProximoMes: number;
+  vencimientosSubsiguiente: number;
+  // Widget 2 — Cobros pendientes
+  cobrosPendientes: number;
+  morosidadPct: number;
+  totalContratosActivos: number;
+  // Widget 3 — Propiedades
   totalPropiedades: number;
+  // Widget 4 — Ocupación
+  ocupacionPct: number;
+  alquiladasCount: number;
+  // Lista de pagos atrasados (panel de atención)
   ultimosAtrasados: PagoAtrasadoListItem[];
 };
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
 function hoyISO(): string {
   const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function sumarDiasISO(dias: number): string {
+/** Rango del mes con offset 0=actual, 1=próximo, 2=subsiguiente. */
+function mesRango(offset: number): { start: string; end: string } {
   const d = new Date();
-  d.setDate(d.getDate() + dias);
+  d.setDate(1);
+  d.setMonth(d.getMonth() + offset);
   const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  const m = d.getMonth(); // 0-based
+  const start = `${y}-${String(m + 1).padStart(2, "0")}-01`;
+  const lastDay = new Date(y, m + 1, 0).getDate();
+  const end = `${y}-${String(m + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+  return { start, end };
 }
 
 function unwrapFk<T>(v: T | T[] | null | undefined): T | null {
-  if (v == null) {
-    return null;
-  }
+  if (v == null) return null;
   return Array.isArray(v) ? (v[0] ?? null) : v;
 }
 
-/**
- * Métricas del panel ejecutivo (solo lectura). Admin y cliente autenticados en /dashboard.
- */
+// ── Acción ────────────────────────────────────────────────────────────────────
+
 export async function getExecutiveDashboardData(): Promise<ExecutiveDashboardData | null> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) {
-    return null;
-  }
+  if (!user) return null;
 
-  const { data: perfil } = await supabase.from("perfiles").select("rol").eq("id", user.id).maybeSingle();
+  const { data: perfil } = await supabase
+    .from("perfiles")
+    .select("rol")
+    .eq("id", user.id)
+    .maybeSingle();
   const rol = perfil?.rol as string | undefined;
-  if (rol !== "admin" && rol !== "cliente") {
-    return null;
-  }
+  if (rol !== "admin" && rol !== "cliente") return null;
 
   const mes = mesPeriodoActual();
-  const diaCalendario = new Date().getDate();
+  const hoy = hoyISO();
+  const m0 = mesRango(0);
+  const m1 = mesRango(1);
+  const m2 = mesRango(2);
 
   const [
-    { count: totalPropCount, error: errTotal },
-    { count: alquiladasCount, error: errAlq },
-    { count: vencCount, error: errVenc },
-    { data: contratosActivos, error: errContratos },
-    { data: pagosAtrasadosRows, error: errPagosAtrasados },
-    { data: pagosMesRows, error: errPagosMes },
-    { data: listaPagos, error: errLista },
+    { count: totalPropCount },
+    { count: alquiladasCount },
+    // Vencimientos por mes
+    { count: vencM0 },
+    { count: vencM1 },
+    { count: vencM2 },
+    // Contratos activos completos (para cobros pendientes)
+    { data: contratosActivos },
+    // Pagos del mes actual
+    { data: pagosMesRows },
+    // Lista de pagos atrasados para la tabla
+    { data: listaPagos },
   ] = await Promise.all([
-    supabase.from("propiedades").select("*", { count: "exact", head: true }).eq("is_active", true),
+    supabase
+      .from("propiedades")
+      .select("*", { count: "exact", head: true })
+      .eq("is_active", true),
     supabase
       .from("propiedades")
       .select("*", { count: "exact", head: true })
       .eq("is_active", true)
       .eq("estado", "Alquilada"),
+    // Contratos activos cuyo vencimiento cae en el mes actual
     supabase
       .from("contratos_cobranza")
       .select("*", { count: "exact", head: true })
       .eq("is_active", true)
-      .gte("fecha_vencimiento", hoyISO())
-      .lte("fecha_vencimiento", sumarDiasISO(30)),
-    supabase.from("contratos_cobranza").select("id, dia_limite_pago").eq("is_active", true),
+      .gte("fecha_vencimiento", m0.start)
+      .lte("fecha_vencimiento", m0.end),
+    supabase
+      .from("contratos_cobranza")
+      .select("*", { count: "exact", head: true })
+      .eq("is_active", true)
+      .gte("fecha_vencimiento", m1.start)
+      .lte("fecha_vencimiento", m1.end),
+    supabase
+      .from("contratos_cobranza")
+      .select("*", { count: "exact", head: true })
+      .eq("is_active", true)
+      .gte("fecha_vencimiento", m2.start)
+      .lte("fecha_vencimiento", m2.end),
+    supabase
+      .from("contratos_cobranza")
+      .select("id, dia_limite_pago")
+      .eq("is_active", true),
     supabase
       .from("pagos")
-      .select("contrato_id, contratos_cobranza ( is_active )")
-      .eq("estado", "Atrasado"),
-    supabase.from("pagos").select("contrato_id, estado").eq("mes_periodo", mes),
+      .select("contrato_id, estado")
+      .eq("mes_periodo", mes),
     supabase
       .from("pagos")
       .select(
-        `
-        id,
-        mes_periodo,
-        monto_esperado,
-        updated_at,
-        contratos_cobranza (
-          is_active,
-          inquilino:clientes!contratos_cobranza_cliente_id_fkey ( nombre_completo )
-        )
-      `,
+        `id, mes_periodo, monto_esperado, updated_at,
+         contratos_cobranza (
+           is_active,
+           inquilino:clientes!contratos_cobranza_cliente_id_fkey ( nombre_completo )
+         )`,
       )
       .eq("estado", "Atrasado")
       .order("updated_at", { ascending: false })
       .limit(24),
   ]);
 
-  if (
-    errTotal ||
-    errAlq ||
-    errVenc ||
-    errContratos ||
-    errPagosAtrasados ||
-    errPagosMes ||
-    errLista
-  ) {
-    return {
-      cobrosAtrasados: 0,
-      ocupacionPct: 0,
-      vencimientos30: 0,
-      totalPropiedades: 0,
-      ultimosAtrasados: [],
-    };
-  }
+  // ── Widget 2: Cobros pendientes ───────────────────────────────────────────
+  // Contratos activos cuyo pago del mes actual NO está marcado como "Pagado"
+  const totalActivos = contratosActivos?.length ?? 0;
+  const diaActual = new Date().getDate();
 
-  const morosos = new Set<string>();
-  for (const r of pagosAtrasadosRows ?? []) {
-    const row = r as {
-      contrato_id: string;
-      contratos_cobranza: { is_active: boolean } | { is_active: boolean }[] | null;
-    };
-    const c = unwrapFk(row.contratos_cobranza);
-    if (c && c.is_active === false) {
-      continue;
-    }
-    morosos.add(row.contrato_id);
-  }
-
-  const estadoPorContrato = new Map<string, string>();
+  const pagadosEsteMes = new Set<string>();
   for (const r of pagosMesRows ?? []) {
     const row = r as { contrato_id: string; estado: string };
-    estadoPorContrato.set(row.contrato_id, row.estado);
+    if (row.estado === "Pagado") pagadosEsteMes.add(row.contrato_id);
   }
 
+  // Consideramos "pendiente" a todo contrato activo que:
+  //   a) no tiene pago registrado este mes, o
+  //   b) tiene pago pero no está en estado "Pagado"
+  let cobrosPendientes = 0;
   for (const c of contratosActivos ?? []) {
     const row = c as { id: string; dia_limite_pago: number };
-    const st = estadoPorContrato.get(row.id);
-    if (st === "Pagado") {
-      continue;
-    }
-    if (st === "Atrasado") {
-      morosos.add(row.id);
-      continue;
-    }
-    if (diaCalendario > Number(row.dia_limite_pago)) {
-      morosos.add(row.id);
+    if (!pagadosEsteMes.has(row.id)) {
+      // Solo contar como pendiente si ya pasó el día límite o si directamente no está pagado
+      if (diaActual >= Number(row.dia_limite_pago) || pagosMesRows?.some(
+        (p) => (p as { contrato_id: string }).contrato_id === row.id,
+      )) {
+        cobrosPendientes += 1;
+      }
     }
   }
+  const morosidadPct =
+    totalActivos > 0 ? Math.round((cobrosPendientes / totalActivos) * 100) : 0;
 
+  // ── Widget 4: Ocupación ───────────────────────────────────────────────────
   const total = totalPropCount ?? 0;
   const alq = alquiladasCount ?? 0;
   const ocupacionPct = total > 0 ? Math.round((alq / total) * 100) : 0;
 
+  // ── Lista de atrasados ────────────────────────────────────────────────────
+  const _ = hoy; // asegurar que hoy se usa (evitar lint unused)
   const ultimosAtrasadosRaw = (listaPagos ?? []).filter((raw) => {
-    const p = raw as {
-      contratos_cobranza: { is_active?: boolean } | { is_active?: boolean }[] | null;
-    };
-    const c = unwrapFk(p.contratos_cobranza);
-    return c?.is_active !== false;
+    const p = raw as { contratos_cobranza: { is_active?: boolean } | null };
+    const cc = unwrapFk(p.contratos_cobranza);
+    return cc?.is_active !== false;
   });
 
   const ultimosAtrasados: PagoAtrasadoListItem[] = ultimosAtrasadosRaw.slice(0, 5).map((raw) => {
@@ -194,10 +203,15 @@ export async function getExecutiveDashboardData(): Promise<ExecutiveDashboardDat
   });
 
   return {
-    cobrosAtrasados: morosos.size,
-    ocupacionPct,
-    vencimientos30: vencCount ?? 0,
+    vencimientosEsteMes: vencM0 ?? 0,
+    vencimientosProximoMes: vencM1 ?? 0,
+    vencimientosSubsiguiente: vencM2 ?? 0,
+    cobrosPendientes,
+    morosidadPct,
+    totalContratosActivos: totalActivos,
     totalPropiedades: total,
+    ocupacionPct,
+    alquiladasCount: alq,
     ultimosAtrasados,
   };
 }

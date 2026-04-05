@@ -96,6 +96,8 @@ export async function createContratoCobranza(input: unknown): Promise<CobranzaAc
         inquilino: inquilinoData?.nombre_completo ?? "Inquilino",
         telefono: inquilinoData?.telefono ?? null,
         contratoId,
+        montoMensual: v.monto_mensual,
+        indiceActualizacion: v.indice_actualizacion ?? "ICL",
       });
     } catch (calErr) {
       // Solo log — no interrumpir el flujo principal
