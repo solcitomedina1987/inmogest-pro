@@ -35,13 +35,15 @@ export async function updateSession(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
   const isDashboard = path.startsWith("/dashboard");
+  const isPortal = path.startsWith("/portal");
   const isAuthPage =
     path === "/login" ||
     path === "/registro" ||
     path === "/forgot-password" ||
     path === "/update-password";
 
-  if (isDashboard && !user) {
+  /* Rutas protegidas requieren sesión. */
+  if ((isDashboard || isPortal) && !user) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("redirect", request.nextUrl.pathname);
