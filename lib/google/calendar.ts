@@ -227,29 +227,61 @@ export async function obtenerProximosEventos(maxResults = 5): Promise<EventoCale
     maxResults,
     singleEvents: true,
     orderBy: "startTime",
-    // Incluir extendedProperties en la respuesta
-    fields:
-      "items(id,summary,start,htmlLink,extendedProperties)",
+    fields: "items(id,summary,start,htmlLink,extendedProperties)",
   });
 
-  const items = response.data.items ?? [];
+  return mapItems(response.data.items ?? []);
+}
 
-  return items
-    .filter((e) => e.extendedProperties?.private?.tipo) // solo nuestros eventos
-    .map((e) => {
-      const priv = e.extendedProperties?.private ?? {};
-      return {
-        id: e.id ?? "",
-        titulo: e.summary ?? "",
-        fecha: e.start?.date ?? e.start?.dateTime?.slice(0, 10) ?? "",
-        tipo: (priv.tipo as "vencimiento" | "actualizacion") ?? "actualizacion",
-        direccion: priv.direccion ?? "",
-        inquilino: priv.inquilino ?? "",
-        telefono: priv.telefono || null,
-        contratoId: priv.contratoId ?? "",
-        htmlLink: e.htmlLink ?? "",
-      };
-    });
+/**
+ * Obtiene todos los eventos dentro de un rango de fechas (para el calendario completo).
+ */
+export async function obtenerEventosPorRango(
+  start: string, // YYYY-MM-DD
+  end: string,   // YYYY-MM-DD
+): Promise<EventoCalendario[]> {
+  const calendar = getCalendar();
+
+  // timeMin/timeMax requieren ISO 8601 con hora
+  const timeMin = new Date(`${start}T00:00:00`).toISOString();
+  const timeMax = new Date(`${end}T23:59:59`).toISOString();
+
+  const response = await calendar.events.list({
+    calendarId: CALENDAR_ID,
+    timeMin,
+    timeMax,
+    maxResults: 250,
+    singleEvents: true,
+    orderBy: "startTime",
+    fields: "items(id,summary,start,htmlLink,extendedProperties)",
+  });
+
+  return mapItems(response.data.items ?? []);
+}
+
+function mapItems(items: Parameters<typeof mapItem>[0][]): EventoCalendario[] {
+  return items.map(mapItem);
+}
+
+function mapItem(e: {
+  id?: string | null;
+  summary?: string | null;
+  start?: { date?: string | null; dateTime?: string | null } | null;
+  htmlLink?: string | null;
+  extendedProperties?: { private?: Record<string, string> | null } | null;
+}): EventoCalendario {
+  const priv = e.extendedProperties?.private ?? {};
+  return {
+    id: e.id ?? "",
+    titulo: e.summary ?? "",
+    fecha: e.start?.date ?? e.start?.dateTime?.slice(0, 10) ?? "",
+    tipo: (priv.tipo as "vencimiento" | "actualizacion") ?? "actualizacion",
+    direccion: priv.direccion ?? e.summary ?? "",
+    inquilino: priv.inquilino ?? "",
+    telefono: priv.telefono || null,
+    contratoId: priv.contratoId ?? "",
+    htmlLink: e.htmlLink ?? "",
+  };
 }
 
 export function googleCalendarConfigurado(): boolean {

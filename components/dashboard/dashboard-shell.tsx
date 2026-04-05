@@ -19,6 +19,7 @@ const baseNav = [
   { href: "/dashboard/clientes", label: "Clientes" },
   { href: "/dashboard/cobranzas", label: "Cobranzas" },
   { href: "/dashboard/contratos", label: "Contratos" },
+  { href: "/dashboard/calendario", label: "Calendario" },
 ] as const;
 
 const adminNavItem = { href: "/dashboard/admin-usuarios", label: "Usuarios" } as const;
