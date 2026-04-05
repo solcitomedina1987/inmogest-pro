@@ -48,12 +48,17 @@ function getCalendar() {
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 
 /**
- * Tres tipos de evento con semántica distinta y color propio:
- *  - alerta_vencimiento  → AMARILLO  — día 1 del mes anterior al vencimiento
- *  - vencimiento_real    → ROJO      — fecha exacta de vencimiento del contrato
- *  - actualizacion       → NARANJA   — fecha de revisión del precio de alquiler
+ * Cuatro tipos de evento con semántica distinta y color propio:
+ *  - vencimiento_real     → ROJO      — fecha exacta de vencimiento del contrato
+ *  - alerta_vencimiento   → AMARILLO  — día 1 del mes anterior al vencimiento
+ *  - actualizacion        → AZUL      — día en que corresponde actualizar el alquiler
+ *  - alerta_actualizacion → CELESTE   — día 1 del mes anterior a cada actualización
  */
-export type TipoEvento = "alerta_vencimiento" | "vencimiento_real" | "actualizacion";
+export type TipoEvento =
+  | "vencimiento_real"
+  | "alerta_vencimiento"
+  | "actualizacion"
+  | "alerta_actualizacion";
 
 export type EventoCalendario = {
   id: string;
@@ -66,19 +71,20 @@ export type EventoCalendario = {
   contratoId: string;
   htmlLink: string;
   // Metadata extra (extraída de extendedProperties)
-  fechaVencimiento?: string;  // vencimiento_real y alerta_vencimiento
-  montoMensual?: number;      // actualizacion
-  indice?: string;            // actualizacion: "IPC" | "ICL"
+  fechaVencimiento?: string;
+  montoMensual?: number;
+  indice?: string;            // "IPC" | "ICL"
 };
 
 export type CalendarResult = { ok: true; eventIds: string[] } | { ok: false; error: string };
 
 // ── colorId de Google Calendar por tipo ──────────────────────────────────────
-// 5 = Banana (amarillo), 6 = Tangerine (naranja), 11 = Tomato (rojo)
+// 11=Tomato(rojo), 5=Banana(amarillo), 9=Blueberry(azul), 7=Peacock(celeste)
 const COLOR_ID: Record<TipoEvento, string> = {
-  alerta_vencimiento: "5",
-  actualizacion: "6",
   vencimiento_real: "11",
+  alerta_vencimiento: "5",
+  actualizacion: "9",
+  alerta_actualizacion: "7",
 };
 
 // ── Helpers de fechas ─────────────────────────────────────────────────────────
@@ -179,10 +185,11 @@ async function crearEvento(
 // ── API pública ───────────────────────────────────────────────────────────────
 
 /**
- * Crea los 3 tipos de eventos para un contrato:
- *   1. alerta_vencimiento (AMARILLO) — día 1 del mes anterior al vencimiento
- *   2. vencimiento_real   (ROJO)     — fecha exacta de vencimiento
- *   3. actualizacion      (NARANJA)  — una por cada ciclo de revisión de precio
+ * Crea los 4 tipos de eventos para un contrato:
+ *   1. vencimiento_real     (ROJO)    — fecha exacta de vencimiento
+ *   2. alerta_vencimiento   (AMARILLO)— día 1 del mes anterior al vencimiento
+ *   3. actualizacion        (AZUL)    — día en que corresponde actualizar el alquiler
+ *   4. alerta_actualizacion (CELESTE) — día 1 del mes anterior a cada actualización
  */
 export async function crearEventosContrato(params: {
   fechaInicio: string;
@@ -205,7 +212,17 @@ export async function crearEventosContrato(params: {
     const base: DatosEvento = { direccion, inquilino, telefono, contratoId };
     const eventIds: string[] = [];
 
-    // 1. Alerta preventiva — AMARILLO
+    // 1. Vencimiento real — ROJO
+    eventIds.push(
+      await crearEvento(
+        `🔴 Vencimiento Contrato: ${direccion}`,
+        fechaVencimiento,
+        "vencimiento_real",
+        { ...base, fechaVencimiento },
+      ),
+    );
+
+    // 2. Alerta preventiva vencimiento — AMARILLO
     const fechaAlerta = fechaAlertaVencimiento(fechaVencimiento);
     eventIds.push(
       await crearEvento(
@@ -216,22 +233,25 @@ export async function crearEventosContrato(params: {
       ),
     );
 
-    // 2. Vencimiento real — ROJO
-    eventIds.push(
-      await crearEvento(
-        `🔴 Vencimiento Contrato: ${direccion}`,
-        fechaVencimiento,
-        "vencimiento_real",
-        { ...base, fechaVencimiento },
-      ),
-    );
-
-    // 3. Actualizaciones de precio — NARANJA
+    // 3. Actualización de precio (AZUL) + Alerta previa (CELESTE)
     const fechasAct = fechasActualizacion(fechaInicio, mesesActualizacion, fechaVencimiento);
     for (const fecha of fechasAct) {
+      // Alerta celeste: día 1 del mes anterior a la actualización
+      const [ay, am] = fecha.split("-").map(Number);
+      const prevD = new Date(ay, am - 2, 1);
+      const fechaAlertaAct = `${prevD.getFullYear()}-${String(prevD.getMonth() + 1).padStart(2, "0")}-01`;
       eventIds.push(
         await crearEvento(
-          `🟠 Actualización Alquiler: ${direccion}`,
+          `🔔 Alerta Actualización Alquiler: ${direccion}`,
+          fechaAlertaAct,
+          "alerta_actualizacion",
+          { ...base, fechaVencimiento, montoMensual, indice: indiceActualizacion },
+        ),
+      );
+      // Día exacto de actualización — AZUL
+      eventIds.push(
+        await crearEvento(
+          `🔵 Actualización Alquiler: ${direccion}`,
           fecha,
           "actualizacion",
           { ...base, fechaVencimiento, montoMensual, indice: indiceActualizacion },
@@ -241,7 +261,7 @@ export async function crearEventosContrato(params: {
 
     console.log(
       `[Google Calendar] Contrato ${contratoId}: ${eventIds.length} evento(s) ` +
-      `(1 alerta + 1 vencimiento + ${fechasAct.length} actualizaciones)`,
+      `(vencimiento + alerta_venc + ${fechasAct.length * 2} act/alertas)`,
     );
 
     return { ok: true, eventIds };

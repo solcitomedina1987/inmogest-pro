@@ -14,11 +14,11 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 
 const baseNav = [
   { href: "/dashboard", label: "Inicio" },
-  { href: "/dashboard/propiedades", label: "Propiedades" },
-  { href: "/dashboard/proveedores", label: "Proveedores" },
-  { href: "/dashboard/clientes", label: "Clientes" },
   { href: "/dashboard/cobranzas", label: "Cobranzas" },
+  { href: "/dashboard/propiedades", label: "Propiedades" },
+  { href: "/dashboard/clientes", label: "Clientes" },
   { href: "/dashboard/contratos", label: "Contratos" },
+  { href: "/dashboard/proveedores", label: "Proveedores" },
 ] as const;
 
 const adminNavItem = { href: "/dashboard/admin-usuarios", label: "Usuarios" } as const;

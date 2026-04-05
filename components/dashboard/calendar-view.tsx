@@ -103,28 +103,38 @@ function eventStyle(tipo: TipoEvento) {
       dot: "bg-rose-600",
       dialogHeader: "bg-rose-600 text-white",
       badge: "bg-rose-50 border-rose-200 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300",
-      label: "Vencimiento Contrato",
+      label: "🔴 Vencimiento Contrato",
       dotCard: "border-l-rose-500",
+    };
+  }
+  if (tipo === "alerta_vencimiento") {
+    return {
+      pill: "bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800",
+      dot: "bg-amber-400",
+      dialogHeader: "bg-amber-500 text-white",
+      badge: "bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
+      label: "⚠️ Alerta: Contrato próximo a vencer",
+      dotCard: "border-l-amber-400",
     };
   }
   if (tipo === "actualizacion") {
     return {
-      pill: "bg-orange-100 text-orange-800 border border-orange-300 dark:bg-orange-950/60 dark:text-orange-300 dark:border-orange-800",
-      dot: "bg-orange-500",
-      dialogHeader: "bg-orange-500 text-white",
-      badge: "bg-orange-50 border-orange-200 text-orange-800 dark:bg-orange-950/40 dark:text-orange-300",
-      label: "Actualización de Alquiler",
-      dotCard: "border-l-orange-500",
+      pill: "bg-blue-100 text-blue-800 border border-blue-300 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800",
+      dot: "bg-blue-600",
+      dialogHeader: "bg-blue-600 text-white",
+      badge: "bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300",
+      label: "🔵 Actualización de Alquiler",
+      dotCard: "border-l-blue-600",
     };
   }
-  // alerta_vencimiento
+  // alerta_actualizacion — celeste
   return {
-    pill: "bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800",
-    dot: "bg-amber-400",
-    dialogHeader: "bg-amber-500 text-white",
-    badge: "bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
-    label: "Alerta: Contrato próximo a vencer",
-    dotCard: "border-l-amber-400",
+    pill: "bg-sky-100 text-sky-800 border border-sky-300 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800",
+    dot: "bg-sky-400",
+    dialogHeader: "bg-sky-500 text-white",
+    badge: "bg-sky-50 border-sky-200 text-sky-800 dark:bg-sky-950/40 dark:text-sky-300",
+    label: "🔔 Alerta: Actualización próxima",
+    dotCard: "border-l-sky-400",
   };
 }
 
@@ -162,7 +172,7 @@ function normTel(tel: string | null): string | null {
 
 function waMessage(tipo: TipoEvento, nombre: string, direccion: string, indice?: string): string {
   const primerNombre = nombre.split(" ")[0] ?? nombre;
-  if (tipo === "actualizacion") {
+  if (tipo === "actualizacion" || tipo === "alerta_actualizacion") {
     return (
       `Hola ${primerNombre} 👋, le contactamos desde *Consultora Medina & Asociados*. ` +
       `Le informamos que corresponde actualizar el valor del alquiler en *${direccion}* ` +
@@ -223,14 +233,18 @@ function EventDetailDialog({
             : `Vence el ${formatDateISO(event.fechaVencimiento)}`,
       };
     }
-    if (event.tipo === "actualizacion") {
+    if (event.tipo === "actualizacion" || event.tipo === "alerta_actualizacion") {
       const partes = [
         event.indice ? `Índice: ${event.indice}` : null,
         event.montoMensual != null
           ? `Monto actual: ${precioFmt.format(event.montoMensual)}`
           : null,
       ].filter(Boolean);
-      return { icon: "📊", text: partes.join(" · ") || "Actualización de valor" };
+      const base = partes.join(" · ") || "Actualización de valor";
+      return {
+        icon: event.tipo === "alerta_actualizacion" ? "🔔" : "📊",
+        text: event.tipo === "alerta_actualizacion" ? `Próxima actualización — ${base}` : base,
+      };
     }
     return null;
   })();
@@ -586,7 +600,7 @@ function WeekView({
 
 type FetchState = "idle" | "loading" | "error" | "ok" | "unconfigured";
 
-export function CalendarView() {
+export function CalendarView({ refreshToken }: { refreshToken?: number } = {}) {
   const today = useRef(new Date()).current;
   const [refDate, setRefDate] = useState(() => new Date(today));
   const [view, setView] = useState<ViewMode>("month");
@@ -630,7 +644,7 @@ export function CalendarView() {
     [getRange],
   );
 
-  useEffect(() => { fetchEvents(refDate, view); }, [refDate, view, fetchEvents]);
+  useEffect(() => { fetchEvents(refDate, view); }, [refDate, view, fetchEvents, refreshToken]);
 
   function prev() {
     if (view === "month") setRefDate((d) => addMonths(d, -1));
@@ -723,15 +737,18 @@ export function CalendarView() {
         ) : null}
 
         {/* Leyenda */}
-        <div className="flex flex-wrap items-center gap-4 border-b bg-muted/20 px-4 py-2">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b bg-muted/20 px-4 py-2">
           <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <span className="size-2.5 rounded-full bg-rose-600" aria-hidden /> Vencimiento contrato
           </span>
           <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className="size-2.5 rounded-full bg-orange-500" aria-hidden /> Actualización alquiler
+            <span className="size-2.5 rounded-full bg-amber-400" aria-hidden /> Alerta vencimiento
           </span>
           <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className="size-2.5 rounded-full bg-amber-400" aria-hidden /> Alerta preventiva
+            <span className="size-2.5 rounded-full bg-blue-600" aria-hidden /> Actualización alquiler
+          </span>
+          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className="size-2.5 rounded-full bg-sky-400" aria-hidden /> Alerta actualización
           </span>
         </div>
 

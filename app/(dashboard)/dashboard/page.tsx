@@ -101,7 +101,7 @@ export default async function DashboardHomePage() {
 
       {mostrarMetricas ? (
         <Suspense fallback={<ExecutiveDashboardSkeleton />}>
-          <ExecutiveDashboardPanel showAdminLinks={rol === "admin"} />
+          <ExecutiveDashboardPanel />
         </Suspense>
       ) : (
         <p className="text-muted-foreground text-sm">No hay métricas disponibles para tu rol.</p>
@@ -116,7 +116,7 @@ export default async function DashboardHomePage() {
             </p>
           </div>
           <CalendarDiagnostico />
-          <CalendarView />
+          <CalendarView refreshToken={Date.now()} />
         </section>
       ) : null}
     </div>

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, CalendarClock, Eye, Loader2 } from "lucide-react";
+import { AlertTriangle, CalendarClock, Eye, FileText, Loader2 } from "lucide-react";
 import type { ContratoCobranzaRow, PagoRow } from "@/lib/cobranzas/types";
 import {
   estadoCobranzaContrato,
@@ -119,7 +119,8 @@ export function CobranzasClient({
             siguen listados para consulta.
           </p>
         </div>
-        <Button type="button" onClick={() => setOpen(true)}>
+        <Button type="button" className="gap-2" onClick={() => setOpen(true)}>
+          <FileText className="size-4" aria-hidden />
           Nuevo contrato
         </Button>
       </div>

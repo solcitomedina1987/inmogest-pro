@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, UserMinus, UserPlus } from "lucide-react";
+import { MessageCircle, Pencil, UserMinus, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { deactivateCliente } from "@/app/actions/clientes";
 import type { TipoCliente } from "@/lib/constants/clientes";
@@ -41,6 +41,12 @@ import { cn } from "@/lib/utils";
 
 function normalizar(s: string) {
   return s.trim().toLowerCase();
+}
+
+function waLink(telefono: string): string {
+  const clean = telefono.replace(/[\s\-().+]/g, "");
+  const num = clean.startsWith("54") ? clean : clean.startsWith("0") ? `549${clean.slice(1)}` : `549${clean}`;
+  return `https://wa.me/${num}`;
 }
 
 function badgeTipoCliente(t: TipoCliente) {
@@ -270,7 +276,21 @@ export function ClientesClient({ initial }: Props) {
                           </Badge>
                         )}
                       </TableCell>
-                      <TableCell className="tabular-nums text-sm">{r.telefono}</TableCell>
+                      <TableCell className="tabular-nums text-sm">
+                        {r.telefono ? (
+                          <a
+                            href={waLink(r.telefono)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-green-700 hover:text-green-900 hover:underline dark:text-green-400"
+                          >
+                            <MessageCircle className="size-3.5 shrink-0" aria-hidden />
+                            {r.telefono}
+                          </a>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
                           <Button type="button" variant="ghost" size="icon" onClick={() => abrirEditar(r)}>

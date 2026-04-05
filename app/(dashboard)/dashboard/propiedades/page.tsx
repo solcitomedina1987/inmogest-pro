@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { PropiedadesTable } from "@/components/propiedades/propiedades-table";
 import type { PersonaOption, PropiedadListRow } from "@/components/propiedades/types";
 import { primeraImagenPropiedad } from "@/lib/propiedades/imagenes";
+import { ExecutiveDashboardPanel } from "@/components/dashboard/executive-dashboard-panel";
+import { ExecutiveDashboardSkeleton } from "@/components/dashboard/executive-dashboard-skeleton";
 
 export const metadata: Metadata = {
   title: "Propiedades",
@@ -145,6 +148,11 @@ export default async function DashboardPropiedadesPage() {
   const inquilinosOpts = todas.filter((p) => p.tipo_cliente === "Inquilino" || p.tipo_cliente === "Ambos");
 
   return (
-    <PropiedadesTable rows={rows} propietarios={propietariosOpts} clientes={inquilinosOpts} />
+    <div className="flex flex-col gap-8">
+      <Suspense fallback={<ExecutiveDashboardSkeleton />}>
+        <ExecutiveDashboardPanel />
+      </Suspense>
+      <PropiedadesTable rows={rows} propietarios={propietariosOpts} clientes={inquilinosOpts} />
+    </div>
   );
 }

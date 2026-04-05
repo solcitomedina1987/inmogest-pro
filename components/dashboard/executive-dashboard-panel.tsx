@@ -1,21 +1,12 @@
-import Link from "next/link";
 import {
   AlertTriangle,
   Building2,
   CalendarClock,
-  ChevronRight,
   Percent,
 } from "lucide-react";
 import { getExecutiveDashboardData } from "@/app/actions/dashboard-metrics";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-
-const precioFmt = new Intl.NumberFormat("es-AR", {
-  style: "currency",
-  currency: "ARS",
-  maximumFractionDigits: 0,
-});
 
 const MESES_CORTO = [
   "Ene", "Feb", "Mar", "Abr", "May", "Jun",
@@ -28,11 +19,7 @@ function mesLabel(offset: number): string {
   return `${MESES_CORTO[d.getMonth()]} ${d.getFullYear()}`;
 }
 
-type PanelProps = {
-  showAdminLinks?: boolean;
-};
-
-export async function ExecutiveDashboardPanel({ showAdminLinks = false }: PanelProps = {}) {
+export async function ExecutiveDashboardPanel() {
   const data = await getExecutiveDashboardData();
   if (!data) return null;
 
@@ -210,45 +197,6 @@ export async function ExecutiveDashboardPanel({ showAdminLinks = false }: PanelP
         </Card>
       </div>
 
-      {/* ── Panel de atención inmediata ── */}
-      <Card className="border shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-base">Atención inmediata</CardTitle>
-          <CardDescription>Últimos pagos marcados como atrasados (máx. 5)</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {data.ultimosAtrasados.length === 0 ? (
-            <p className="text-muted-foreground py-4 text-center text-sm">
-              No hay pagos atrasados registrados.
-            </p>
-          ) : (
-            <ul className="divide-border divide-y rounded-lg border">
-              {data.ultimosAtrasados.map((p) => (
-                <li
-                  key={p.id}
-                  className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div>
-                    <p className="font-medium">{p.inquilino_nombre}</p>
-                    <p className="text-muted-foreground text-xs">Período {p.mes_periodo}</p>
-                  </div>
-                  <p className="font-semibold tabular-nums text-red-700 sm:text-right">
-                    {precioFmt.format(p.monto_esperado)}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-          {showAdminLinks ? (
-            <Button variant="outline" className="gap-2" asChild>
-              <Link href="/dashboard/cobranzas">
-                Ver todos los cobros
-                <ChevronRight className="size-4" aria-hidden />
-              </Link>
-            </Button>
-          ) : null}
-        </CardContent>
-      </Card>
     </div>
   );
 }

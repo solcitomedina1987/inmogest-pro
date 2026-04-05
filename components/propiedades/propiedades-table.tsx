@@ -1,9 +1,8 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Eye, Pencil, ReceiptText, RotateCcw, Search, Trash2 } from "lucide-react";
+import { Eye, Home, Loader2, MessageCircle, Pencil, ReceiptText, RotateCcw, Search, Trash2 } from "lucide-react";
 import { deleteProperty } from "@/app/actions/propiedades";
 import { ESTADO_PROPIEDAD_VALUES, TIPO_PROPIEDAD_VALUES } from "@/lib/constants/propiedades";
 import { PropiedadEstadoBadge } from "@/lib/propiedades/estado-badge";
@@ -36,6 +35,12 @@ const precioFmt = new Intl.NumberFormat("es-AR", {
   maximumFractionDigits: 0,
 });
 
+function waLink(telefono: string): string {
+  const clean = telefono.replace(/[\s\-().+]/g, "");
+  const num = clean.startsWith("54") ? clean : clean.startsWith("0") ? `549${clean.slice(1)}` : `549${clean}`;
+  return `https://wa.me/${num}`;
+}
+
 function labelTipo(t: string) {
   return t === "Departamento" ? "Depto" : t;
 }
@@ -55,6 +60,7 @@ export function PropiedadesTable({ rows, propietarios, clientes }: Props) {
   const [editing, setEditing] = useState<PropiedadListRow | null>(null);
   const [vistaPreviaOpen, setVistaPreviaOpen] = useState(false);
   const [vistaPreviaRow, setVistaPreviaRow] = useState<PropiedadListRow | null>(null);
+  const [navigatingCobrosId, setNavigatingCobrosId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   const filtradas = useMemo(() => {
@@ -116,7 +122,8 @@ export function PropiedadesTable({ rows, propietarios, clientes }: Props) {
               ficha. La columna Cobros enlaza al contrato de alquiler cuando existe.
             </p>
           </div>
-          <Button type="button" onClick={openCreate}>
+          <Button type="button" className="gap-2" onClick={openCreate}>
+            <Home className="size-4" aria-hidden />
             Nueva propiedad
           </Button>
         </div>
@@ -244,13 +251,19 @@ export function PropiedadesTable({ rows, propietarios, clientes }: Props) {
                                 )}
                           </TableCell>
                           <TableCell className="tabular-nums text-sm">
-                            {row.estado === "Alquilada"
-                              ? row.inquilino_telefono ?? (
-                                  <span className="text-muted-foreground">—</span>
-                                )
-                              : (
-                                  <span className="text-muted-foreground">—</span>
-                                )}
+                            {row.estado === "Alquilada" && row.inquilino_telefono ? (
+                              <a
+                                href={waLink(row.inquilino_telefono)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 text-green-700 hover:text-green-900 hover:underline dark:text-green-400"
+                              >
+                                <MessageCircle className="size-3.5 shrink-0" aria-hidden />
+                                {row.inquilino_telefono}
+                              </a>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
                           </TableCell>
                           <TableCell className="text-center">
                             <Button
@@ -269,15 +282,24 @@ export function PropiedadesTable({ rows, propietarios, clientes }: Props) {
                           <TableCell className="text-center">
                             {cobrosActivo ? (
                               <Button
+                                type="button"
                                 variant="ghost"
                                 size="icon-sm"
                                 className="text-primary"
-                                asChild
                                 aria-label={`Historial de cobros: ${row.nombre}`}
+                                disabled={navigatingCobrosId === row.contrato_cobranza_id}
+                                onClick={() => {
+                                  setNavigatingCobrosId(row.contrato_cobranza_id!);
+                                  startTransition(() => {
+                                    router.push(`/dashboard/cobranzas/${row.contrato_cobranza_id}`);
+                                  });
+                                }}
                               >
-                                <Link href={`/dashboard/cobranzas/${row.contrato_cobranza_id}`}>
+                                {navigatingCobrosId === row.contrato_cobranza_id ? (
+                                  <Loader2 className="size-4 animate-spin" />
+                                ) : (
                                   <ReceiptText className="size-4" />
-                                </Link>
+                                )}
                               </Button>
                             ) : (
                               <span className="inline-flex" title={cobrosTooltip}>
