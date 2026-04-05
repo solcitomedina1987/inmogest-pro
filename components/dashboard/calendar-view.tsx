@@ -531,22 +531,18 @@ function EventDetailDialog({
 
 function EventPill({
   event,
-  compact,
   onClick,
 }: {
   event: EventoCalendario;
-  compact?: boolean;
   onClick: (ev: EventoCalendario) => void;
 }) {
   const st = eventStyle(event.tipo);
   const label = (() => {
-    if (esEventoPersonalizado(event.tipo)) {
-      const l = LABEL_TIPO_EVENTO[event.tipo];
-      return compact ? l.split(" ")[0] : l;
-    }
-    if (event.tipo === "vencimiento_real") return compact ? "Vcto." : "Vencimiento";
-    if (event.tipo === "actualizacion") return compact ? "Act." : "Actualización";
-    return compact ? "⚠️ Alerta" : "⚠️ Alerta Vcto.";
+    if (esEventoPersonalizado(event.tipo)) return LABEL_TIPO_EVENTO[event.tipo];
+    if (event.tipo === "vencimiento_real") return "VENCIMIENTO";
+    if (event.tipo === "alerta_vencimiento") return "VENCIMIENTO";
+    if (event.tipo === "actualizacion") return "ACTUALIZACIÓN";
+    return "ACTUALIZACIÓN";
   })();
 
   const detail = esEventoPersonalizado(event.tipo)
@@ -562,10 +558,10 @@ function EventPill({
         "text-[10px] font-medium leading-tight truncate text-left transition-opacity hover:opacity-80",
         st.pill,
       )}
-      title={`${st.label}: ${detail}`}
+      title={detail ? `${label}: ${detail}` : label}
     >
       <span className={cn("size-1.5 shrink-0 rounded-full", st.dot)} aria-hidden />
-      <span className="truncate">{compact ? label : `${label}: ${detail}`}</span>
+      <span className="truncate">{label}</span>
     </button>
   );
 }
@@ -678,7 +674,7 @@ function MonthView({
                 {day.getDate()}
               </span>
               {dayEvents.slice(0, maxVisible).map((ev) => (
-                <EventPill key={ev.id} event={ev} compact onClick={onEventClick} />
+                <EventPill key={ev.id} event={ev} onClick={onEventClick} />
               ))}
               {overflow > 0 ? (
                 <span className="text-muted-foreground px-1 text-[10px]">+{overflow} más</span>
