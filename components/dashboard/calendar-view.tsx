@@ -691,19 +691,34 @@ export function CalendarView() {
 
         {/* Alertas */}
         {status === "error" ? (
-          <div className="flex items-center gap-2 border-b bg-destructive/5 px-4 py-2 text-sm text-destructive">
-            <AlertCircle className="size-4 shrink-0" />
-            <span>{errorMsg}</span>
-            <Button variant="ghost" size="sm" className="ml-auto h-7 text-xs" onClick={() => fetchEvents(refDate, view)}>
-              Reintentar
-            </Button>
+          <div className="flex flex-col gap-1 border-b bg-destructive/5 px-4 py-3">
+            <div className="flex items-start gap-2 text-sm text-destructive">
+              <AlertCircle className="mt-0.5 size-4 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <span className="font-medium">Error al conectar con Google Calendar</span>
+                <p className="mt-0.5 text-xs text-destructive/80 break-words">{errorMsg}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Usá el panel de diagnóstico (arriba) para identificar el problema exacto.
+                </p>
+              </div>
+              <Button variant="ghost" size="sm" className="shrink-0 h-7 text-xs" onClick={() => fetchEvents(refDate, view)}>
+                Reintentar
+              </Button>
+            </div>
           </div>
         ) : null}
 
         {status === "unconfigured" ? (
           <div className="flex items-center gap-2 border-b bg-muted/30 px-4 py-2 text-sm text-muted-foreground">
             <CalendarDays className="size-4 shrink-0" />
-            <span>Google Calendar no configurado. Mostrando calendario sin eventos.</span>
+            <span>Google Calendar no configurado. Completar las variables de entorno y usar "Diagnosticar conexión".</span>
+          </div>
+        ) : null}
+
+        {status === "ok" && events.length === 0 ? (
+          <div className="flex items-center gap-2 border-b bg-blue-50/50 px-4 py-2 text-xs text-blue-700 dark:bg-blue-950/20 dark:text-blue-400">
+            <CalendarDays className="size-3.5 shrink-0" />
+            <span>No hay eventos en este período. Si ya configuraste Google Calendar, usá <strong>"Sincronizar contratos"</strong> para crear los eventos de los contratos existentes.</span>
           </div>
         ) : null}
 

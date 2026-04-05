@@ -11,6 +11,7 @@ import { ExecutiveDashboardSkeleton } from "@/components/dashboard/executive-das
 import { FirstLoginWelcomeDialog } from "@/components/dashboard/first-login-welcome-dialog";
 import { BannerActualizaciones } from "@/components/cobranzas/banner-actualizaciones";
 import { CalendarView } from "@/components/dashboard/calendar-view";
+import { CalendarDiagnostico } from "@/components/dashboard/calendar-diagnostico";
 
 export const metadata: Metadata = {
   title: "Panel",
@@ -107,13 +108,14 @@ export default async function DashboardHomePage() {
       )}
 
       {rol === "admin" ? (
-        <section className="flex flex-col gap-3">
+        <section className="flex flex-col gap-4">
           <div>
             <h2 className="text-lg font-semibold tracking-tight">Calendario</h2>
             <p className="text-muted-foreground text-sm">
               Vencimientos y actualizaciones de contratos. Clic en un evento para ver el detalle.
             </p>
           </div>
+          <CalendarDiagnostico />
           <CalendarView />
         </section>
       ) : null}
