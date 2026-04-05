@@ -188,21 +188,41 @@ async function upsertEvento(
     datos.indice ? `Índice: ${datos.indice}` : null,
   ].filter(Boolean).join("\n");
 
-  const response = await calendar.events.insert({
-    calendarId: CALENDAR_ID,
-    requestBody: {
-      summary: titulo,
-      description: lines,
-      start: { date: fecha },
-      end: { date: fecha },
-      colorId: COLOR_ID[tipo],
-      extendedProperties: { private: extended },
-      reminders: {
-        useDefault: false,
-        overrides: [{ method: "popup", minutes: 60 }],
+  let response;
+  try {
+    response = await calendar.events.insert({
+      calendarId: CALENDAR_ID,
+      requestBody: {
+        summary: titulo,
+        description: lines,
+        start: { date: fecha },
+        end: { date: fecha },
+        colorId: COLOR_ID[tipo],
+        extendedProperties: { private: extended },
+        reminders: {
+          useDefault: false,
+          overrides: [{ method: "popup", minutes: 60 }],
+        },
       },
-    },
-  });
+    });
+  } catch (e) {
+    const err = e as Error & { response?: { data?: unknown; status?: number } };
+    const httpStatus = err.response?.status;
+    const apiError = err.response?.data
+      ? JSON.stringify(err.response.data)
+      : err.message;
+    console.error(
+      `[Google Calendar] upsertEvento INSERT falló — HTTP ${httpStatus ?? "?"} — ` +
+      `titulo="${titulo}", fecha="${fecha}", calendarId="${CALENDAR_ID}": ${apiError}`,
+    );
+    throw e;
+  }
+
+  console.info(
+    `[Google Calendar] Evento creado — id: ${response.data.id}, ` +
+    `titulo: "${titulo}", fecha: ${fecha}, calendarId: ${CALENDAR_ID}, ` +
+    `status: ${response.data.status ?? "?"}`,
+  );
 
   return { id: response.data.id ?? "", created: true };
 }
@@ -420,21 +440,39 @@ export async function crearEventoPersonalizado(
     if (datos.nombrePropiedad) summaryParts.push(datos.nombrePropiedad);
     else if (datos.nombreCliente) summaryParts.push(datos.nombreCliente);
 
-    const res = await calendar.events.insert({
-      calendarId: CALENDAR_ID,
-      requestBody: {
-        summary: summaryParts.join(": "),
-        start: startObj,
-        end: endObj,
-        colorId: COLOR_ID[datos.tipo],
-        extendedProperties: { private: priv },
-        description: datos.notas ?? undefined,
-      },
-    });
+    let res;
+    try {
+      res = await calendar.events.insert({
+        calendarId: CALENDAR_ID,
+        requestBody: {
+          summary: summaryParts.join(": "),
+          start: startObj,
+          end: endObj,
+          colorId: COLOR_ID[datos.tipo],
+          extendedProperties: { private: priv },
+          description: datos.notas ?? undefined,
+        },
+      });
+    } catch (insertErr) {
+      const err = insertErr as Error & { response?: { data?: unknown; status?: number } };
+      const httpStatus = err.response?.status;
+      const apiError = err.response?.data ? JSON.stringify(err.response.data) : err.message;
+      console.error(
+        `[Google Calendar] crearEventoPersonalizado INSERT falló — HTTP ${httpStatus ?? "?"} — ` +
+        `tipo="${datos.tipo}", fecha="${datos.fecha}", calendarId="${CALENDAR_ID}": ${apiError}`,
+      );
+      return { ok: false, error: `HTTP ${httpStatus ?? "?"}: ${apiError}` };
+    }
+
+    console.info(
+      `[Google Calendar] Evento personalizado creado — id: ${res.data.id}, ` +
+      `tipo: "${datos.tipo}", fecha: ${datos.fecha}, calendarId: ${CALENDAR_ID}, ` +
+      `status: ${res.data.status ?? "?"}`,
+    );
     return { ok: true, id: res.data.id ?? undefined };
   } catch (e) {
     const err = e instanceof Error ? e.message : String(e);
-    console.error("[Google Calendar] Error al crear evento personalizado:", err);
+    console.error("[Google Calendar] Error inesperado al crear evento personalizado:", err);
     return { ok: false, error: err };
   }
 }
