@@ -1,12 +1,8 @@
 {
   "crons": [
     {
-      "path": "/api/cron/actualizaciones",
-      "schedule": "0 9 1 * *"
-    },
-    {
-      "path": "/api/cron/actualizaciones",
-      "schedule": "0 9 2 * *"
+      "path": "/api/cron/notificaciones",
+      "schedule": "0 9 5 * *"
     }
   ]
 }

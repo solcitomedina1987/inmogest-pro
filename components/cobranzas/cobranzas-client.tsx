@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, CalendarClock, Eye, Loader2, MessageCircle } from "lucide-react";
+import { AlertTriangle, Bell, CalendarClock, Eye, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import type { ContratoCobranzaRow, PagoRow } from "@/lib/cobranzas/types";
 import {
@@ -13,7 +13,6 @@ import {
   type EstadoVisualCobranza,
   type PagoMesInfo,
 } from "@/lib/cobranzas/estado-contrato";
-import { enviarRecordatorioWhatsApp } from "@/app/actions/whatsapp";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -104,8 +103,8 @@ export function CobranzasClient({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [navigatingId, setNavigatingId] = useState<string | null>(null);
-  const [waLoadingId, setWaLoadingId] = useState<string | null>(null);
-  const [, startWaTransition] = useTransition();
+  const [loadingNotif, setLoadingNotif] = useState<string | null>(null); // "id:TIPO"
+  const [, startNotifTransition] = useTransition();
   const mes = mesPeriodoActual();
 
   const pagosMap = useMemo(() => {
@@ -119,18 +118,32 @@ export function CobranzasClient({
   }, [pagosMesActual, mes]);
 
   const contratosActivos = useMemo(() => contratos.filter((c) => c.is_active), [contratos]);
-
   const proximas = useMemo(() => filtrarProximasActualizaciones(contratosActivos, 90), [contratosActivos]);
 
-  function handleEnviarWA(contratoId: string) {
-    setWaLoadingId(contratoId);
-    startWaTransition(async () => {
-      const res = await enviarRecordatorioWhatsApp(contratoId);
-      setWaLoadingId(null);
-      if (res.ok) {
-        toast.success(res.mensaje);
-      } else {
-        toast.error(res.mensaje);
+  function enviarAviso(contratoId: string, tipo: "VENCIMIENTO" | "ACTUALIZACION") {
+    const key = `${contratoId}:${tipo}`;
+    setLoadingNotif(key);
+    startNotifTransition(async () => {
+      try {
+        const res = await fetch("/api/notifications/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ contratoId, tipo }),
+        });
+        const data = await res.json();
+        if (data.ok) {
+          toast.success(
+            tipo === "ACTUALIZACION"
+              ? "Aviso de actualización enviado al WhatsApp de la Consultora"
+              : "Aviso de vencimiento enviado al WhatsApp de la Consultora",
+          );
+        } else {
+          toast.error(data.error ?? "Error al enviar el aviso");
+        }
+      } catch {
+        toast.error("Error de conexión al enviar el aviso");
+      } finally {
+        setLoadingNotif(null);
       }
     });
   }
@@ -207,7 +220,7 @@ export function CobranzasClient({
                     <TableHead>Límite</TableHead>
                     <TableHead>Estado cobro</TableHead>
                     <TableHead>Contrato</TableHead>
-                    <TableHead className="w-[96px] text-center">Acciones</TableHead>
+                    <TableHead className="w-[120px] text-center">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -247,31 +260,55 @@ export function CobranzasClient({
                         </TableCell>
                         <TableCell className="text-center">
                           <TooltipProvider delayDuration={300}>
-                            <div className="flex items-center justify-center gap-1">
-                              {/* Botón WhatsApp */}
-                              {c.is_active && (c.inquilino as { nombre_completo: string; telefono?: string | null } | null)?.telefono ? (
+                            <div className="flex items-center justify-center gap-0.5">
+
+                              {/* Aviso actualización */}
+                              {c.is_active ? (
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <Button
                                       variant="ghost"
                                       size="icon"
-                                      className="size-8 text-green-600 hover:bg-green-50 hover:text-green-700"
-                                      aria-label="Enviar recordatorio por WhatsApp"
-                                      disabled={waLoadingId === c.id}
-                                      onClick={() => handleEnviarWA(c.id)}
+                                      className="size-8 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+                                      aria-label="Enviar aviso de actualización"
+                                      disabled={loadingNotif === `${c.id}:ACTUALIZACION`}
+                                      onClick={() => enviarAviso(c.id, "ACTUALIZACION")}
                                     >
-                                      {waLoadingId === c.id ? (
-                                        <Loader2 className="size-4 animate-spin" aria-hidden />
+                                      {loadingNotif === `${c.id}:ACTUALIZACION` ? (
+                                        <Loader2 className="size-3.5 animate-spin" aria-hidden />
                                       ) : (
-                                        <MessageCircle className="size-4" aria-hidden />
+                                        <RefreshCw className="size-3.5" aria-hidden />
                                       )}
                                     </Button>
                                   </TooltipTrigger>
-                                  <TooltipContent>Enviar recordatorio por WhatsApp</TooltipContent>
+                                  <TooltipContent>Enviar aviso de actualización</TooltipContent>
                                 </Tooltip>
                               ) : null}
 
-                              {/* Botón Ver detalle */}
+                              {/* Aviso vencimiento */}
+                              {c.is_active ? (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="size-8 text-amber-600 hover:bg-amber-50 hover:text-amber-700"
+                                      aria-label="Enviar aviso de vencimiento"
+                                      disabled={loadingNotif === `${c.id}:VENCIMIENTO`}
+                                      onClick={() => enviarAviso(c.id, "VENCIMIENTO")}
+                                    >
+                                      {loadingNotif === `${c.id}:VENCIMIENTO` ? (
+                                        <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                                      ) : (
+                                        <Bell className="size-3.5" aria-hidden />
+                                      )}
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Enviar aviso de vencimiento</TooltipContent>
+                                </Tooltip>
+                              ) : null}
+
+                              {/* Ver detalle */}
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <Button
@@ -286,14 +323,15 @@ export function CobranzasClient({
                                     }}
                                   >
                                     {navigatingId === c.id ? (
-                                      <Loader2 className="size-4 animate-spin" aria-hidden />
+                                      <Loader2 className="size-3.5 animate-spin" aria-hidden />
                                     ) : (
-                                      <Eye className="size-4" aria-hidden />
+                                      <Eye className="size-3.5" aria-hidden />
                                     )}
                                   </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>Ver detalle del contrato</TooltipContent>
+                                <TooltipContent>Ver detalle</TooltipContent>
                               </Tooltip>
+
                             </div>
                           </TooltipProvider>
                         </TableCell>
