@@ -1,9 +1,8 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Bell, CalendarClock, Eye, Loader2, RefreshCw } from "lucide-react";
-import { toast } from "sonner";
+import { AlertTriangle, CalendarClock, Eye, Loader2 } from "lucide-react";
 import type { ContratoCobranzaRow, PagoRow } from "@/lib/cobranzas/types";
 import {
   estadoCobranzaContrato,
@@ -24,12 +23,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { ContratoFormDialog, type SelectOption } from "@/components/cobranzas/contrato-form-dialog";
 
 const precioFmt = new Intl.NumberFormat("es-AR", {
@@ -45,9 +38,7 @@ const fechaFmt = new Intl.DateTimeFormat("es-AR", {
 });
 
 function toPagoMesInfo(p: PagoRow | undefined): PagoMesInfo {
-  if (!p) {
-    return null;
-  }
+  if (!p) return null;
   return {
     mes_periodo: p.mes_periodo,
     estado: p.estado,
@@ -103,8 +94,6 @@ export function CobranzasClient({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [navigatingId, setNavigatingId] = useState<string | null>(null);
-  const [loadingNotif, setLoadingNotif] = useState<string | null>(null); // "id:TIPO"
-  const [, startNotifTransition] = useTransition();
   const mes = mesPeriodoActual();
 
   const pagosMap = useMemo(() => {
@@ -120,42 +109,14 @@ export function CobranzasClient({
   const contratosActivos = useMemo(() => contratos.filter((c) => c.is_active), [contratos]);
   const proximas = useMemo(() => filtrarProximasActualizaciones(contratosActivos, 90), [contratosActivos]);
 
-  function enviarAviso(contratoId: string, tipo: "VENCIMIENTO" | "ACTUALIZACION") {
-    const key = `${contratoId}:${tipo}`;
-    setLoadingNotif(key);
-    startNotifTransition(async () => {
-      try {
-        const res = await fetch("/api/notifications/send", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ contratoId, tipo }),
-        });
-        const data = await res.json();
-        if (data.ok) {
-          toast.success(
-            tipo === "ACTUALIZACION"
-              ? "Aviso de actualización enviado al WhatsApp de la Consultora"
-              : "Aviso de vencimiento enviado al WhatsApp de la Consultora",
-          );
-        } else {
-          toast.error(data.error ?? "Error al enviar el aviso");
-        }
-      } catch {
-        toast.error("Error de conexión al enviar el aviso");
-      } finally {
-        setLoadingNotif(null);
-      }
-    });
-  }
-
   return (
     <div className="flex max-w-full min-w-0 flex-col gap-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Cobranzas y contratos</h1>
           <p className="text-muted-foreground mt-1 text-sm">
-            Contratos de alquiler y estado de cobro del mes <strong>{mes}</strong>. Los finalizados siguen listados
-            para consulta.
+            Contratos de alquiler y estado de cobro del mes <strong>{mes}</strong>. Los finalizados
+            siguen listados para consulta.
           </p>
         </div>
         <Button type="button" onClick={() => setOpen(true)}>
@@ -197,8 +158,8 @@ export function CobranzasClient({
         <CardHeader>
           <CardTitle className="text-lg">Contratos</CardTitle>
           <CardDescription>
-            Contratos activos y finalizados. Si pasó el día límite de cobro y no hay pago registrado como Pagado en
-            el mes, se marca <strong>En mora</strong> (solo contratos activos).
+            Contratos activos y finalizados. Si pasó el día límite de cobro y no hay pago registrado
+            como Pagado en el mes, se marca <strong>En mora</strong> (solo contratos activos).
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -220,7 +181,7 @@ export function CobranzasClient({
                     <TableHead>Límite</TableHead>
                     <TableHead>Estado cobro</TableHead>
                     <TableHead>Contrato</TableHead>
-                    <TableHead className="w-[120px] text-center">Acciones</TableHead>
+                    <TableHead className="w-[56px] text-center">Ver</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -228,11 +189,16 @@ export function CobranzasClient({
                     const pago = pagosMap.get(c.id);
                     const visual = estadoCobranzaContrato(c.dia_limite_pago, toPagoMesInfo(pago));
                     return (
-                      <TableRow key={c.id} className={!c.is_active ? "bg-muted/30 text-muted-foreground" : undefined}>
+                      <TableRow
+                        key={c.id}
+                        className={!c.is_active ? "bg-muted/30 text-muted-foreground" : undefined}
+                      >
                         <TableCell className="font-medium whitespace-nowrap">
                           {c.propiedad?.nombre ?? "—"}
                         </TableCell>
-                        <TableCell className="whitespace-nowrap">{c.inquilino?.nombre_completo ?? "—"}</TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {c.inquilino?.nombre_completo ?? "—"}
+                        </TableCell>
                         <TableCell className="whitespace-nowrap tabular-nums text-sm">
                           {fechaFmt.format(new Date(c.fecha_inicio + "T12:00:00"))}
                         </TableCell>
@@ -247,7 +213,11 @@ export function CobranzasClient({
                         </TableCell>
                         <TableCell className="tabular-nums">Día {c.dia_limite_pago}</TableCell>
                         <TableCell>
-                          {c.is_active ? badgeEstado(visual) : <span className="text-muted-foreground text-sm">—</span>}
+                          {c.is_active ? (
+                            badgeEstado(visual)
+                          ) : (
+                            <span className="text-muted-foreground text-sm">—</span>
+                          )}
                         </TableCell>
                         <TableCell>
                           {c.is_active ? (
@@ -259,81 +229,23 @@ export function CobranzasClient({
                           )}
                         </TableCell>
                         <TableCell className="text-center">
-                          <TooltipProvider delayDuration={300}>
-                            <div className="flex items-center justify-center gap-0.5">
-
-                              {/* Aviso actualización */}
-                              {c.is_active ? (
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="size-8 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
-                                      aria-label="Enviar aviso de actualización"
-                                      disabled={loadingNotif === `${c.id}:ACTUALIZACION`}
-                                      onClick={() => enviarAviso(c.id, "ACTUALIZACION")}
-                                    >
-                                      {loadingNotif === `${c.id}:ACTUALIZACION` ? (
-                                        <Loader2 className="size-3.5 animate-spin" aria-hidden />
-                                      ) : (
-                                        <RefreshCw className="size-3.5" aria-hidden />
-                                      )}
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>Enviar aviso de actualización</TooltipContent>
-                                </Tooltip>
-                              ) : null}
-
-                              {/* Aviso vencimiento */}
-                              {c.is_active ? (
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="size-8 text-amber-600 hover:bg-amber-50 hover:text-amber-700"
-                                      aria-label="Enviar aviso de vencimiento"
-                                      disabled={loadingNotif === `${c.id}:VENCIMIENTO`}
-                                      onClick={() => enviarAviso(c.id, "VENCIMIENTO")}
-                                    >
-                                      {loadingNotif === `${c.id}:VENCIMIENTO` ? (
-                                        <Loader2 className="size-3.5 animate-spin" aria-hidden />
-                                      ) : (
-                                        <Bell className="size-3.5" aria-hidden />
-                                      )}
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>Enviar aviso de vencimiento</TooltipContent>
-                                </Tooltip>
-                              ) : null}
-
-                              {/* Ver detalle */}
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="size-8"
-                                    aria-label="Ver detalle del contrato"
-                                    disabled={navigatingId === c.id}
-                                    onClick={() => {
-                                      setNavigatingId(c.id);
-                                      router.push(`/dashboard/cobranzas/${c.id}`);
-                                    }}
-                                  >
-                                    {navigatingId === c.id ? (
-                                      <Loader2 className="size-3.5 animate-spin" aria-hidden />
-                                    ) : (
-                                      <Eye className="size-3.5" aria-hidden />
-                                    )}
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Ver detalle</TooltipContent>
-                              </Tooltip>
-
-                            </div>
-                          </TooltipProvider>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-8"
+                            aria-label="Ver detalle del contrato"
+                            disabled={navigatingId === c.id}
+                            onClick={() => {
+                              setNavigatingId(c.id);
+                              router.push(`/dashboard/cobranzas/${c.id}`);
+                            }}
+                          >
+                            {navigatingId === c.id ? (
+                              <Loader2 className="size-4 animate-spin" aria-hidden />
+                            ) : (
+                              <Eye className="size-4" aria-hidden />
+                            )}
+                          </Button>
                         </TableCell>
                       </TableRow>
                     );
