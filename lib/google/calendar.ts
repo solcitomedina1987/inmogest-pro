@@ -76,7 +76,9 @@ export type EventoCalendario = {
   indice?: string;            // "IPC" | "ICL"
 };
 
-export type CalendarResult = { ok: true; eventIds: string[] } | { ok: false; error: string };
+export type CalendarResult =
+  | { ok: true; eventIds: string[]; creados: number; omitidos: number }
+  | { ok: false; error: string; creados: number; omitidos: number };
 
 // ── colorId de Google Calendar por tipo ──────────────────────────────────────
 // 11=Tomato(rojo), 5=Banana(amarillo), 9=Blueberry(azul), 7=Peacock(celeste)
@@ -134,16 +136,45 @@ type DatosEvento = {
   indice?: string;
 };
 
-async function crearEvento(
+/**
+ * Clave única que identifica un evento de forma inequívoca.
+ * Formato: {contratoId}_{tipo}_{fecha}
+ * Permite detectar duplicados antes de insertar.
+ */
+function buildEventKey(contratoId: string, tipo: TipoEvento, fecha: string): string {
+  return `${contratoId}_${tipo}_${fecha}`;
+}
+
+/**
+ * Inserta un evento si no existe ya uno con la misma eventKey.
+ * Retorna { id, created: true } si fue creado, o { id, created: false } si ya existía.
+ */
+async function upsertEvento(
   titulo: string,
   fecha: string,
   tipo: TipoEvento,
   datos: DatosEvento,
-): Promise<string> {
+): Promise<{ id: string; created: boolean }> {
   const calendar = getCalendar();
+  const eventKey = buildEventKey(datos.contratoId, tipo, fecha);
   const tel = datos.telefono ?? "sin teléfono";
 
+  // ── Verificar si ya existe ────────────────────────────────────────────────
+  const existing = await calendar.events.list({
+    calendarId: CALENDAR_ID,
+    privateExtendedProperty: [`eventKey=${eventKey}`],
+    maxResults: 1,
+    singleEvents: true,
+    showDeleted: false,
+  });
+  const existingId = existing.data.items?.[0]?.id;
+  if (existingId) {
+    return { id: existingId, created: false };
+  }
+
+  // ── Insertar nuevo evento ─────────────────────────────────────────────────
   const extended: Record<string, string> = {
+    eventKey,
     tipo,
     contratoId: datos.contratoId,
     inquilino: datos.inquilino,
@@ -179,17 +210,19 @@ async function crearEvento(
     },
   });
 
-  return response.data.id ?? "";
+  return { id: response.data.id ?? "", created: true };
 }
 
 // ── API pública ───────────────────────────────────────────────────────────────
 
 /**
- * Crea los 4 tipos de eventos para un contrato:
- *   1. vencimiento_real     (ROJO)    — fecha exacta de vencimiento
- *   2. alerta_vencimiento   (AMARILLO)— día 1 del mes anterior al vencimiento
- *   3. actualizacion        (AZUL)    — día en que corresponde actualizar el alquiler
- *   4. alerta_actualizacion (CELESTE) — día 1 del mes anterior a cada actualización
+ * Sincroniza los 4 tipos de eventos para un contrato (idempotente).
+ * Si un evento ya existe (misma eventKey), lo omite sin duplicar.
+ *
+ *   1. VENCIMIENTO          (ROJO)    — fecha exacta de vencimiento
+ *   2. VENCIMIENTO PRÓXIMO  (AMARILLO)— día 1 del mes anterior al vencimiento
+ *   3. ACTUALIZACIÓN        (AZUL)    — día exacto de revisión del precio
+ *   4. ACTUALIZACIÓN PRÓXIMA(CELESTE) — día 1 del mes anterior a la revisión
  */
 export async function crearEventosContrato(params: {
   fechaInicio: string;
@@ -201,7 +234,7 @@ export async function crearEventosContrato(params: {
   contratoId: string;
   montoMensual?: number;
   indiceActualizacion?: string;
-}): Promise<CalendarResult> {
+}): Promise<CalendarResult & { creados: number; omitidos: number }> {
   try {
     const {
       fechaInicio, fechaVencimiento, mesesActualizacion,
@@ -211,64 +244,62 @@ export async function crearEventosContrato(params: {
 
     const base: DatosEvento = { direccion, inquilino, telefono, contratoId };
     const eventIds: string[] = [];
+    let creados = 0;
+    let omitidos = 0;
 
-    // 1. Vencimiento real — ROJO
-    eventIds.push(
-      await crearEvento(
-        `🔴 Vencimiento Contrato: ${direccion}`,
-        fechaVencimiento,
-        "vencimiento_real",
-        { ...base, fechaVencimiento },
-      ),
+    async function push(titulo: string, fecha: string, tipo: TipoEvento, datos: DatosEvento) {
+      const result = await upsertEvento(titulo, fecha, tipo, datos);
+      eventIds.push(result.id);
+      if (result.created) creados++; else omitidos++;
+    }
+
+    // 1. VENCIMIENTO — ROJO
+    await push(
+      `VENCIMIENTO: ${direccion}`,
+      fechaVencimiento,
+      "vencimiento_real",
+      { ...base, fechaVencimiento },
     );
 
-    // 2. Alerta preventiva vencimiento — AMARILLO
+    // 2. VENCIMIENTO PRÓXIMO — AMARILLO
     const fechaAlerta = fechaAlertaVencimiento(fechaVencimiento);
-    eventIds.push(
-      await crearEvento(
-        `⚠️ Alerta Vencimiento Contrato: ${direccion}`,
-        fechaAlerta,
-        "alerta_vencimiento",
-        { ...base, fechaVencimiento },
-      ),
+    await push(
+      `VENCIMIENTO PRÓXIMO: ${direccion}`,
+      fechaAlerta,
+      "alerta_vencimiento",
+      { ...base, fechaVencimiento },
     );
 
-    // 3. Actualización de precio (AZUL) + Alerta previa (CELESTE)
+    // 3. ACTUALIZACIÓN (AZUL) + 4. ACTUALIZACIÓN PRÓXIMA (CELESTE)
     const fechasAct = fechasActualizacion(fechaInicio, mesesActualizacion, fechaVencimiento);
     for (const fecha of fechasAct) {
-      // Alerta celeste: día 1 del mes anterior a la actualización
       const [ay, am] = fecha.split("-").map(Number);
       const prevD = new Date(ay, am - 2, 1);
       const fechaAlertaAct = `${prevD.getFullYear()}-${String(prevD.getMonth() + 1).padStart(2, "0")}-01`;
-      eventIds.push(
-        await crearEvento(
-          `🔔 Alerta Actualización Alquiler: ${direccion}`,
-          fechaAlertaAct,
-          "alerta_actualizacion",
-          { ...base, fechaVencimiento, montoMensual, indice: indiceActualizacion },
-        ),
+
+      await push(
+        `ACTUALIZACIÓN PRÓXIMA: ${direccion}`,
+        fechaAlertaAct,
+        "alerta_actualizacion",
+        { ...base, fechaVencimiento, montoMensual, indice: indiceActualizacion },
       );
-      // Día exacto de actualización — AZUL
-      eventIds.push(
-        await crearEvento(
-          `🔵 Actualización Alquiler: ${direccion}`,
-          fecha,
-          "actualizacion",
-          { ...base, fechaVencimiento, montoMensual, indice: indiceActualizacion },
-        ),
+      await push(
+        `ACTUALIZACIÓN: ${direccion}`,
+        fecha,
+        "actualizacion",
+        { ...base, fechaVencimiento, montoMensual, indice: indiceActualizacion },
       );
     }
 
     console.log(
-      `[Google Calendar] Contrato ${contratoId}: ${eventIds.length} evento(s) ` +
-      `(vencimiento + alerta_venc + ${fechasAct.length * 2} act/alertas)`,
+      `[Google Calendar] Contrato ${contratoId}: creados=${creados}, omitidos=${omitidos}`,
     );
 
-    return { ok: true, eventIds };
+    return { ok: true, eventIds, creados, omitidos };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("[Google Calendar] Error al crear eventos:", msg);
-    return { ok: false, error: msg };
+    return { ok: false, error: msg, creados: 0, omitidos: 0 };
   }
 }
 

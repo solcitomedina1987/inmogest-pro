@@ -9,7 +9,9 @@ export type SyncResult = {
   total: number;
   exitosos: number;
   fallidos: number;
-  detalles: { contrato: string; ok: boolean; error?: string }[];
+  creadosTotal: number;
+  omitidosTotal: number;
+  detalles: { contrato: string; ok: boolean; creados?: number; omitidos?: number; error?: string }[];
 };
 
 function unwrapFk<T>(v: T | T[] | null | undefined): T | null {
@@ -18,19 +20,15 @@ function unwrapFk<T>(v: T | T[] | null | undefined): T | null {
 }
 
 /**
- * Crea eventos en Google Calendar para TODOS los contratos activos.
- * Útil la primera vez o cuando los contratos fueron creados antes de la integración.
- * ⚠️  Si los contratos ya tienen eventos, se crearán duplicados.
+ * Sincroniza eventos en Google Calendar para TODOS los contratos activos.
+ * Es idempotente: si un evento ya existe (misma eventKey), lo omite sin duplicar.
  */
 export async function sincronizarContratosAlCalendario(): Promise<SyncResult> {
   if (!googleCalendarConfigurado()) {
     return {
       ok: false,
       message: "Google Calendar no está configurado. Verificar GOOGLE_CLIENT_EMAIL y GOOGLE_PRIVATE_KEY.",
-      total: 0,
-      exitosos: 0,
-      fallidos: 0,
-      detalles: [],
+      total: 0, exitosos: 0, fallidos: 0, creadosTotal: 0, omitidosTotal: 0, detalles: [],
     };
   }
 
@@ -39,10 +37,7 @@ export async function sincronizarContratosAlCalendario(): Promise<SyncResult> {
     return {
       ok: false,
       message: "Sin permisos de administrador.",
-      total: 0,
-      exitosos: 0,
-      fallidos: 0,
-      detalles: [],
+      total: 0, exitosos: 0, fallidos: 0, creadosTotal: 0, omitidosTotal: 0, detalles: [],
     };
   }
   const { supabase } = gate;
@@ -62,10 +57,7 @@ export async function sincronizarContratosAlCalendario(): Promise<SyncResult> {
     return {
       ok: false,
       message: `Error al obtener contratos: ${error.message}`,
-      total: 0,
-      exitosos: 0,
-      fallidos: 0,
-      detalles: [],
+      total: 0, exitosos: 0, fallidos: 0, creadosTotal: 0, omitidosTotal: 0, detalles: [],
     };
   }
 
@@ -73,16 +65,15 @@ export async function sincronizarContratosAlCalendario(): Promise<SyncResult> {
     return {
       ok: true,
       message: "No hay contratos activos para sincronizar.",
-      total: 0,
-      exitosos: 0,
-      fallidos: 0,
-      detalles: [],
+      total: 0, exitosos: 0, fallidos: 0, creadosTotal: 0, omitidosTotal: 0, detalles: [],
     };
   }
 
   const detalles: SyncResult["detalles"] = [];
   let exitosos = 0;
   let fallidos = 0;
+  let creadosTotal = 0;
+  let omitidosTotal = 0;
 
   for (const c of contratos) {
     const row = c as Record<string, unknown>;
@@ -117,7 +108,14 @@ export async function sincronizarContratosAlCalendario(): Promise<SyncResult> {
 
       if (result.ok) {
         exitosos++;
-        detalles.push({ contrato: contratoLabel, ok: true });
+        creadosTotal += result.creados;
+        omitidosTotal += result.omitidos;
+        detalles.push({
+          contrato: contratoLabel,
+          ok: true,
+          creados: result.creados,
+          omitidos: result.omitidos,
+        });
       } else {
         fallidos++;
         detalles.push({ contrato: contratoLabel, ok: false, error: result.error });
@@ -133,15 +131,15 @@ export async function sincronizarContratosAlCalendario(): Promise<SyncResult> {
   }
 
   const total = contratos.length;
-  return {
-    ok: fallidos === 0,
-    message:
-      fallidos === 0
-        ? `✅ ${exitosos} contrato${exitosos !== 1 ? "s" : ""} sincronizado${exitosos !== 1 ? "s" : ""} correctamente.`
-        : `⚠️ ${exitosos} OK / ${fallidos} con error de ${total} contratos.`,
-    total,
-    exitosos,
-    fallidos,
-    detalles,
-  };
+
+  let message: string;
+  if (fallidos === 0 && creadosTotal === 0) {
+    message = `✅ Todo al día — ${omitidosTotal} evento${omitidosTotal !== 1 ? "s" : ""} ya existían, no se crearon duplicados.`;
+  } else if (fallidos === 0) {
+    message = `✅ ${creadosTotal} evento${creadosTotal !== 1 ? "s" : ""} creado${creadosTotal !== 1 ? "s" : ""} · ${omitidosTotal} ya existían (sin duplicados).`;
+  } else {
+    message = `⚠️ ${exitosos} OK / ${fallidos} con error. Creados: ${creadosTotal}, omitidos: ${omitidosTotal}.`;
+  }
+
+  return { ok: fallidos === 0, message, total, exitosos, fallidos, creadosTotal, omitidosTotal, detalles };
 }
