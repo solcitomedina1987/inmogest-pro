@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import type { ContratoCobranzaRow, PagoRow } from "@/lib/cobranzas/types";
 import { ensurePagosMensualesExistentes } from "@/lib/cobranzas/sync-pagos-mensuales";
 import { proximaFechaActualizacionAlquiler } from "@/lib/cobranzas/estado-contrato";
 import type { ContratoWidgetData } from "@/components/portal/contrato-widgets";
 import { PortalView } from "@/components/portal/portal-view";
+import { PortalHeader } from "@/components/portal/portal-header";
 
 export const metadata: Metadata = { title: "Mi Contrato" };
 
@@ -26,44 +28,56 @@ function unwrapFk<T>(v: T | T[] | null | undefined): T | null {
   return Array.isArray(v) ? (v[0] ?? null) : v;
 }
 
-export default async function PortalPage() {
-  const supabase = await createClient();
+function ErrorPage({ title, body }: { title: string; body: string }) {
+  return (
+    <>
+      <PortalHeader />
+      <div className="mx-auto max-w-lg px-6 py-20 text-center">
+        <h2 className="text-xl font-semibold">{title}</h2>
+        <p className="mt-2 text-muted-foreground text-sm">{body}</p>
+      </div>
+    </>
+  );
+}
 
+export default async function PortalPage() {
+  /* ── 1. Verificar sesión (client normal con RLS) ── */
+  const authClient = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await authClient.auth.getUser();
 
   if (!user) {
     redirect("/login?redirect=/portal");
   }
 
-  /* ── Buscar el cliente vinculado a este usuario por email ── */
-  const { data: clienteRaw } = await supabase
+  /* ── 2. Usar service role para datos (bypasa RLS de forma segura) ── */
+  const db = createServiceRoleClient();
+
+  /* ── 3. Buscar cliente vinculado por email ── */
+  const { data: clienteRaw, error: cliErr } = await db
     .from("clientes")
     .select("id, nombre_completo, email, telefono")
-    .eq("email", user.email!)
+    .ilike("email", user.email!)   // case-insensitive por si difieren mayúsculas
     .maybeSingle();
 
-  if (!clienteRaw) {
+  if (cliErr || !clienteRaw) {
     return (
-      <div className="mx-auto max-w-lg px-6 py-20 text-center">
-        <h2 className="text-xl font-semibold">Cuenta no encontrada</h2>
-        <p className="mt-2 text-muted-foreground text-sm">
-          No encontramos un cliente asociado a tu cuenta ({user.email}).
-          Contactá a la consultora para que vinculen tu dirección de correo.
-        </p>
-      </div>
+      <ErrorPage
+        title="Cuenta no encontrada"
+        body={`No encontramos un cliente asociado a ${user.email}. Contactá a la consultora para que vinculen tu correo.`}
+      />
     );
   }
 
-  /* ── Contrato activo ── */
-  const { data: contratoRow } = await supabase
+  /* ── 4. Contrato activo ── */
+  const { data: contratoRow, error: conErr } = await db
     .from("contratos_cobranza")
     .select(
       `id, propiedad_id, cliente_id, locador_id, fecha_inicio, fecha_vencimiento,
        monto_mensual, dia_limite_pago, meses_actualizacion, indice_actualizacion,
        ultima_actualizacion, is_active,
-       propiedad:propiedades ( nombre ),
+       propiedad:propiedades ( nombre, direccion ),
        inquilino:clientes!contratos_cobranza_cliente_id_fkey ( nombre_completo ),
        locador:clientes!contratos_cobranza_locador_id_fkey ( nombre_completo )`,
     )
@@ -72,15 +86,12 @@ export default async function PortalPage() {
     .order("fecha_inicio", { ascending: false })
     .maybeSingle();
 
-  if (!contratoRow) {
+  if (conErr || !contratoRow) {
     return (
-      <div className="mx-auto max-w-lg px-6 py-20 text-center">
-        <h2 className="text-xl font-semibold">Sin contrato activo</h2>
-        <p className="mt-2 text-muted-foreground text-sm">
-          No encontramos un contrato activo para tu cuenta.
-          Consultá a la administración si creés que esto es un error.
-        </p>
-      </div>
+      <ErrorPage
+        title="Sin contrato activo"
+        body="No encontramos un contrato activo para tu cuenta. Consultá a la administración si creés que esto es un error."
+      />
     );
   }
 
@@ -103,11 +114,11 @@ export default async function PortalPage() {
     locador: unwrapFk(r.locador as { nombre_completo: string } | null),
   };
 
-  /* ── Sincronizar cuotas mensuales ── */
-  await ensurePagosMensualesExistentes(supabase, contrato.id);
+  /* ── 5. Sincronizar cuotas mensuales (service role para poder insertar) ── */
+  await ensurePagosMensualesExistentes(db, contrato.id);
 
-  /* ── Cargar pagos ── */
-  const { data: pagosRaw } = await supabase
+  /* ── 6. Cargar pagos ── */
+  const { data: pagosRaw } = await db
     .from("pagos")
     .select("*")
     .eq("contrato_id", contrato.id)
@@ -115,17 +126,15 @@ export default async function PortalPage() {
 
   const pagos = (pagosRaw ?? []) as PagoRow[];
 
-  /* ── Calcular widgets ── */
+  /* ── 7. Calcular widgets ── */
   const hoy = new Date();
 
-  // Widget 1: progreso
   const mesesPagados = pagos.filter((p) => p.estado === "Pagado").length;
   const totalMeses = pagos.length;
   const progresoPct = totalMeses > 0 ? Math.round((mesesPagados / totalMeses) * 100) : 0;
 
-  // Widget 2: próxima actualización
   let diasActualizacion: number | null = null;
-  if (contrato.meses_actualizacion && contrato.meses_actualizacion > 0) {
+  if (contrato.meses_actualizacion > 0) {
     const proxima = proximaFechaActualizacionAlquiler(
       contrato.fecha_inicio,
       contrato.fecha_vencimiento,
@@ -136,7 +145,6 @@ export default async function PortalPage() {
     diasActualizacion = proxima ? diffDays(hoy, proxima) : null;
   }
 
-  // Widget 3: vencimiento
   const fechaVenc = parseLocalDate(contrato.fecha_vencimiento);
   const diasVencimiento = diffDays(hoy, fechaVenc);
 
@@ -148,5 +156,10 @@ export default async function PortalPage() {
     diasVencimiento,
   };
 
-  return <PortalView contrato={contrato} pagos={pagos} widgets={widgets} />;
+  return (
+    <>
+      <PortalHeader nombreInquilino={clienteRaw.nombre_completo} />
+      <PortalView contrato={contrato} pagos={pagos} widgets={widgets} />
+    </>
+  );
 }
