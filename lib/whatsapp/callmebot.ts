@@ -84,16 +84,14 @@ export function mensajeActualizacionPrecio(params: {
   indice: string;
 }): string {
   const tel = params.telefonoInquilino
-    ? `, teléfono ${params.telefonoInquilino}`
+    ? `. Enviar recordatorio/mensaje alteléfono ${params.telefonoInquilino}`
     : "";
 
   return (
-    `Hola! 👋 Le recordamos desde Consultora Medina & Asociados que este mes ` +
-    `corresponde la actualización del valor de su alquiler en ` +
+    `⚠️ Recordatorio de ACTUALIZACIÓN DE VALOR mensual del alquiler en ` +
     `${params.direccionPropiedad}. ` +
     `Inquilino: ${params.nombreInquilino}${tel}. ` +
-    `Índice: ${params.indice}. ` +
-    `Consultas al +54 9 2664791345.`
+    `Índice: ${params.indice}. `
   );
 }
 
@@ -113,8 +111,8 @@ export function mensajeVencimientoContrato(params: {
     `⚠️ Recordatorio de VENCIMIENTO DE CONTRATO para la propiedad ` +
     `${params.direccionPropiedad}. ` +
     `Inquilino: ${params.nombreInquilino}, ` +
-    `Teléfono: ${tel}. ` +
-    `Le recordamos el próximo vencimiento y/o posible renovación de su contrato. ` +
+    `Enviar recordatorio al teléfono: ${tel}. ` +
+    `Para posible renovación de contrato. ` +
     `Fecha de vencimiento: ${params.fechaVencimiento}.`
   );
 }
