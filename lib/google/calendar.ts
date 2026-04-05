@@ -13,6 +13,18 @@ const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID ?? "primary";
 
 // ── Cliente autenticado ───────────────────────────────────────────────────────
 
+/**
+ * Normaliza la clave privada independientemente de cómo la cargó Next.js:
+ *  - Si dotenv ya convirtió \n → saltos reales: ningún cambio
+ *  - Si quedaron como literal \n  (backslash + n): los convierte
+ *  - Si quedaron como literal \\n (doble-backslash + n): los convierte primero
+ */
+function normalizePrivateKey(raw: string): string {
+  return raw
+    .replace(/\\\\n/g, "\n")  // \\n → newline real (doble-escapado)
+    .replace(/\\n/g, "\n");   // \n  → newline real (simple-escapado)
+}
+
 function getCalendar() {
   const email = process.env.GOOGLE_CLIENT_EMAIL;
   const rawKey = process.env.GOOGLE_PRIVATE_KEY;
@@ -23,7 +35,7 @@ function getCalendar() {
     );
   }
 
-  const privateKey = rawKey.replace(/\\n/g, "\n");
+  const privateKey = normalizePrivateKey(rawKey);
 
   const auth = new google.auth.GoogleAuth({
     credentials: { client_email: email, private_key: privateKey },

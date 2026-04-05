@@ -28,17 +28,24 @@ export async function GET() {
   if (!email || !rawKey) return NextResponse.json({ ok: false, steps });
 
   // ── Paso 2: Formato de la clave privada ─────────────────────────────────────
-  const privateKey = rawKey.replace(/\\n/g, "\n");
+  // Normalizar independientemente de cómo Next.js cargó los \n
+  const privateKey = rawKey
+    .replace(/\\\\n/g, "\n")
+    .replace(/\\n/g, "\n");
   const hasBegin = privateKey.includes("-----BEGIN PRIVATE KEY-----");
   const hasEnd = privateKey.includes("-----END PRIVATE KEY-----");
+  const newlineCount = (privateKey.match(/\n/g) ?? []).length;
   steps.push({
     label: "Formato de la clave privada",
-    ok: hasBegin && hasEnd,
-    detail: hasBegin && hasEnd
-      ? `Clave válida (${privateKey.length} caracteres)`
-      : "Clave inválida — no contiene BEGIN/END PRIVATE KEY. Verificar que el valor tenga \\n correcto.",
+    ok: hasBegin && hasEnd && newlineCount >= 25,
+    detail:
+      !hasBegin || !hasEnd
+        ? "Clave inválida — no contiene BEGIN/END PRIVATE KEY."
+        : newlineCount < 25
+          ? `Clave sin saltos de línea correctos (${newlineCount} encontrados, se esperan ≥25). Verificar el valor en .env.local o Vercel.`
+          : `Clave válida — ${privateKey.length} caracteres, ${newlineCount} líneas.`,
   });
-  if (!hasBegin || !hasEnd) return NextResponse.json({ ok: false, steps });
+  if (!hasBegin || !hasEnd || newlineCount < 25) return NextResponse.json({ ok: false, steps });
 
   // ── Paso 3: Autenticación y acceso al calendario ─────────────────────────────
   const CALENDAR_ID = calId === "(no configurado)" ? "primary" : calId;
