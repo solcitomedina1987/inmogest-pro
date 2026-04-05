@@ -127,7 +127,7 @@ function buildEventKey(contratoId: string, tipo: TipoEvento, fecha: string): str
 }
 
 /**
- * Inserta un evento si no existe ya uno con la misma eventKey.
+ * Inserta un evento si no existe ya uno con la misma eventKey O con el mismo título y fecha.
  * Retorna { id, created: true } si fue creado, o { id, created: false } si ya existía.
  */
 async function upsertEvento(
@@ -140,18 +140,31 @@ async function upsertEvento(
   const eventKey = buildEventKey(datos.contratoId, tipo, fecha);
   const tel = datos.telefono ?? "sin teléfono";
 
-  // ── Verificar si ya existe ────────────────────────────────────────────────
-  const existing = await calendar.events.list({
+  // ── Verificar por eventKey (método primario) ──────────────────────────────
+  const byKey = await calendar.events.list({
     calendarId: CALENDAR_ID,
     privateExtendedProperty: [`eventKey=${eventKey}`],
     maxResults: 1,
     singleEvents: true,
     showDeleted: false,
   });
-  const existingId = existing.data.items?.[0]?.id;
-  if (existingId) {
-    return { id: existingId, created: false };
-  }
+  const existingId = byKey.data.items?.[0]?.id;
+  if (existingId) return { id: existingId, created: false };
+
+  // ── Verificar por título + fecha (fallback para eventos sin eventKey) ─────
+  const timeMin = new Date(`${fecha}T00:00:00`).toISOString();
+  const timeMax = new Date(`${fecha}T23:59:59`).toISOString();
+  const byTitle = await calendar.events.list({
+    calendarId: CALENDAR_ID,
+    q: titulo,
+    timeMin,
+    timeMax,
+    maxResults: 5,
+    singleEvents: true,
+    showDeleted: false,
+  });
+  const titleMatch = byTitle.data.items?.find((ev) => ev.summary === titulo);
+  if (titleMatch?.id) return { id: titleMatch.id, created: false };
 
   // ── Insertar nuevo evento ─────────────────────────────────────────────────
   const extended: Record<string, string> = {
@@ -234,7 +247,7 @@ export async function crearEventosContrato(params: {
       if (result.created) creados++; else omitidos++;
     }
 
-    // 1. VENCIMIENTO — ROJO
+    // 1. VENCIMIENTO — ROJO (fecha exacta)
     await push(
       `VENCIMIENTO: ${direccion}`,
       fechaVencimiento,
@@ -242,16 +255,16 @@ export async function crearEventosContrato(params: {
       { ...base, fechaVencimiento },
     );
 
-    // 2. VENCIMIENTO PRÓXIMO — AMARILLO
+    // 2. VENCIMIENTO — AMARILLO (mes previo al vencimiento)
     const fechaAlerta = fechaAlertaVencimiento(fechaVencimiento);
     await push(
-      `VENCIMIENTO PRÓXIMO: ${direccion}`,
+      `VENCIMIENTO: ${direccion}`,
       fechaAlerta,
       "alerta_vencimiento",
       { ...base, fechaVencimiento },
     );
 
-    // 3. ACTUALIZACIÓN (AZUL) + 4. ACTUALIZACIÓN PRÓXIMA (CELESTE)
+    // 3. ACTUALIZACIÓN (AZUL) + 4. ACTUALIZACIÓN (CELESTE, mes previo)
     const fechasAct = fechasActualizacion(fechaInicio, mesesActualizacion, fechaVencimiento);
     for (const fecha of fechasAct) {
       const [ay, am] = fecha.split("-").map(Number);
@@ -259,7 +272,7 @@ export async function crearEventosContrato(params: {
       const fechaAlertaAct = `${prevD.getFullYear()}-${String(prevD.getMonth() + 1).padStart(2, "0")}-01`;
 
       await push(
-        `ACTUALIZACIÓN PRÓXIMA: ${direccion}`,
+        `ACTUALIZACIÓN: ${direccion}`,
         fechaAlertaAct,
         "alerta_actualizacion",
         { ...base, fechaVencimiento, montoMensual, indice: indiceActualizacion },

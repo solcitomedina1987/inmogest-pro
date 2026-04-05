@@ -31,11 +31,14 @@ const precioFmt = new Intl.NumberFormat("es-AR", {
   maximumFractionDigits: 0,
 });
 
-const fechaFmt = new Intl.DateTimeFormat("es-AR", {
-  day: "numeric",
-  month: "short",
-  year: "numeric",
-});
+/** Formatea una fecha ISO a DD-MM-AA (ej: 05-05-26) */
+function fmtFecha(iso: string): string {
+  const d = new Date(iso + "T12:00:00");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yy = String(d.getFullYear()).slice(-2);
+  return `${dd}-${mm}-${yy}`;
+}
 
 function toPagoMesInfo(p: PagoRow | undefined): PagoMesInfo {
   if (!p) return null;
@@ -54,7 +57,9 @@ function formatProximaActualizacion(c: ContratoCobranzaRow): string {
     c.meses_actualizacion,
     c.ultima_actualizacion,
   );
-  return d ? fechaFmt.format(d) : "—";
+  if (!d) return "—";
+  const iso = d.toISOString().slice(0, 10);
+  return fmtFecha(iso);
 }
 
 function badgeEstado(visual: EstadoVisualCobranza) {
@@ -146,7 +151,7 @@ export function CobranzasClient({
                 >
                   <span className="font-medium">{c.propiedad?.nombre ?? "Propiedad"}</span>
                   <span className="text-muted-foreground">
-                    {fechaFmt.format(c.proxima_actualizacion)}
+                    {c.proxima_actualizacion ? fmtFecha(c.proxima_actualizacion.toISOString().slice(0, 10)) : "—"}
                   </span>
                 </li>
               ))}
@@ -179,7 +184,6 @@ export function CobranzasClient({
                     <TableHead>Próx. actualización</TableHead>
                     <TableHead>Vencimiento</TableHead>
                     <TableHead className="text-right">Monto / mes</TableHead>
-                    <TableHead>Límite</TableHead>
                     <TableHead>Estado cobro</TableHead>
                     <TableHead>Contrato</TableHead>
                     <TableHead className="w-[56px] text-center">Ver</TableHead>
@@ -201,18 +205,17 @@ export function CobranzasClient({
                           {c.inquilino?.nombre_completo ?? "—"}
                         </TableCell>
                         <TableCell className="whitespace-nowrap tabular-nums text-sm">
-                          {fechaFmt.format(new Date(c.fecha_inicio + "T12:00:00"))}
+                          {fmtFecha(c.fecha_inicio)}
                         </TableCell>
                         <TableCell className="whitespace-nowrap tabular-nums text-sm">
                           {formatProximaActualizacion(c)}
                         </TableCell>
                         <TableCell className="whitespace-nowrap tabular-nums text-sm">
-                          {fechaFmt.format(new Date(c.fecha_vencimiento + "T12:00:00"))}
+                          {fmtFecha(c.fecha_vencimiento)}
                         </TableCell>
                         <TableCell className="text-right tabular-nums">
                           {precioFmt.format(Number(c.monto_mensual))}
                         </TableCell>
-                        <TableCell className="tabular-nums">Día {c.dia_limite_pago}</TableCell>
                         <TableCell>
                           {c.is_active ? (
                             badgeEstado(visual)

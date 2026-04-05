@@ -100,6 +100,31 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
 
   const nombreInquilino = contrato.inquilino?.nombre_completo?.trim() || "—";
 
+  /**
+   * Conjunto de periodos YYYY-MM que corresponden a una actualización de precio.
+   * Ejemplo: si inicio=2026-01, meses=4 → actualiza en 2026-05, 2026-09, etc.
+   */
+  const mesesActualizacion = useMemo((): Set<string> => {
+    const { fecha_inicio, fecha_vencimiento, meses_actualizacion } = contrato;
+    if (!fecha_inicio || !fecha_vencimiento || !meses_actualizacion) return new Set();
+
+    const [sy, sm] = fecha_inicio.split("-").map(Number);
+    const [ey, em] = fecha_vencimiento.split("-").map(Number);
+    const limiteMs = ey * 12 + em;
+    const periodos = new Set<string>();
+
+    let y = sy;
+    let m = sm + meses_actualizacion;
+    while (m > 12) { m -= 12; y += 1; }
+
+    while (y * 12 + m <= limiteMs) {
+      periodos.add(`${y}-${String(m).padStart(2, "0")}`);
+      m += meses_actualizacion;
+      while (m > 12) { m -= 12; y += 1; }
+    }
+    return periodos;
+  }, [contrato]);
+
   const stats = useMemo(() => {
     const total = pagos.length;
     const pagados = pagos.filter((p) => p.estado === "Pagado");
@@ -413,10 +438,26 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
                     {pagos.map((p) => {
                       const color = puntualidadColor(p.mes_periodo, p.fecha_pago_realizado);
                       const esPagado = p.estado === "Pagado";
+                      const esActualizacion = mesesActualizacion.has(p.mes_periodo);
 
                       return (
-                        <TableRow key={p.id}>
-                          <TableCell className="font-medium tabular-nums">{p.mes_periodo}</TableCell>
+                        <TableRow
+                          key={p.id}
+                          className={esActualizacion ? "bg-yellow-50 dark:bg-yellow-950/20" : undefined}
+                        >
+                          <TableCell className="font-medium tabular-nums">
+                            <span className="flex items-center gap-1.5">
+                              {p.mes_periodo}
+                              {esActualizacion && (
+                                <span
+                                  className="inline-flex items-center rounded-full bg-yellow-200 px-1.5 py-0.5 text-[10px] font-semibold text-yellow-800"
+                                  title="Mes de actualización de precio"
+                                >
+                                  Actualización
+                                </span>
+                              )}
+                            </span>
+                          </TableCell>
 
                           {/* Fecha con semáforo */}
                           <TableCell

@@ -751,31 +751,86 @@ function WeekView({
 
 // ── Vista Agenda (Lista Cronológica) ─────────────────────────────────────────
 
+type AgendaRango = "prox90" | "prox30" | "ult30" | "ult90";
+
+const AGENDA_RANGOS: { value: AgendaRango; label: string }[] = [
+  { value: "prox90", label: "Próximos 90 días" },
+  { value: "prox30", label: "Próximos 30 días" },
+  { value: "ult30", label: "Últimos 30 días" },
+  { value: "ult90", label: "Últimos 90 días" },
+];
+
+function agendaFetchRange(rango: AgendaRango): { start: string; end: string } {
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  const fmt = (d: Date) => toISO(d);
+  if (rango === "prox30") return { start: fmt(hoy), end: fmt(addDays(hoy, 30)) };
+  if (rango === "ult30") return { start: fmt(addDays(hoy, -30)), end: fmt(hoy) };
+  if (rango === "ult90") return { start: fmt(addDays(hoy, -90)), end: fmt(hoy) };
+  return { start: fmt(hoy), end: fmt(addDays(hoy, 90)) }; // prox90 (default)
+}
+
 function AgendaView({
   events,
   status,
+  rango,
+  onRangoChange,
   onEventClick,
 }: {
   events: EventoCalendario[];
   status: string;
+  rango: AgendaRango;
+  onRangoChange: (r: AgendaRango) => void;
   onEventClick: (ev: EventoCalendario) => void;
 }) {
-  if (status === "loading") {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="text-muted-foreground size-5 animate-spin" />
+  return (
+    <div className="flex flex-col">
+      {/* Barra de filtro temporal */}
+      <div className="flex flex-wrap items-center gap-2 border-b bg-muted/20 px-4 py-2">
+        <span className="text-xs font-medium text-muted-foreground">Rango:</span>
+        <div className="flex flex-wrap gap-1">
+          {AGENDA_RANGOS.map((r) => (
+            <button
+              key={r.value}
+              type="button"
+              onClick={() => onRangoChange(r.value)}
+              className={cn(
+                "rounded-full border px-3 py-0.5 text-xs font-medium transition-colors",
+                rango === r.value
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
       </div>
-    );
-  }
-  if (events.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
-        <CalendarDays className="size-8 opacity-30" />
-        <p className="text-sm">Sin eventos en los próximos 90 días.</p>
-      </div>
-    );
-  }
 
+      {/* Contenido */}
+      {status === "loading" ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="text-muted-foreground size-5 animate-spin" />
+        </div>
+      ) : events.length === 0 ? (
+        <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
+          <CalendarDays className="size-8 opacity-30" />
+          <p className="text-sm">Sin eventos en el rango seleccionado.</p>
+        </div>
+      ) : (
+        <AgendaList events={events} onEventClick={onEventClick} />
+      )}
+    </div>
+  );
+}
+
+function AgendaList({
+  events,
+  onEventClick,
+}: {
+  events: EventoCalendario[];
+  onEventClick: (ev: EventoCalendario) => void;
+}) {
   // Agrupar por fecha
   const groups: Map<string, EventoCalendario[]> = new Map();
   for (const ev of events) {
@@ -866,6 +921,7 @@ export function CalendarView({ refreshToken }: { refreshToken?: number } = {}) {
   const [refDate, setRefDate] = useState(() => new Date(today));
   const [view, setView] = useState<ViewMode>("month");
   const [displayMode, setDisplayMode] = useState<DisplayMode>("calendario");
+  const [agendaRango, setAgendaRango] = useState<AgendaRango>("prox90");
   const [events, setEvents] = useState<EventoCalendario[]>([]);
   const [agendaEvents, setAgendaEvents] = useState<EventoCalendario[]>([]);
   const [agendaStatus, setAgendaStatus] = useState<FetchState>("idle");
@@ -909,10 +965,9 @@ export function CalendarView({ refreshToken }: { refreshToken?: number } = {}) {
     [getRange],
   );
 
-  const fetchAgendaEvents = useCallback(async () => {
+  const fetchAgendaEvents = useCallback(async (rango: AgendaRango) => {
     setAgendaStatus("loading");
-    const start = toISO(today);
-    const end = toISO(addDays(today, 90));
+    const { start, end } = agendaFetchRange(rango);
     try {
       const res = await fetch(`/api/calendar/events?start=${start}&end=${end}`);
       const json = (await res.json()) as { events?: EventoCalendario[]; configured?: boolean; error?: string };
@@ -923,12 +978,12 @@ export function CalendarView({ refreshToken }: { refreshToken?: number } = {}) {
     } catch {
       setAgendaStatus("error");
     }
-  }, [today]);
+  }, []);
 
   useEffect(() => { fetchEvents(refDate, view); }, [refDate, view, fetchEvents, refreshToken]);
   useEffect(() => {
-    if (displayMode === "agenda") fetchAgendaEvents();
-  }, [displayMode, fetchAgendaEvents, refreshToken]);
+    if (displayMode === "agenda") fetchAgendaEvents(agendaRango);
+  }, [displayMode, agendaRango, fetchAgendaEvents, refreshToken]);
 
   function prev() {
     if (view === "month") setRefDate((d) => addMonths(d, -1));
@@ -1095,7 +1150,13 @@ export function CalendarView({ refreshToken }: { refreshToken?: number } = {}) {
           ) : null}
 
           {displayMode === "agenda" ? (
-            <AgendaView events={agendaEvents} status={agendaStatus} onEventClick={setSelectedEvent} />
+            <AgendaView
+              events={agendaEvents}
+              status={agendaStatus}
+              rango={agendaRango}
+              onRangoChange={(r) => setAgendaRango(r)}
+              onEventClick={setSelectedEvent}
+            />
           ) : view === "month" ? (
             <MonthView refDate={refDate} events={events} today={today} onEventClick={setSelectedEvent} />
           ) : (
@@ -1121,7 +1182,7 @@ export function CalendarView({ refreshToken }: { refreshToken?: number } = {}) {
         onClose={() => setNewEventOpen(false)}
         onCreated={() => {
           fetchEvents(refDate, view);
-          if (displayMode === "agenda") fetchAgendaEvents();
+          if (displayMode === "agenda") fetchAgendaEvents(agendaRango);
         }}
       />
     </>

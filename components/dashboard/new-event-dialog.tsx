@@ -29,7 +29,7 @@ type ClienteRow = {
   nombre: string;
   apellido: string;
   telefono: string | null;
-  tipo: string;
+  tipo_cliente: string;
 };
 
 type PropiedadRow = {
@@ -95,12 +95,12 @@ export function NewEventDialog({ open, onClose, onCreated }: Props) {
     }
   }, [open]);
 
-  // Filtered clients
-  const inquilinos = clientes.filter((c) =>
-    c.tipo?.toLowerCase().includes("inquilino"),
+  // Filtered clients by role
+  const inquilinos = clientes.filter(
+    (c) => c.tipo_cliente === "Inquilino" || c.tipo_cliente === "Ambos",
   );
-  const propietarios = clientes.filter((c) =>
-    c.tipo?.toLowerCase().includes("propietario"),
+  const propietarios = clientes.filter(
+    (c) => c.tipo_cliente === "Propietario" || c.tipo_cliente === "Ambos",
   );
 
   const clienteSeleccionado = clientes.find((c) => c.id === clienteId);

@@ -9,12 +9,13 @@ export async function GET() {
   const [{ data: clientes }, { data: propiedades }] = await Promise.all([
     supabase
       .from("clientes")
-      .select("id, nombre, apellido, telefono, tipo")
+      .select("id, nombre, apellido, telefono, tipo_cliente")
+      .in("tipo_cliente", ["Inquilino", "Propietario", "Ambos"])
       .order("apellido", { ascending: true }),
     supabase
       .from("propiedades")
       .select("id, direccion, estado")
-      .in("estado", ["Disponible", "Alquilada"])
+      .in("estado", ["Disponible", "Alquilada", "En alquiler"])
       .order("direccion", { ascending: true }),
   ]);
 
