@@ -12,12 +12,21 @@ export type ContratoWidgetData = {
   progresoPct: number;
   // Widget 2
   diasActualizacion: number | null; // null = no aplica
+  montoActual: number;
+  montoEstimado: number | null;     // null = sin datos de índice
+  esEstimado: boolean;
+  indice: string;                   // 'ICL' | 'IPC'
   // Widget 3
   diasVencimiento: number; // negativo = ya venció
 };
 
 export function ContratoWidgets({ data }: { data: ContratoWidgetData }) {
-  const { mesesPagados, totalMeses, progresoPct, diasActualizacion, diasVencimiento } = data;
+  const { mesesPagados, totalMeses, progresoPct, diasActualizacion, diasVencimiento,
+          montoActual, montoEstimado, esEstimado, indice } = data;
+
+  const precioFmt = new Intl.NumberFormat("es-AR", {
+    style: "currency", currency: "ARS", maximumFractionDigits: 0,
+  });
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -54,19 +63,39 @@ export function ContratoWidgets({ data }: { data: ContratoWidgetData }) {
           {diasActualizacion === null ? (
             <p className="text-xl font-semibold text-muted-foreground">No aplica</p>
           ) : (
-            <p
-              className={cn(
-                "text-2xl font-bold tabular-nums",
-                diasActualizacion < 30 ? "text-orange-600" : "text-foreground",
+            <div className="flex flex-col gap-1.5">
+              <p
+                className={cn(
+                  "text-2xl font-bold tabular-nums",
+                  diasActualizacion < 30 ? "text-orange-600" : "text-foreground",
+                )}
+              >
+                En {diasActualizacion} día{diasActualizacion !== 1 ? "s" : ""}
+                {diasActualizacion < 30 && (
+                  <span className="ml-2 inline-flex items-center rounded-full bg-orange-100 px-2 py-0.5 text-[11px] font-semibold text-orange-700">
+                    Próximo
+                  </span>
+                )}
+              </p>
+              {montoEstimado != null ? (
+                <p className="text-sm text-muted-foreground">
+                  Valor estimado:{" "}
+                  <span className="font-semibold text-orange-700">
+                    {precioFmt.format(montoEstimado)}
+                  </span>
+                  {esEstimado && (
+                    <span className="ml-1 text-[11px] text-orange-500" title="Basado en el último índice disponible">
+                      ≈ estimado
+                    </span>
+                  )}
+                  <span className="ml-1 text-[11px] text-muted-foreground">({indice})</span>
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Monto actual: {precioFmt.format(montoActual)}
+                </p>
               )}
-            >
-              En {diasActualizacion} día{diasActualizacion !== 1 ? "s" : ""}
-              {diasActualizacion < 30 && (
-                <span className="ml-2 inline-flex items-center rounded-full bg-orange-100 px-2 py-0.5 text-[11px] font-semibold text-orange-700">
-                  Próximo
-                </span>
-              )}
-            </p>
+            </div>
           )}
         </CardContent>
       </Card>

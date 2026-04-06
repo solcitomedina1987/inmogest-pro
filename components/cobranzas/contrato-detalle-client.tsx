@@ -42,6 +42,7 @@ import { RegistrarPagoDialog } from "@/components/cobranzas/registrar-pago-dialo
 import { EditarPagoDialog } from "@/components/cobranzas/editar-pago-dialog";
 import { ReciboPrintButton } from "@/components/cobranzas/recibo-print-button";
 import { EditarContratoDialog } from "@/components/cobranzas/editar-contrato-dialog";
+import { CalcularAumentoDialog } from "@/components/cobranzas/calcular-aumento-dialog";
 
 const precioFmt = new Intl.NumberFormat("es-AR", {
   style: "currency",
@@ -455,6 +456,12 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
                                 >
                                   Actualización
                                 </span>
+                              )}
+                              {esActualizacion && !esPagado && (
+                                <CalcularAumentoDialog
+                                  contratoId={contrato.id}
+                                  mesActualizacion={p.mes_periodo}
+                                />
                               )}
                             </span>
                           </TableCell>

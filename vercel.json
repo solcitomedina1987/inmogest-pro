@@ -1,2 +1,8 @@
 {
+  "crons": [
+    {
+      "path": "/api/cron/calcular-aumentos",
+      "schedule": "0 6 1 * *"
+    }
+  ]
 }

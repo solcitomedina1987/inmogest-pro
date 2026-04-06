@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, CalendarClock, Eye, FileText, Loader2 } from "lucide-react";
+import { AlertTriangle, CalendarClock, Eye, FileText, Loader2, RefreshCw } from "lucide-react";
 import type { ContratoCobranzaRow, PagoRow } from "@/lib/cobranzas/types";
 import {
   estadoCobranzaContrato,
@@ -99,7 +99,25 @@ export function CobranzasClient({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [navigatingId, setNavigatingId] = useState<string | null>(null);
+  const [syncLoading, setSyncLoading] = useState(false);
   const mes = mesPeriodoActual();
+
+  async function handleSyncIndices() {
+    setSyncLoading(true);
+    try {
+      const res = await fetch("/api/indices/sync", { method: "POST" });
+      const json = await res.json() as { ok: boolean; errores?: string[] };
+      if (json.ok) {
+        alert("✅ Índices ICL e IPC sincronizados correctamente.");
+      } else {
+        alert("⚠️ Sincronización con errores:\n" + (json.errores ?? []).join("\n"));
+      }
+    } catch (e) {
+      alert("Error al sincronizar: " + String(e));
+    } finally {
+      setSyncLoading(false);
+    }
+  }
 
   const pagosMap = useMemo(() => {
     const m = new Map<string, PagoRow>();
@@ -124,10 +142,26 @@ export function CobranzasClient({
             siguen listados para consulta.
           </p>
         </div>
-        <Button type="button" className="gap-2" onClick={() => setOpen(true)}>
-          <FileText className="size-4" aria-hidden />
-          Nuevo contrato
-        </Button>
+        <div className="flex gap-2 flex-wrap">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-1.5 text-muted-foreground"
+            disabled={syncLoading}
+            onClick={handleSyncIndices}
+            title="Sincroniza los índices ICL (BCRA) e IPC (INDEC) para calcular aumentos"
+          >
+            {syncLoading
+              ? <Loader2 className="size-4 animate-spin" aria-hidden />
+              : <RefreshCw className="size-4" aria-hidden />}
+            Actualizar índices
+          </Button>
+          <Button type="button" className="gap-2" onClick={() => setOpen(true)}>
+            <FileText className="size-4" aria-hidden />
+            Nuevo contrato
+          </Button>
+        </div>
       </div>
 
       {proximas.length > 0 ? (

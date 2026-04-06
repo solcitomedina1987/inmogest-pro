@@ -5,7 +5,9 @@ import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import type { ContratoCobranzaRow, PagoRow } from "@/lib/cobranzas/types";
 import { ensurePagosMensualesExistentes } from "@/lib/cobranzas/sync-pagos-mensuales";
 import { proximaFechaActualizacionAlquiler } from "@/lib/cobranzas/estado-contrato";
+import { calculateRentalIncrease } from "@/lib/indices/calculator";
 import type { ContratoWidgetData } from "@/components/portal/contrato-widgets";
+import type { TipoIndice } from "@/lib/indices/types";
 import { PortalView } from "@/components/portal/portal-view";
 import { PortalHeader } from "@/components/portal/portal-header";
 
@@ -148,11 +150,37 @@ export default async function PortalPage() {
   const fechaVenc = parseLocalDate(contrato.fecha_vencimiento);
   const diasVencimiento = diffDays(hoy, fechaVenc);
 
+  // Widget 2: monto estimado (desde caché de indices_economicos)
+  let montoEstimado: number | null = null;
+  let esEstimado = false;
+  const contratoParaCalculo = {
+    id: contrato.id,
+    fecha_inicio: contrato.fecha_inicio,
+    fecha_vencimiento: contrato.fecha_vencimiento,
+    monto_mensual: contrato.monto_mensual,
+    meses_actualizacion: contrato.meses_actualizacion,
+    indice_actualizacion: contrato.indice_actualizacion as TipoIndice,
+    ultima_actualizacion: contrato.ultima_actualizacion ?? null,
+  };
+  try {
+    const calcResult = await calculateRentalIncrease(db, contratoParaCalculo);
+    if (calcResult.ok) {
+      montoEstimado = calcResult.monto_sugerido;
+      esEstimado = calcResult.es_estimado;
+    }
+  } catch {
+    // Si no hay índices cargados simplemente no mostramos el estimado
+  }
+
   const widgets: ContratoWidgetData = {
     mesesPagados,
     totalMeses,
     progresoPct,
     diasActualizacion,
+    montoActual: contrato.monto_mensual,
+    montoEstimado,
+    esEstimado,
+    indice: contrato.indice_actualizacion ?? "ICL",
     diasVencimiento,
   };
 
