@@ -1,20 +1,13 @@
 /**
  * GET /api/cron/calcular-aumentos
- * Ejecutado el día 1 de cada mes por Vercel Cron (vercel.json).
- * 1) Sincroniza índices ICL + IPC.
- * 2) Pre-calcula aumentos para contratos con actualización este mes.
+ * Sincroniza historico_indices (IPC + ICL) y pre-calcula aumentos del mes.
  */
 import { NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
-import { fetchICLMonthly, fetchIPC } from "@/lib/indices/fetcher";
+import { sincronizarTodo } from "@/lib/indices/historico-indices";
 import { precalcularAumentosMes } from "@/app/actions/calcular-aumento";
 
-function yyyymmdd(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
 export async function GET(request: Request) {
-  // Validar secret de Vercel Cron
   const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
   if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
@@ -24,44 +17,16 @@ export async function GET(request: Request) {
   const db = createServiceRoleClient();
   const log: Record<string, unknown> = { inicio: new Date().toISOString() };
 
-  /* 1. Sincronizar ICL */
   try {
-    const hasta = yyyymmdd(new Date());
-    const desdeDate = new Date();
-    desdeDate.setMonth(desdeDate.getMonth() - 15);
-    const desde = yyyymmdd(desdeDate);
-    const valores = await fetchICLMonthly(desde, hasta);
-    if (valores.length > 0) {
-      await db.from("indices_economicos").upsert(
-        valores.map((v) => ({ tipo: "ICL", fecha: v.fecha, valor: v.valor, fuente: "BCRA", es_estimado: false })),
-        { onConflict: "tipo,fecha" },
-      );
-    }
-    log.icl = { ok: true, registros: valores.length };
+    const sync = await sincronizarTodo(db, 12);
+    log.indices = sync;
   } catch (e) {
-    log.icl = { ok: false, error: String(e) };
-    console.error("[cron/calcular-aumentos] ICL sync error:", e);
+    log.indices = { ok: false, error: String(e) };
+    console.error("[cron/calcular-aumentos] indices sync error:", e);
   }
 
-  /* 2. Sincronizar IPC */
   try {
-    const valores = await fetchIPC(6);
-    if (valores.length > 0) {
-      await db.from("indices_economicos").upsert(
-        valores.map((v) => ({ tipo: "IPC", fecha: v.fecha, valor: v.valor, fuente: "INDEC", es_estimado: false })),
-        { onConflict: "tipo,fecha" },
-      );
-    }
-    log.ipc = { ok: true, registros: valores.length };
-  } catch (e) {
-    log.ipc = { ok: false, error: String(e) };
-    console.error("[cron/calcular-aumentos] IPC sync error:", e);
-  }
-
-  /* 3. Pre-calcular aumentos del mes */
-  try {
-    const resultado = await precalcularAumentosMes();
-    log.aumentos = resultado;
+    log.aumentos = await precalcularAumentosMes();
   } catch (e) {
     log.aumentos = { ok: false, error: String(e) };
     console.error("[cron/calcular-aumentos] pre-calcular error:", e);

@@ -106,11 +106,22 @@ export function CobranzasClient({
     setSyncLoading(true);
     try {
       const res = await fetch("/api/indices/sync", { method: "POST" });
-      const json = await res.json() as { ok: boolean; errores?: string[] };
+      const json = (await res.json()) as {
+        ok: boolean;
+        errores?: string[];
+        resultados?: {
+          ipc?: { registros?: number; ok?: boolean; error?: string };
+          icl?: { ok?: boolean; fecha?: string; error?: string };
+        };
+      };
+      const r = json.resultados;
+      const detalle = r
+        ? `IPC: ${r.ipc?.ok ? `${r.ipc?.registros ?? 0} meses` : r.ipc?.error ?? "error"}\nICL: ${r.icl?.ok ? `OK (${r.icl?.fecha ?? "—"})` : r.icl?.error ?? "error"}`
+        : "";
       if (json.ok) {
-        alert("✅ Índices ICL e IPC sincronizados correctamente.");
+        alert(`Índices guardados en historico_indices.\n${detalle}`);
       } else {
-        alert("⚠️ Sincronización con errores:\n" + (json.errores ?? []).join("\n"));
+        alert(`Sincronización parcial o con errores.\n${detalle}\n\n${(json.errores ?? []).join("\n")}`);
       }
     } catch (e) {
       alert("Error al sincronizar: " + String(e));
@@ -150,7 +161,7 @@ export function CobranzasClient({
             className="gap-1.5 text-muted-foreground"
             disabled={syncLoading}
             onClick={handleSyncIndices}
-            title="Sincroniza los índices ICL (BCRA) e IPC (INDEC) para calcular aumentos"
+            title="Guarda IPC (datos.gob.ar, 12 meses) e ICL (tabla pública BCRA) en historico_indices"
           >
             {syncLoading
               ? <Loader2 className="size-4 animate-spin" aria-hidden />

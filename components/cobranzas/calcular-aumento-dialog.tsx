@@ -100,12 +100,25 @@ export function CalcularAumentoDialog({ contratoId, mesActualizacion }: Props) {
                   <span className="font-semibold">{resultado.indice_tipo}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Valor inicial ({resultado.fecha_ref})</span>
-                  <span className="tabular-nums">{resultado.indice_inicial.toFixed(4)}</span>
+                  <span className="text-muted-foreground">
+                    {resultado.indice_tipo === "IPC" ? "1.ª variación mensual" : "Valor inicial"} ({resultado.fecha_ref})
+                  </span>
+                  <span className="tabular-nums">
+                    {resultado.indice_tipo === "IPC"
+                      ? `${resultado.indice_inicial.toFixed(2)}%`
+                      : resultado.indice_inicial.toFixed(4)}
+                  </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Valor final ({resultado.fecha_actualizacion.slice(0, 7)})</span>
-                  <span className="tabular-nums">{resultado.indice_final.toFixed(4)}</span>
+                  <span className="text-muted-foreground">
+                    {resultado.indice_tipo === "IPC" ? "Última variación mensual" : "Valor final"} (
+                    {resultado.fecha_actualizacion.slice(0, 7)})
+                  </span>
+                  <span className="tabular-nums">
+                    {resultado.indice_tipo === "IPC"
+                      ? `${resultado.indice_final.toFixed(2)}%`
+                      : resultado.indice_final.toFixed(4)}
+                  </span>
                 </div>
                 <div className="flex justify-between border-t pt-2">
                   <span className="text-muted-foreground">Coeficiente</span>

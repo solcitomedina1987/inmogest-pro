@@ -150,7 +150,7 @@ export default async function PortalPage() {
   const fechaVenc = parseLocalDate(contrato.fecha_vencimiento);
   const diasVencimiento = diffDays(hoy, fechaVenc);
 
-  // Widget 2: monto estimado (desde caché de indices_economicos)
+  // Widget 2: monto estimado (desde caché historico_indices)
   let montoEstimado: number | null = null;
   let esEstimado = false;
   const contratoParaCalculo = {
