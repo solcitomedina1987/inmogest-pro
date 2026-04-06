@@ -1,7 +1,8 @@
 /**
  * Motor de cálculo de aumentos de alquiler según ICL o IPC.
  *
- * ICL: Nuevo = Actual × (ICL_fecha_actualizacion / ICL_fecha_referencia)
+ * ICL: solo valores almacenados con fecha YYYY-MM-01 (ICL del mes).
+ *      Nuevo = Actual × (ICL_1er_mes_actualización / ICL_1er_mes_referencia)
  * IPC: Nuevo = Actual × ∏ (IPC_mes_n / IPC_mes_n-1) para cada mes del período
  */
 
@@ -27,26 +28,43 @@ function toYYYYMM(fecha: string): string {
   return fecha.slice(0, 7);
 }
 
+/** Primer día del mes calendario de una fecha ISO (YYYY-MM-DD). */
+function firstOfCalendarMonth(fechaIso: string): string {
+  return `${toYYYYMM(fechaIso)}-01`;
+}
+
 /* ─── acceso a caché en Supabase ─────────────────────────────────────────── */
 
 /**
- * Devuelve el índice ICL más cercano (hacia atrás) a `fecha` desde la caché.
+ * ICL del mes: la caché solo guarda filas con fecha YYYY-MM-01.
+ * Busca el mes exacto; si no hay dato, el último ICL mensual anterior (estimado).
  */
-async function getICLCercano(
+async function getICLPorMesPrimero(
   db: SupabaseClient,
-  fecha: string,
+  mesPrimero: string, // YYYY-MM-01
 ): Promise<{ valor: number; fecha: string; es_estimado: boolean } | null> {
-  const { data } = await db
+  const { data: exact } = await db
     .from("indices_economicos")
     .select("fecha, valor, es_estimado")
     .eq("tipo", "ICL")
-    .lte("fecha", fecha)
+    .eq("fecha", mesPrimero)
+    .maybeSingle();
+
+  if (exact) {
+    return { valor: Number(exact.valor), fecha: exact.fecha as string, es_estimado: Boolean(exact.es_estimado) };
+  }
+
+  const { data: prev } = await db
+    .from("indices_economicos")
+    .select("fecha, valor")
+    .eq("tipo", "ICL")
+    .lt("fecha", mesPrimero)
     .order("fecha", { ascending: false })
     .limit(1)
     .maybeSingle();
 
-  if (!data) return null;
-  return { valor: Number(data.valor), fecha: data.fecha as string, es_estimado: Boolean(data.es_estimado) };
+  if (!prev) return null;
+  return { valor: Number(prev.valor), fecha: prev.fecha as string, es_estimado: true };
 }
 
 /**
@@ -131,19 +149,24 @@ async function calcularICL(
   fechaRef: string,
   fechaActualizacion: string,
 ): Promise<ResultadoCalculo> {
-  const iclRef = await getICLCercano(db, fechaRef);
+  const mesIclRef = firstOfCalendarMonth(fechaRef);
+  const mesIclAct = fechaActualizacion.slice(8, 10) === "01"
+    ? fechaActualizacion
+    : firstOfCalendarMonth(fechaActualizacion);
+
+  const iclRef = await getICLPorMesPrimero(db, mesIclRef);
   if (!iclRef) {
     return {
       ok: false,
-      error: `No hay datos de ICL disponibles para la fecha de referencia (${fechaRef}). Sincronizá los índices desde el panel.`,
+      error: `No hay datos de ICL para el mes de referencia (${mesIclRef}). Sincronizá los índices desde el panel.`,
     };
   }
 
-  const iclAct = await getICLCercano(db, fechaActualizacion);
+  const iclAct = await getICLPorMesPrimero(db, mesIclAct);
   if (!iclAct) {
     return {
       ok: false,
-      error: `No hay datos de ICL disponibles para la fecha de actualización (${fechaActualizacion}). Sincronizá los índices desde el panel.`,
+      error: `No hay datos de ICL para el mes de actualización (${mesIclAct}). Sincronizá los índices desde el panel.`,
       es_estimado: true,
     };
   }
@@ -161,9 +184,10 @@ async function calcularICL(
     indice_inicial: iclRef.valor,
     indice_final: iclAct.valor,
     fecha_ref: iclRef.fecha,
-    fecha_actualizacion: iclAct.fecha,
+    /* Mes objetivo de actualización (siempre día 1); puede diferir de iclAct.fecha si el índice aún no salió */
+    fecha_actualizacion: mesIclAct,
     es_estimado: esEstimado,
-    detalle: `ICL ${iclRef.fecha}: ${iclRef.valor.toFixed(4)} → ICL ${iclAct.fecha}: ${iclAct.valor.toFixed(4)} · Coeficiente: ×${coeficiente.toFixed(4)}${esEstimado ? " (valor estimado)" : ""}`,
+    detalle: `ICL ref. ${mesIclRef} (${iclRef.fecha}): ${iclRef.valor.toFixed(4)} → ICL act. ${mesIclAct} (dato ${iclAct.fecha}): ${iclAct.valor.toFixed(4)} · ×${coeficiente.toFixed(4)}${esEstimado ? " (estimado)" : ""}`,
   };
 }
 

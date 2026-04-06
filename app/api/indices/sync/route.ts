@@ -1,7 +1,7 @@
 /**
  * POST /api/indices/sync
  * Sincroniza los índices ICL (BCRA) e IPC (INDEC) hacia la tabla indices_economicos.
- * - ICL: últimos 400 días desde hoy.
+ * - ICL: serie BCRA agregada a **un valor por mes** (fecha siempre YYYY-MM-01).
  * - IPC: últimos 24 meses.
  * Usa UPSERT para no duplicar ni perder datos existentes.
  * Solo accesible para admins.
@@ -9,7 +9,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/supabase/require-admin";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
-import { fetchICL, fetchIPC } from "@/lib/indices/fetcher";
+import { fetchICLMonthly, fetchIPC } from "@/lib/indices/fetcher";
 
 function yyyymmdd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -25,14 +25,14 @@ export async function POST() {
   const resultados: Record<string, unknown> = {};
   const errores: string[] = [];
 
-  /* ── ICL (últimos 400 días) ── */
+  /* ── ICL: solo día 1 de cada mes en BD (agregado desde serie diaria BCRA) ── */
   try {
     const hasta = yyyymmdd(new Date());
     const desdeDate = new Date();
-    desdeDate.setDate(desdeDate.getDate() - 400);
+    desdeDate.setMonth(desdeDate.getMonth() - 36);
     const desde = yyyymmdd(desdeDate);
 
-    const valores = await fetchICL(desde, hasta);
+    const valores = await fetchICLMonthly(desde, hasta);
 
     if (valores.length > 0) {
       const rows = valores.map((v) => ({

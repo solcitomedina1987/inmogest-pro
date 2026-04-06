@@ -6,7 +6,7 @@
  */
 import { NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
-import { fetchICL, fetchIPC } from "@/lib/indices/fetcher";
+import { fetchICLMonthly, fetchIPC } from "@/lib/indices/fetcher";
 import { precalcularAumentosMes } from "@/app/actions/calcular-aumento";
 
 function yyyymmdd(d: Date): string {
@@ -27,8 +27,10 @@ export async function GET(request: Request) {
   /* 1. Sincronizar ICL */
   try {
     const hasta = yyyymmdd(new Date());
-    const desde = yyyymmdd(new Date(Date.now() - 45 * 24 * 60 * 60 * 1000));
-    const valores = await fetchICL(desde, hasta);
+    const desdeDate = new Date();
+    desdeDate.setMonth(desdeDate.getMonth() - 15);
+    const desde = yyyymmdd(desdeDate);
+    const valores = await fetchICLMonthly(desde, hasta);
     if (valores.length > 0) {
       await db.from("indices_economicos").upsert(
         valores.map((v) => ({ tipo: "ICL", fecha: v.fecha, valor: v.valor, fuente: "BCRA", es_estimado: false })),
