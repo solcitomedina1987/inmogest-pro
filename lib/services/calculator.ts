@@ -20,6 +20,15 @@ export type CalculatorResponse = {
   data: CalculatorDataPoint[];
 };
 
+function debugLog(message: string, payload?: unknown) {
+  if (process.env.NODE_ENV !== "development") return;
+  if (payload === undefined) {
+    console.info(`[calculator] ${message}`);
+    return;
+  }
+  console.info(`[calculator] ${message}`, payload);
+}
+
 function getApiKey(): string {
   const key = process.env.RAPIDAPI_ARQUILER_KEY?.trim();
   if (!key) throw new Error("Falta RAPIDAPI_ARQUILER_KEY.");
@@ -37,8 +46,11 @@ function asNumber(v: unknown): number | null {
 
 function parseCalculatorResponse(json: unknown): CalculatorResponse {
   const root = (json ?? {}) as Record<string, unknown>;
-  const raw = root.data;
+  debugLog("raw response keys", Object.keys(root));
+  const candidates = [root.data, root.result, root.results, root.items, root.values];
+  const raw = candidates.find((c) => Array.isArray(c));
   if (!Array.isArray(raw)) {
+    debugLog("no array payload found in response");
     throw new Error("Respuesta inválida de /calculate: falta array data.");
   }
 
@@ -46,16 +58,29 @@ function parseCalculatorResponse(json: unknown): CalculatorResponse {
     .map((item) => {
       if (!item || typeof item !== "object") return null;
       const row = item as Record<string, unknown>;
-      const value = asNumber(row.value);
+      const value = asNumber(row.value ?? row.amount ?? row.monto ?? row.result);
       if (value == null) return null;
       return {
         value,
-        date: typeof row.date === "string" ? row.date.slice(0, 10) : undefined,
-        period: typeof row.period === "string" ? row.period.slice(0, 7) : undefined,
+        date:
+          typeof row.date === "string"
+            ? row.date.slice(0, 10)
+            : typeof row.fecha === "string"
+              ? row.fecha.slice(0, 10)
+              : undefined,
+        period:
+          typeof row.period === "string"
+            ? row.period.slice(0, 7)
+            : typeof row.month === "string"
+              ? row.month.slice(0, 7)
+              : typeof row.mes === "string"
+                ? row.mes.slice(0, 7)
+                : undefined,
       };
     })
     .filter((x): x is NonNullable<typeof x> => Boolean(x));
 
+  debugLog("parsed points", { count: data.length, sample: data.slice(0, 3) });
   return { data };
 }
 
@@ -90,14 +115,30 @@ export function pickEstimatedValue(
   response: CalculatorResponse,
   targetMonthYYYYMM: string,
 ): number | null {
+  if (response.data.length === 0) {
+    debugLog("pickEstimatedValue: empty data", { targetMonthYYYYMM });
+    return null;
+  }
   const byMonth = response.data.find((d) => d.period === targetMonthYYYYMM || d.date?.slice(0, 7) === targetMonthYYYYMM);
-  if (byMonth) return byMonth.value;
+  if (byMonth) {
+    debugLog("pickEstimatedValue: exact month match", { targetMonthYYYYMM, value: byMonth.value });
+    return byMonth.value;
+  }
 
   const sorted = [...response.data].sort((a, b) => (a.date ?? a.period ?? "").localeCompare(b.date ?? b.period ?? ""));
   const next = sorted.find((d) => (d.date ?? `${d.period}-01`) >= `${targetMonthYYYYMM}-01`);
-  if (next) return next.value;
+  if (next) {
+    debugLog("pickEstimatedValue: next available month", {
+      targetMonthYYYYMM,
+      picked: next.period ?? next.date,
+      value: next.value,
+    });
+    return next.value;
+  }
 
-  return sorted[sorted.length - 1]?.value ?? null;
+  const fallback = sorted[sorted.length - 1]?.value ?? null;
+  debugLog("pickEstimatedValue: fallback last value", { targetMonthYYYYMM, fallback });
+  return fallback;
 }
 
 export function isCalculatorConfigured(): boolean {

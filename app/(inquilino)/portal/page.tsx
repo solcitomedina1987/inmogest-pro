@@ -12,6 +12,15 @@ import { PortalHeader } from "@/components/portal/portal-header";
 
 export const metadata: Metadata = { title: "Mi Contrato" };
 
+function devLog(message: string, payload?: unknown) {
+  if (process.env.NODE_ENV !== "development") return;
+  if (payload === undefined) {
+    console.info(`[portal] ${message}`);
+    return;
+  }
+  console.info(`[portal] ${message}`, payload);
+}
+
 function diffDays(from: Date, to: Date): number {
   const msPerDay = 1000 * 60 * 60 * 24;
   const a = Date.UTC(from.getFullYear(), from.getMonth(), from.getDate());
@@ -165,6 +174,14 @@ export default async function PortalPage() {
     if (proxima && isCalculatorConfigured()) {
       const proximaISO = `${proxima.getFullYear()}-${String(proxima.getMonth() + 1).padStart(2, "0")}-${String(proxima.getDate()).padStart(2, "0")}`;
       const targetMonth = mesPeriodoDesdeFecha(proximaISO);
+      devLog("request /calculate", {
+        contratoId: contrato.id,
+        amount: contrato.monto_mensual,
+        date: contrato.fecha_inicio,
+        months: contrato.meses_actualizacion,
+        rate: contrato.indice_actualizacion === "IPC" ? "ipc" : "icl",
+        targetMonth,
+      });
       const resp = await calculateArquiler({
         amount: contrato.monto_mensual,
         date: contrato.fecha_inicio,
@@ -172,9 +189,11 @@ export default async function PortalPage() {
         rate: contrato.indice_actualizacion === "IPC" ? "ipc" : "icl",
       });
       montoEstimado = pickEstimatedValue(resp, targetMonth);
+      devLog("monto estimado resuelto", { contratoId: contrato.id, targetMonth, montoEstimado });
     }
   } catch {
     // Si la API no está disponible no mostramos el estimado
+    devLog("error calculando monto estimado");
   }
 
   const widgets: ContratoWidgetData = {
