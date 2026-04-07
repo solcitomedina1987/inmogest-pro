@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/supabase/require-admin";
-import { calculateArquiler } from "@/lib/services/calculator";
+import { calculateArquiler, pickEstimatedValue } from "@/lib/services/calculator";
 
-export async function GET(_: Request, ctx: { params: Promise<{ id: string }> }) {
+export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const auth = await requireAdmin();
   if (!auth.ok) return NextResponse.json({ error: "Sin autorización." }, { status: 401 });
 
@@ -30,6 +30,12 @@ export async function GET(_: Request, ctx: { params: Promise<{ id: string }> }) 
       const month = row.period ?? row.date?.slice(0, 7);
       if (!month) continue;
       byMonth[month] = row.value;
+    }
+
+    const month = new URL(req.url).searchParams.get("month");
+    if (month && /^\d{4}-\d{2}$/.test(month)) {
+      const value = pickEstimatedValue(resp, month);
+      return NextResponse.json({ ok: true, byMonth, value, month });
     }
 
     return NextResponse.json({ ok: true, byMonth });

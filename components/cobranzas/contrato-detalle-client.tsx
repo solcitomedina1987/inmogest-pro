@@ -98,6 +98,7 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
   const [imprimirPendiente, setImprimirPendiente] = useState(false);
   const [anulando, startAnulacion] = useTransition();
   const [estimadosPorMes, setEstimadosPorMes] = useState<Record<string, number>>({});
+  const [calculandoMes, setCalculandoMes] = useState<string | null>(null);
 
   const nombreInquilino = contrato.inquilino?.nombre_completo?.trim() || "—";
 
@@ -209,6 +210,28 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
         toast.success("Pago anulado. El período volvió a Pendiente.");
       }
     });
+  }
+
+  async function calcularEstimadoMes(mes: string) {
+    setCalculandoMes(mes);
+    try {
+      const res = await fetch(`/api/contratos/${contrato.id}/estimado?month=${mes}`);
+      const json = (await res.json()) as { value?: number | null; error?: string };
+      if (!res.ok) {
+        toast.error(json.error ?? "No se pudo calcular el valor estimado.");
+        return;
+      }
+      if (json.value == null) {
+        toast.error("No se encontró un valor estimado para este período.");
+        return;
+      }
+      setEstimadosPorMes((prev) => ({ ...prev, [mes]: Number(json.value) }));
+      toast.success("Valor estimado calculado.");
+    } catch {
+      toast.error("Error de conexión al calcular el valor estimado.");
+    } finally {
+      setCalculandoMes(null);
+    }
   }
 
   return (
@@ -507,9 +530,18 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
                                   : "text-right tabular-nums"
                             }
                           >
-                            {p.monto_pagado != null
-                              ? precioFmt.format(Number(p.monto_pagado))
-                              : "—"}
+                            <div className="flex flex-col items-end gap-0.5">
+                              <span>
+                                {p.monto_pagado != null
+                                  ? precioFmt.format(Number(p.monto_pagado))
+                                  : "—"}
+                              </span>
+                              {esActualizacion && estimadosPorMes[p.mes_periodo] != null ? (
+                                <span className="text-[11px] text-orange-700 font-semibold">
+                                  Est.: {precioFmt.format(Number(estimadosPorMes[p.mes_periodo]))}
+                                </span>
+                              ) : null}
+                            </div>
                           </TableCell>
 
                           <TableCell className="max-w-[100px] truncate text-sm">
@@ -574,25 +606,45 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
                                   </Tooltip>
                                 </>
                               ) : contrato.is_active ? (
-                                /* Registrar pago */
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      size="sm"
-                                      className="h-7 px-2 text-xs font-bold text-emerald-700 border-emerald-400 hover:bg-emerald-50 hover:text-emerald-900 hover:border-emerald-600"
-                                      onClick={() => {
-                                        setMesPeriodoPago(p.mes_periodo);
-                                        setPagoOpen(true);
-                                      }}
-                                      aria-label="Registrar pago"
-                                    >
-                                      +$
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>Registrar pago</TooltipContent>
-                                </Tooltip>
+                                <>
+                                  {esActualizacion ? (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          size="sm"
+                                          className="h-7 px-2 text-xs border-orange-400 text-orange-700 hover:bg-orange-50 hover:text-orange-900 hover:border-orange-600"
+                                          onClick={() => calcularEstimadoMes(p.mes_periodo)}
+                                          disabled={calculandoMes === p.mes_periodo}
+                                          aria-label="Calcular nuevo alquiler estimado"
+                                        >
+                                          {calculandoMes === p.mes_periodo ? "Calculando…" : "Calcular estimado"}
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Calcular nuevo alquiler estimado</TooltipContent>
+                                    </Tooltip>
+                                  ) : null}
+
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-7 px-2 text-xs font-bold text-emerald-700 border-emerald-400 hover:bg-emerald-50 hover:text-emerald-900 hover:border-emerald-600"
+                                        onClick={() => {
+                                          setMesPeriodoPago(p.mes_periodo);
+                                          setPagoOpen(true);
+                                        }}
+                                        aria-label="Registrar pago"
+                                      >
+                                        +$
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Registrar pago</TooltipContent>
+                                  </Tooltip>
+                                </>
                               ) : (
                                 <span className="text-muted-foreground text-xs">—</span>
                               )}
