@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -165,6 +165,30 @@ export function PortalView({ contrato, pagos, widgets }: Props) {
               </Table>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Simulador externo (Arquiler) */}
+      <Card className="border shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-base">Simulador de Aumento (Estimación)</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          <CardDescription className="text-sm leading-relaxed">
+            Utilice esta calculadora externa para proyectar sus próximos aumentos según los índices
+            oficiales del BCRA e INDEC. Recuerde que los valores son estimaciones hasta la publicación
+            definitiva de los índices.
+          </CardDescription>
+          <div className="mx-auto w-full max-w-[800px]">
+            <iframe
+              title="Calculadora de alquileres"
+              src="https://arquiler.com/mini?theme=light&backgroundColor=ffffff"
+              width="100%"
+              height={600}
+              className="w-full rounded-lg border-0 shadow-[0_4px_6px_-1px_rgb(0_0_0_/_0.1)]"
+              style={{ border: "none", borderRadius: 8 }}
+            />
+          </div>
         </CardContent>
       </Card>
 
