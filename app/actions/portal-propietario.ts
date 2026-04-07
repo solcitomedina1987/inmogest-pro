@@ -58,7 +58,7 @@ export async function crearAccesoPortalPropietario(clienteId: string): Promise<R
     .eq("email", email)
     .maybeSingle();
 
-  let userIdExistente: string | null = perfilAuth?.id ?? null;
+  const userIdExistente: string | null = perfilAuth?.id ?? null;
 
   if (userIdExistente) {
     if (perfilAuth?.rol === "admin") {
