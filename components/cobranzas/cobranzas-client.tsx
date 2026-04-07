@@ -2,12 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Calculator, CalendarClock, Eye, FileText, Loader2 } from "lucide-react";
+import { AlertTriangle, Calculator, Eye, FileText, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import type { ContratoCobranzaRow, PagoRow } from "@/lib/cobranzas/types";
 import {
   estadoCobranzaContrato,
-  filtrarProximasActualizaciones,
   mesPeriodoActual,
   mesPeriodoDesdeFecha,
   proximaFechaActualizacionAlquiler,
@@ -25,9 +24,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { AlquileresContratosFiltros } from "@/components/cobranzas/alquileres-contratos-filtros";
 import { ContratoFormDialog, type SelectOption } from "@/components/cobranzas/contrato-form-dialog";
 import { ActualizacionEstimadaDialog } from "@/components/shared/actualizacion-estimada-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
 const precioFmt = new Intl.NumberFormat("es-AR", {
   style: "currency",
@@ -70,6 +71,7 @@ function contratoTieneEstimacionEnMesReferencia(
   c: ContratoCobranzaRow,
   mesReferencia: string,
 ): boolean {
+  if (c.deleted_at) return false;
   if (!c.is_active) return false;
   const prox = proximaFechaActualizacionAlquiler(
     c.fecha_inicio,
@@ -110,6 +112,7 @@ type Props = {
   /** YYYY-MM del mes calendario usado para destacar actualizaciones (ej. pagos del mes). */
   mesPeriodoReferencia: string;
   calculatorConfigured: boolean;
+  filtros: { q: string; incluirEliminados: boolean };
 };
 
 export function CobranzasClient({
@@ -120,6 +123,7 @@ export function CobranzasClient({
   locadores,
   mesPeriodoReferencia,
   calculatorConfigured,
+  filtros,
 }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -188,15 +192,12 @@ export function CobranzasClient({
     return m;
   }, [pagosMesActual, mes]);
 
-  const contratosActivos = useMemo(() => contratos.filter((c) => c.is_active), [contratos]);
-  const proximas = useMemo(() => filtrarProximasActualizaciones(contratosActivos, 90), [contratosActivos]);
-
   return (
     <TooltipProvider delayDuration={300}>
     <div className="flex max-w-full min-w-0 flex-col gap-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Cobranzas y contratos</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Alquileres</h1>
           <p className="text-muted-foreground mt-1 text-sm">
             Contratos de alquiler y estado de cobro del mes <strong>{mes}</strong>. Los finalizados
             siguen listados para consulta.
@@ -210,35 +211,10 @@ export function CobranzasClient({
         </div>
       </div>
 
-      {proximas.length > 0 ? (
-        <Card className="border shadow-sm">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <CalendarClock className="text-muted-foreground size-5" />
-              <CardTitle className="text-lg">Próximas actualizaciones</CardTitle>
-            </div>
-            <CardDescription>
-              Contratos con revisión de alquiler en los próximos 90 días (según frecuencia y última
-              actualización).
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-2 text-sm">
-              {proximas.map((c) => (
-                <li
-                  key={c.id}
-                  className="flex flex-wrap items-center justify-between gap-2 border-b border-border py-2 last:border-0"
-                >
-                  <span className="font-medium">{c.propiedad?.nombre ?? "Propiedad"}</span>
-                  <span className="text-muted-foreground">
-                    {c.proxima_actualizacion ? fmtFecha(c.proxima_actualizacion.toISOString().slice(0, 10)) : "—"}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      ) : null}
+      <AlquileresContratosFiltros
+        defaultQ={filtros.q}
+        incluirEliminados={filtros.incluirEliminados}
+      />
 
       <Card className="border shadow-sm">
         <CardHeader>
@@ -251,7 +227,9 @@ export function CobranzasClient({
         <CardContent>
           {contratos.length === 0 ? (
             <p className="text-muted-foreground py-8 text-center text-sm">
-              No hay contratos registrados. Creá uno con el botón superior.
+              {filtros.q.trim() || filtros.incluirEliminados
+                ? "No hay contratos que coincidan con los filtros. Probá otro texto o destildá opciones."
+                : "No hay contratos registrados. Creá uno con el botón superior."}
             </p>
           ) : (
             <div className="max-w-full overflow-x-auto">
@@ -273,10 +251,14 @@ export function CobranzasClient({
                   {contratos.map((c) => {
                     const pago = pagosMap.get(c.id);
                     const visual = estadoCobranzaContrato(c.dia_limite_pago, toPagoMesInfo(pago));
+                    const eliminado = c.deleted_at != null;
                     return (
                       <TableRow
                         key={c.id}
-                        className={!c.is_active ? "bg-muted/30 text-muted-foreground" : undefined}
+                        className={cn(
+                          eliminado && "bg-red-50/90 text-red-950 dark:bg-red-950/30 dark:text-red-50",
+                          !eliminado && !c.is_active && "bg-muted/30 text-muted-foreground",
+                        )}
                       >
                         <TableCell className="font-medium whitespace-nowrap">
                           {c.propiedad?.nombre ?? "—"}
@@ -317,14 +299,20 @@ export function CobranzasClient({
                           {precioFmt.format(Number(c.monto_mensual))}
                         </TableCell>
                         <TableCell>
-                          {c.is_active ? (
+                          {eliminado ? (
+                            <span className="text-muted-foreground text-sm">—</span>
+                          ) : c.is_active ? (
                             badgeEstado(visual)
                           ) : (
                             <span className="text-muted-foreground text-sm">—</span>
                           )}
                         </TableCell>
                         <TableCell>
-                          {c.is_active ? (
+                          {eliminado ? (
+                            <Badge className="border-0 bg-red-600 text-white hover:bg-red-600/90">
+                              Eliminado
+                            </Badge>
+                          ) : c.is_active ? (
                             <Badge variant="outline" className="border-emerald-600/60 text-emerald-800">
                               Activo
                             </Badge>

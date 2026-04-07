@@ -1,7 +1,11 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { mesPeriodoActual } from "@/lib/cobranzas/estado-contrato";
+import {
+  mesPeriodoActual,
+  mesPeriodoConOffset,
+  proximaFechaActualizacionAlquiler,
+} from "@/lib/cobranzas/estado-contrato";
 
 export type PagoAtrasadoListItem = {
   id: string;
@@ -19,11 +23,14 @@ export type ExecutiveDashboardData = {
   cobrosPendientes: number;
   morosidadPct: number;
   totalContratosActivos: number;
-  // Widget 3 — Propiedades
+  // Widget 3 — Propiedades + ocupación (unificado)
   totalPropiedades: number;
-  // Widget 4 — Ocupación
   ocupacionPct: number;
   alquiladasCount: number;
+  // Widget 4 — Actualizaciones de alquiler en la ventana de 3 meses (mes actual + 2)
+  actualizacionesEsteMes: number;
+  actualizacionesProximoMes: number;
+  actualizacionesSubsiguiente: number;
   // Lista de pagos atrasados (panel de atención)
   ultimosAtrasados: PagoAtrasadoListItem[];
 };
@@ -98,24 +105,28 @@ export async function getExecutiveDashboardData(): Promise<ExecutiveDashboardDat
       .from("contratos_cobranza")
       .select("*", { count: "exact", head: true })
       .eq("is_active", true)
+      .is("deleted_at", null)
       .gte("fecha_vencimiento", m0.start)
       .lte("fecha_vencimiento", m0.end),
     supabase
       .from("contratos_cobranza")
       .select("*", { count: "exact", head: true })
       .eq("is_active", true)
+      .is("deleted_at", null)
       .gte("fecha_vencimiento", m1.start)
       .lte("fecha_vencimiento", m1.end),
     supabase
       .from("contratos_cobranza")
       .select("*", { count: "exact", head: true })
       .eq("is_active", true)
+      .is("deleted_at", null)
       .gte("fecha_vencimiento", m2.start)
       .lte("fecha_vencimiento", m2.end),
     supabase
       .from("contratos_cobranza")
-      .select("id, dia_limite_pago")
-      .eq("is_active", true),
+      .select("id, dia_limite_pago, fecha_inicio, fecha_vencimiento, meses_actualizacion, ultima_actualizacion")
+      .eq("is_active", true)
+      .is("deleted_at", null),
     supabase
       .from("pagos")
       .select("contrato_id, estado")
@@ -126,6 +137,7 @@ export async function getExecutiveDashboardData(): Promise<ExecutiveDashboardDat
         `id, mes_periodo, monto_esperado, updated_at,
          contratos_cobranza (
            is_active,
+           deleted_at,
            inquilino:clientes!contratos_cobranza_cliente_id_fkey ( nombre_completo )
          )`,
       )
@@ -163,16 +175,46 @@ export async function getExecutiveDashboardData(): Promise<ExecutiveDashboardDat
   const morosidadPct =
     totalActivos > 0 ? Math.round((cobrosPendientes / totalActivos) * 100) : 0;
 
-  // ── Widget 4: Ocupación ───────────────────────────────────────────────────
   const total = totalPropCount ?? 0;
   const alq = alquiladasCount ?? 0;
   const ocupacionPct = total > 0 ? Math.round((alq / total) * 100) : 0;
 
+  // ── Widget 4: actualizaciones de valor (mes actual + 2, por mes calendario de la próxima fecha)
+  const hoy = new Date();
+  const ym0 = mesPeriodoActual(hoy);
+  const ym1 = mesPeriodoConOffset(hoy, 1);
+  const ym2 = mesPeriodoConOffset(hoy, 2);
+  let actualizacionesEsteMes = 0;
+  let actualizacionesProximoMes = 0;
+  let actualizacionesSubsiguiente = 0;
+  for (const c of contratosActivos ?? []) {
+    const row = c as {
+      fecha_inicio: string;
+      fecha_vencimiento: string;
+      meses_actualizacion: number;
+      ultima_actualizacion: string | null;
+    };
+    const prox = proximaFechaActualizacionAlquiler(
+      row.fecha_inicio,
+      row.fecha_vencimiento,
+      row.meses_actualizacion,
+      row.ultima_actualizacion,
+      hoy,
+    );
+    if (!prox) continue;
+    const pym = `${prox.getFullYear()}-${String(prox.getMonth() + 1).padStart(2, "0")}`;
+    if (pym === ym0) actualizacionesEsteMes += 1;
+    else if (pym === ym1) actualizacionesProximoMes += 1;
+    else if (pym === ym2) actualizacionesSubsiguiente += 1;
+  }
+
   // ── Lista de atrasados ────────────────────────────────────────────────────
   const ultimosAtrasadosRaw = (listaPagos ?? []).filter((raw) => {
-    const p = raw as { contratos_cobranza: { is_active?: boolean } | null };
+    const p = raw as {
+      contratos_cobranza: { is_active?: boolean; deleted_at?: string | null } | null;
+    };
     const cc = unwrapFk(p.contratos_cobranza);
-    return cc?.is_active !== false;
+    return cc?.is_active !== false && !cc?.deleted_at;
   });
 
   const ultimosAtrasados: PagoAtrasadoListItem[] = ultimosAtrasadosRaw.slice(0, 5).map((raw) => {
@@ -205,6 +247,9 @@ export async function getExecutiveDashboardData(): Promise<ExecutiveDashboardDat
     totalPropiedades: total,
     ocupacionPct,
     alquiladasCount: alq,
+    actualizacionesEsteMes,
+    actualizacionesProximoMes,
+    actualizacionesSubsiguiente,
     ultimosAtrasados,
   };
 }

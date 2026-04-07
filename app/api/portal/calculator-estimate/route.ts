@@ -43,11 +43,19 @@ export async function POST(req: Request) {
 
   const { data: contrato, error: cErr } = await db
     .from("contratos_cobranza")
-    .select("id, cliente_id, fecha_inicio, monto_mensual, meses_actualizacion, indice_actualizacion, is_active")
+    .select(
+      "id, cliente_id, fecha_inicio, monto_mensual, meses_actualizacion, indice_actualizacion, is_active, deleted_at",
+    )
     .eq("id", body.contratoId)
     .maybeSingle();
 
-  if (cErr || !contrato || contrato.cliente_id !== cliente.id || !contrato.is_active) {
+  if (
+    cErr ||
+    !contrato ||
+    contrato.cliente_id !== cliente.id ||
+    !contrato.is_active ||
+    contrato.deleted_at
+  ) {
     return NextResponse.json({ ok: false, error: "Contrato no disponible." }, { status: 403 });
   }
 

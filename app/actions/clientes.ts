@@ -87,6 +87,7 @@ async function tieneContratoVigenteComoInquilino(
     .select("id")
     .eq("cliente_id", clienteId)
     .eq("is_active", true)
+    .is("deleted_at", null)
     .gt("fecha_vencimiento", hoy)
     .limit(1)
     .maybeSingle();

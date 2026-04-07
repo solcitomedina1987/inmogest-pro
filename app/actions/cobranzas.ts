@@ -131,12 +131,12 @@ export async function registrarPagoContrato(input: unknown): Promise<CobranzaAct
 
   const { data: contrato, error: cErr } = await supabase
     .from("contratos_cobranza")
-    .select("id, monto_mensual, is_active")
+    .select("id, monto_mensual, is_active, deleted_at")
     .eq("id", v.contrato_id)
     .maybeSingle();
 
-  if (cErr || !contrato || !contrato.is_active) {
-    return { ok: false, error: "Contrato no encontrado o inactivo." };
+  if (cErr || !contrato || !contrato.is_active || contrato.deleted_at) {
+    return { ok: false, error: "Contrato no encontrado, inactivo o eliminado." };
   }
 
   const montoMensual = Number(contrato.monto_mensual);
@@ -276,12 +276,16 @@ export async function updateContract(input: unknown): Promise<CobranzaActionResu
 
   const { data: existente, error: exErr } = await supabase
     .from("contratos_cobranza")
-    .select("id, fecha_inicio, monto_mensual")
+    .select("id, fecha_inicio, monto_mensual, deleted_at")
     .eq("id", v.contrato_id)
     .maybeSingle();
 
   if (exErr || !existente) {
     return { ok: false, error: "Contrato no encontrado." };
+  }
+
+  if (existente.deleted_at) {
+    return { ok: false, error: "No se puede editar un contrato eliminado." };
   }
 
   const fechaInicio = existente.fecha_inicio as string;
@@ -332,5 +336,52 @@ export async function updateContract(input: unknown): Promise<CobranzaActionResu
   revalidatePath("/dashboard/cobranzas");
   revalidatePath(`/dashboard/cobranzas/${v.contrato_id}`);
   revalidatePath("/dashboard");
+  return { ok: true };
+}
+
+/**
+ * Baja lógica: marca el contrato como eliminado (no borra filas ni pagos).
+ */
+export async function eliminarContratoCobranza(contratoId: string): Promise<CobranzaActionResult> {
+  const gate = await requireAdmin();
+  if (!gate.ok) {
+    return {
+      ok: false,
+      error: gate.code === "no-auth" ? "Iniciá sesión." : "Sin permisos.",
+    };
+  }
+  const { supabase } = gate;
+
+  if (!contratoId) {
+    return { ok: false, error: "Contrato inválido." };
+  }
+
+  const { data: row, error: exErr } = await supabase
+    .from("contratos_cobranza")
+    .select("id, deleted_at")
+    .eq("id", contratoId)
+    .maybeSingle();
+
+  if (exErr || !row) {
+    return { ok: false, error: "Contrato no encontrado." };
+  }
+
+  if (row.deleted_at) {
+    return { ok: false, error: "El contrato ya está eliminado." };
+  }
+
+  const { error: upErr } = await supabase
+    .from("contratos_cobranza")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", contratoId);
+
+  if (upErr) {
+    return { ok: false, error: upErr.message };
+  }
+
+  revalidatePath("/dashboard/cobranzas");
+  revalidatePath(`/dashboard/cobranzas/${contratoId}`);
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/propiedades");
   return { ok: true };
 }

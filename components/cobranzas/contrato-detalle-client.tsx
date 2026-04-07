@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Calculator,
@@ -14,7 +15,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { toast } from "sonner";
-import { anularPago } from "@/app/actions/cobranzas";
+import { anularPago, eliminarContratoCobranza } from "@/app/actions/cobranzas";
 import type { ContratoCobranzaRow, PagoRow } from "@/lib/cobranzas/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -90,6 +91,8 @@ type Props = {
 };
 
 export function ContratoDetalleClient({ contrato, pagos }: Props) {
+  const router = useRouter();
+  const contratoEliminado = contrato.deleted_at != null;
   const [pagoOpen, setPagoOpen] = useState(false);
   const [mesPeriodoPago, setMesPeriodoPago] = useState<string | null>(null);
   const [editarOpen, setEditarOpen] = useState(false);
@@ -99,6 +102,8 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
   const [reciboProps, setReciboProps] = useState<ReciboAlquilerProps | null>(null);
   const [imprimirPendiente, setImprimirPendiente] = useState(false);
   const [anulando, startAnulacion] = useTransition();
+  const [eliminarOpen, setEliminarOpen] = useState(false);
+  const [eliminando, startEliminar] = useTransition();
   const [estimadaOpen, setEstimadaOpen] = useState(false);
   const [estimadaLoading, setEstimadaLoading] = useState(false);
   const [estimadaError, setEstimadaError] = useState<string | null>(null);
@@ -189,6 +194,20 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
     setImprimirPendiente(true);
   }
 
+  function handleEliminarContrato() {
+    startEliminar(async () => {
+      const res = await eliminarContratoCobranza(contrato.id);
+      setEliminarOpen(false);
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+      toast.success("Contrato eliminado (baja lógica).");
+      router.push("/dashboard/cobranzas");
+      router.refresh();
+    });
+  }
+
   function handleAnular() {
     if (!pagoAnularId) return;
     startAnulacion(async () => {
@@ -273,6 +292,33 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
         />
 
         {/* AlertDialog de confirmación de anulación */}
+        <AlertDialog open={eliminarOpen} onOpenChange={setEliminarOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Eliminar este contrato?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Se aplicará una <strong>baja lógica</strong>: el contrato dejará de mostrarse en los
+                listados habituales y no se podrán registrar nuevos cobros. Los datos y el historial de
+                cuotas se conservan.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={eliminando}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleEliminarContrato();
+                }}
+                disabled={eliminando}
+                className="bg-destructive text-white hover:bg-destructive/90"
+              >
+                {eliminando ? "Eliminando…" : "Sí, eliminar"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
         <AlertDialog
           open={!!pagoAnularId}
           onOpenChange={(o) => { if (!o) setPagoAnularId(null); }}
@@ -304,7 +350,7 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
           <Button variant="ghost" size="sm" className="gap-2" asChild>
             <Link href="/dashboard/cobranzas">
               <ArrowLeft className="size-4" />
-              Volver a cobranzas
+              Volver a alquileres
             </Link>
           </Button>
         </div>
@@ -314,7 +360,11 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
           <div className="min-w-0 space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-2xl font-semibold tracking-tight">Contrato de alquiler</h1>
-              {!contrato.is_active ? (
+              {contratoEliminado ? (
+                <Badge className="shrink-0 border-0 bg-red-600 text-white hover:bg-red-600/90">
+                  Eliminado
+                </Badge>
+              ) : !contrato.is_active ? (
                 <Badge variant="secondary" className="shrink-0">
                   Finalizado
                 </Badge>
@@ -323,9 +373,25 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
             <p className="text-muted-foreground text-sm">Ficha y cuotas mensuales</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button type="button" variant="outline" className="gap-2" onClick={() => setEditarOpen(true)}>
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2"
+              onClick={() => setEditarOpen(true)}
+              disabled={contratoEliminado}
+            >
               <Pencil className="size-4 shrink-0" aria-hidden />
               Editar contrato
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              className="gap-2"
+              disabled={contratoEliminado}
+              onClick={() => setEliminarOpen(true)}
+            >
+              <Trash2 className="size-4 shrink-0" aria-hidden />
+              Eliminar contrato
             </Button>
             <Button
               type="button"
@@ -333,12 +399,19 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
                 setMesPeriodoPago(null);
                 setPagoOpen(true);
               }}
-              disabled={!contrato.is_active}
+              disabled={!contrato.is_active || contratoEliminado}
             >
               Registrar pago
             </Button>
           </div>
         </div>
+
+        {contratoEliminado ? (
+          <div className="rounded-lg border-2 border-red-600 bg-red-50 px-4 py-3 text-sm text-red-900 dark:bg-red-950/40 dark:text-red-50 print:hidden">
+            Este contrato está <strong>eliminado</strong> (baja lógica). Solo conservamos la información
+            para consulta histórica; no podés registrar cobros ni editarlo desde aquí.
+          </div>
+        ) : null}
 
         {/* Estadísticas de progreso */}
         {pagos.length > 0 ? (
@@ -507,7 +580,7 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
                                   Actualización
                                 </span>
                               )}
-                              {esActualizacion ? (
+                              {esActualizacion && !contratoEliminado ? (
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <Button
@@ -571,7 +644,9 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
                           {/* Acciones con iconos + tooltips */}
                           <TableCell className="print:hidden">
                             <div className="flex items-center justify-end gap-1">
-                              {esPagado ? (
+                              {contratoEliminado ? (
+                                <span className="text-muted-foreground text-xs">—</span>
+                              ) : esPagado ? (
                                 <>
                                   {/* Editar pago */}
                                   <Tooltip>

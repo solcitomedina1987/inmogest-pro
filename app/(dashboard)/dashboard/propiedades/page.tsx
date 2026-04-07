@@ -119,6 +119,7 @@ export default async function DashboardPropiedadesPage() {
       .from("contratos_cobranza")
       .select("id, propiedad_id, created_at")
       .eq("is_active", true)
+      .is("deleted_at", null)
       .in("propiedad_id", propIds)
       .order("created_at", { ascending: false });
 

@@ -2,7 +2,7 @@ import {
   AlertTriangle,
   Building2,
   CalendarClock,
-  Percent,
+  TrendingUp,
 } from "lucide-react";
 import { getExecutiveDashboardData } from "@/app/actions/dashboard-metrics";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,6 +25,11 @@ export async function ExecutiveDashboardPanel() {
 
   const vencimientosTotal =
     data.vencimientosEsteMes + data.vencimientosProximoMes + data.vencimientosSubsiguiente;
+
+  const disponibles = data.totalPropiedades - data.alquiladasCount;
+
+  const actualizacionesTotal =
+    data.actualizacionesEsteMes + data.actualizacionesProximoMes + data.actualizacionesSubsiguiente;
 
   return (
     <div className="max-w-full space-y-8">
@@ -120,7 +125,7 @@ export async function ExecutiveDashboardPanel() {
           </CardContent>
         </Card>
 
-        {/* Widget 3 — Total Propiedades */}
+        {/* Widget 3 — Propiedades y ocupación (unificado) */}
         <Card
           className={cn(
             "border shadow-sm transition-shadow hover:shadow-md",
@@ -128,7 +133,7 @@ export async function ExecutiveDashboardPanel() {
           )}
         >
           <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total propiedades</CardTitle>
+            <CardTitle className="text-sm font-medium">Propiedades y ocupación</CardTitle>
             <div className="rounded-lg bg-blue-600/15 p-2.5 text-blue-700 dark:bg-blue-600/25 dark:text-blue-400">
               <Building2 className="size-4" aria-hidden />
             </div>
@@ -138,7 +143,8 @@ export async function ExecutiveDashboardPanel() {
               {data.totalPropiedades}
             </p>
             <p className="mt-1 text-[11px] font-medium text-blue-700/70 dark:text-blue-400/70">
-              Inmuebles activos en cartera
+              Inmuebles activos en cartera ·{" "}
+              <span className="font-semibold text-blue-800 dark:text-blue-300">{data.ocupacionPct}% ocupación</span>
             </p>
             <div className="mt-3 flex flex-col gap-0.5 border-t border-blue-200/60 pt-2.5 dark:border-blue-800/40">
               <span className="flex items-center justify-between text-[11px]">
@@ -150,38 +156,14 @@ export async function ExecutiveDashboardPanel() {
               <span className="flex items-center justify-between text-[11px]">
                 <span className="text-muted-foreground">Disponibles</span>
                 <span className="font-semibold tabular-nums text-foreground/80">
-                  {data.totalPropiedades - data.alquiladasCount}
+                  {disponibles}
                 </span>
               </span>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Widget 4 — Ocupación */}
-        <Card
-          className={cn(
-            "border shadow-sm transition-shadow hover:shadow-md",
-            "border-l-4 border-l-emerald-600 bg-emerald-50/40 dark:bg-emerald-950/20",
-          )}
-        >
-          <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ocupación</CardTitle>
-            <div className="rounded-lg bg-emerald-600/15 p-2.5 text-emerald-700 dark:bg-emerald-600/25 dark:text-emerald-400">
-              <Percent className="size-4" aria-hidden />
-            </div>
-          </CardHeader>
-          <CardContent className="pb-5 pt-0">
-            <p className="text-4xl font-bold tabular-nums tracking-tight text-emerald-700 dark:text-emerald-400 xl:text-5xl">
-              {data.ocupacionPct}%
-            </p>
-            <p className="mt-1 text-[11px] font-medium text-emerald-700/70 dark:text-emerald-400/70">
-              Propiedades alquiladas sobre el total
-            </p>
-            {/* Barra de progreso */}
-            <div className="mt-3 border-t border-emerald-200/60 pt-2.5 dark:border-emerald-800/40">
-              <div className="h-1.5 w-full overflow-hidden rounded-full bg-emerald-200/60 dark:bg-emerald-900/40">
+            <div className="mt-3 border-t border-blue-200/60 pt-2.5 dark:border-blue-800/40">
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-blue-200/60 dark:bg-blue-900/40">
                 <div
-                  className="h-full rounded-full bg-emerald-600 dark:bg-emerald-500 transition-all duration-500"
+                  className="h-full rounded-full bg-blue-600 dark:bg-blue-500 transition-all duration-500"
                   style={{ width: `${data.ocupacionPct}%` }}
                   role="progressbar"
                   aria-valuenow={data.ocupacionPct}
@@ -190,8 +172,51 @@ export async function ExecutiveDashboardPanel() {
                 />
               </div>
               <p className="mt-1.5 text-[11px] text-muted-foreground">
-                {data.alquiladasCount} de {data.totalPropiedades} propiedades
+                {data.alquiladasCount} de {data.totalPropiedades} en alquiler
               </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Widget 4 — Próximas actualizaciones de valor */}
+        <Card
+          className={cn(
+            "border shadow-sm transition-shadow hover:shadow-md",
+            "border-l-4 border-l-violet-600 bg-violet-50/40 dark:bg-violet-950/20",
+          )}
+        >
+          <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Actualizaciones de alquiler</CardTitle>
+            <div className="rounded-lg bg-violet-600/15 p-2.5 text-violet-700 dark:bg-violet-600/25 dark:text-violet-300">
+              <TrendingUp className="size-4" aria-hidden />
+            </div>
+          </CardHeader>
+          <CardContent className="pb-5 pt-0">
+            <p className="text-4xl font-bold tabular-nums tracking-tight text-violet-800 dark:text-violet-300 xl:text-5xl">
+              {actualizacionesTotal}
+            </p>
+            <p className="mt-1 text-[11px] font-medium text-violet-800/75 dark:text-violet-400/80">
+              Contratos con revisión de valor (mes actual + 2 meses siguientes)
+            </p>
+            <div className="mt-3 flex flex-col gap-0.5 border-t border-violet-200/60 pt-2.5 dark:border-violet-800/40">
+              <span className="flex items-center justify-between text-[11px]">
+                <span className="text-muted-foreground">Este mes ({mesLabel(0)})</span>
+                <span className="font-semibold tabular-nums text-violet-900 dark:text-violet-300">
+                  {data.actualizacionesEsteMes}
+                </span>
+              </span>
+              <span className="flex items-center justify-between text-[11px]">
+                <span className="text-muted-foreground">Próximo ({mesLabel(1)})</span>
+                <span className="font-semibold tabular-nums text-violet-900 dark:text-violet-300">
+                  {data.actualizacionesProximoMes}
+                </span>
+              </span>
+              <span className="flex items-center justify-between text-[11px]">
+                <span className="text-muted-foreground">Subsiguiente ({mesLabel(2)})</span>
+                <span className="font-semibold tabular-nums text-violet-900 dark:text-violet-300">
+                  {data.actualizacionesSubsiguiente}
+                </span>
+              </span>
             </div>
           </CardContent>
         </Card>

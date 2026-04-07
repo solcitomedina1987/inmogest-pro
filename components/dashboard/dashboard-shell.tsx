@@ -14,7 +14,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 
 const baseNav = [
   { href: "/dashboard", label: "Inicio" },
-  { href: "/dashboard/cobranzas", label: "Cobranzas" },
+  { href: "/dashboard/cobranzas", label: "Alquileres" },
   { href: "/dashboard/propiedades", label: "Propiedades" },
   { href: "/dashboard/clientes", label: "Clientes" },
   { href: "/dashboard/contratos", label: "Contratos" },

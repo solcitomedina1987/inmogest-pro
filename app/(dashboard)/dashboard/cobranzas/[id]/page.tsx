@@ -26,6 +26,7 @@ function normalizeContratoRow(row: Record<string, unknown>): ContratoCobranzaRow
     indice_actualizacion: (row.indice_actualizacion as "IPC" | "ICL") ?? "ICL",
     ultima_actualizacion: (row.ultima_actualizacion as string) ?? null,
     is_active: Boolean(row.is_active),
+    deleted_at: (row.deleted_at as string | null | undefined) ?? null,
     propiedad: unwrapFk(row.propiedad as { nombre: string } | { nombre: string }[] | null),
     inquilino: unwrapFk(row.inquilino as { nombre_completo: string } | { nombre_completo: string }[] | null),
     locador: unwrapFk(row.locador as { nombre_completo: string } | { nombre_completo: string }[] | null),
@@ -46,7 +47,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const p = raw?.propiedad;
   const nombre = Array.isArray(p) ? p[0]?.nombre : p?.nombre;
   return {
-    title: nombre ? `Cobranzas · ${nombre}` : "Contrato de alquiler",
+    title: nombre ? `Alquileres · ${nombre}` : "Contrato de alquiler",
   };
 }
 
@@ -82,6 +83,7 @@ export default async function CobranzasContratoDetallePage({ params }: PageProps
       meses_actualizacion,
       ultima_actualizacion,
       is_active,
+      deleted_at,
       propiedad:propiedades ( nombre ),
       inquilino:clientes!contratos_cobranza_cliente_id_fkey ( nombre_completo ),
       locador:clientes!contratos_cobranza_locador_id_fkey ( nombre_completo )

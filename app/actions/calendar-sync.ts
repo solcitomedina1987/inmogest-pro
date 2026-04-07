@@ -51,6 +51,7 @@ export async function sincronizarContratosAlCalendario(): Promise<SyncResult> {
        inquilino:clientes!contratos_cobranza_cliente_id_fkey(nombre_completo, telefono)`,
     )
     .eq("is_active", true)
+    .is("deleted_at", null)
     .order("fecha_inicio", { ascending: true });
 
   if (error) {

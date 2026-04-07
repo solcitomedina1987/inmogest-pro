@@ -93,6 +93,7 @@ export default async function PortalPage() {
     )
     .eq("cliente_id", clienteRaw.id)
     .eq("is_active", true)
+    .is("deleted_at", null)
     .order("fecha_inicio", { ascending: false })
     .maybeSingle();
 
@@ -119,6 +120,7 @@ export default async function PortalPage() {
     indice_actualizacion: (r.indice_actualizacion as "IPC" | "ICL") ?? "ICL",
     ultima_actualizacion: (r.ultima_actualizacion as string) ?? null,
     is_active: Boolean(r.is_active),
+    deleted_at: null,
     propiedad: unwrapFk(r.propiedad as { nombre: string } | { nombre: string }[] | null),
     inquilino: unwrapFk(r.inquilino as { nombre_completo: string } | null),
     locador: unwrapFk(r.locador as { nombre_completo: string } | null),

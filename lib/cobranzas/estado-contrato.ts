@@ -23,6 +23,12 @@ export function mesPeriodoDesdeFecha(fechaISO: string): string {
   return fechaISO.slice(0, 7);
 }
 
+/** Mes calendario YYYY-MM desplazado desde `fechaRef` (offset 0 = mes de fechaRef). */
+export function mesPeriodoConOffset(fechaRef: Date = new Date(), offsetMeses: number): string {
+  const d = new Date(fechaRef.getFullYear(), fechaRef.getMonth() + offsetMeses, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
 /**
  * Si el día calendario supera dia_limite_pago y no hay pago "Pagado" en el mes, hay mora.
  */

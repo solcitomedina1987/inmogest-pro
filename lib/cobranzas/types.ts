@@ -15,6 +15,8 @@ export type ContratoCobranzaRow = {
   indice_actualizacion: IndiceActualizacion;
   ultima_actualizacion: string | null;
   is_active: boolean;
+  /** Baja lógica: si no es null, el contrato está eliminado. */
+  deleted_at: string | null;
   propiedad?: { nombre: string; direccion?: string } | null;
   inquilino?: { nombre_completo: string; email?: string | null; telefono?: string | null } | null;
   locador?: { nombre_completo: string } | null;

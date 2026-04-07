@@ -2,15 +2,13 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { mesPeriodoActual } from "@/lib/cobranzas/estado-contrato";
-import { contratosConAlertaEnMes } from "@/lib/cobranzas/alertas-actualizacion";
 import type { ContratoCobranzaRow, PagoRow } from "@/lib/cobranzas/types";
 import { CobranzasClient } from "@/components/cobranzas/cobranzas-client";
-import { BannerActualizaciones } from "@/components/cobranzas/banner-actualizaciones";
 import type { SelectOption } from "@/components/cobranzas/contrato-form-dialog";
 import { isCalculatorConfigured } from "@/lib/services/calculator";
 
 export const metadata: Metadata = {
-  title: "Cobranzas",
+  title: "Alquileres",
 };
 
 function unwrapFk<T>(v: T | T[] | null | undefined): T | null {
@@ -34,13 +32,16 @@ function normalizeContratoRow(row: Record<string, unknown>): ContratoCobranzaRow
     indice_actualizacion: (row.indice_actualizacion as "IPC" | "ICL") ?? "ICL",
     ultima_actualizacion: (row.ultima_actualizacion as string) ?? null,
     is_active: Boolean(row.is_active),
+    deleted_at: (row.deleted_at as string | null | undefined) ?? null,
     propiedad: unwrapFk(row.propiedad as { nombre: string; direccion?: string } | { nombre: string; direccion?: string }[] | null),
     inquilino: unwrapFk(row.inquilino as { nombre_completo: string; telefono?: string | null } | { nombre_completo: string; telefono?: string | null }[] | null),
     locador: unwrapFk(row.locador as { nombre_completo: string } | { nombre_completo: string }[] | null),
   };
 }
 
-export default async function DashboardCobranzasPage() {
+type PageProps = { searchParams: Promise<{ q?: string; eliminados?: string }> };
+
+export default async function DashboardCobranzasPage({ searchParams }: PageProps) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -56,7 +57,11 @@ export default async function DashboardCobranzasPage() {
     redirect("/dashboard?restringido=1");
   }
 
-  const { data: contratosRaw, error: cErr } = await supabase
+  const sp = await searchParams;
+  const qRaw = (sp.q ?? "").trim();
+  const incluirEliminados = sp.eliminados === "1";
+
+  let queryContratos = supabase
     .from("contratos_cobranza")
     .select(
       `
@@ -72,16 +77,35 @@ export default async function DashboardCobranzasPage() {
       indice_actualizacion,
       ultima_actualizacion,
       is_active,
+      deleted_at,
       propiedad:propiedades ( nombre, direccion ),
       inquilino:clientes!contratos_cobranza_cliente_id_fkey ( nombre_completo, telefono ),
       locador:clientes!contratos_cobranza_locador_id_fkey ( nombre_completo )
     `,
     )
+    .order("deleted_at", { ascending: true, nullsFirst: true })
     .order("is_active", { ascending: false })
     .order("created_at", { ascending: false });
 
+  if (!incluirEliminados) {
+    queryContratos = queryContratos.is("deleted_at", null);
+  }
+
+  const { data: contratosRaw, error: cErr } = await queryContratos;
+
   const mes = mesPeriodoActual();
-  const contratos = (contratosRaw ?? []).map((r) => normalizeContratoRow(r as Record<string, unknown>));
+  let contratos = (contratosRaw ?? []).map((r) => normalizeContratoRow(r as Record<string, unknown>));
+
+  if (qRaw) {
+    const ql = qRaw.toLowerCase();
+    contratos = contratos.filter((c) => {
+      const dir = (c.propiedad?.direccion ?? "").toLowerCase();
+      const nom = (c.propiedad?.nombre ?? "").toLowerCase();
+      const inq = (c.inquilino?.nombre_completo ?? "").toLowerCase();
+      const loc = (c.locador?.nombre_completo ?? "").toLowerCase();
+      return dir.includes(ql) || nom.includes(ql) || inq.includes(ql) || loc.includes(ql);
+    });
+  }
   const ids = contratos.map((c) => c.id);
 
   let pagosMes: PagoRow[] = [];
@@ -166,11 +190,8 @@ export default async function DashboardCobranzasPage() {
       ),
     }));
 
-  const contratosAlerta = contratosConAlertaEnMes(contratos);
-
   return (
     <div className="flex flex-col gap-6">
-      <BannerActualizaciones contratos={contratosAlerta} />
       <CobranzasClient
         contratos={contratos}
         pagosMesActual={pagosMes}
@@ -179,6 +200,10 @@ export default async function DashboardCobranzasPage() {
         locadores={locadores}
         mesPeriodoReferencia={mes}
         calculatorConfigured={isCalculatorConfigured()}
+        filtros={{
+          q: qRaw,
+          incluirEliminados,
+        }}
       />
     </div>
   );

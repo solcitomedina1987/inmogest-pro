@@ -11,11 +11,13 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
 
   const { data: c, error } = await supabase
     .from("contratos_cobranza")
-    .select("id, fecha_inicio, monto_mensual, meses_actualizacion, indice_actualizacion")
+    .select("id, fecha_inicio, monto_mensual, meses_actualizacion, indice_actualizacion, deleted_at")
     .eq("id", id)
     .maybeSingle();
 
-  if (error || !c) return NextResponse.json({ error: "Contrato no encontrado." }, { status: 404 });
+  if (error || !c || c.deleted_at) {
+    return NextResponse.json({ error: "Contrato no encontrado." }, { status: 404 });
+  }
 
   try {
     const resp = await calculateArquiler({
