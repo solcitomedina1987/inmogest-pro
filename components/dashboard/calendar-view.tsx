@@ -190,6 +190,18 @@ const precioFmt = new Intl.NumberFormat("es-AR", {
   style: "currency", currency: "ARS", maximumFractionDigits: 0,
 });
 
+/** Monto para plantillas WhatsApp: miles y 2 decimales (es-AR), sin símbolo ($ se agrega en el mensaje). */
+function formatoMontoWhatsapp(num: number): string {
+  return new Intl.NumberFormat("es-AR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(num);
+}
+
+function montoValidoParaWhatsapp(monto: number | null | undefined): monto is number {
+  return monto != null && Number.isFinite(monto) && monto > 0;
+}
+
 /** Desglose de actualización (índice, monto vigente, estimado si existe). Sin duplicar "VALOR ESTIMADO". */
 function desgloseActualizacionTexto(
   event: Pick<EventoCalendario, "indice" | "montoMensual">,
@@ -230,13 +242,23 @@ function normTel(tel: string | null): string | null {
 
 // ── Helpers de mensajes WhatsApp ─────────────────────────────────────────────
 
-function waMessage(tipo: TipoEvento, nombre: string, direccion: string, indice?: string): string {
+function waMessage(
+  tipo: TipoEvento,
+  nombre: string,
+  direccion: string,
+  indice?: string,
+  montoEstimadoCalculado?: number | null,
+): string {
   const primerNombre = nombre.split(" ")[0] ?? nombre;
   if (tipo === "actualizacion" || tipo === "alerta_actualizacion") {
+    const montoWhatsapp = montoValidoParaWhatsapp(montoEstimadoCalculado)
+      ? `*$${formatoMontoWhatsapp(montoEstimadoCalculado)}*`
+      : "*un valor a confirmar*";
     return (
       `Hola ${primerNombre}!, le contactamos desde Consultora Medina & Asociados. ` +
       `Le informamos que corresponde actualizar el valor del alquiler en *${direccion}* ` +
       `según el índice ${indice ?? "IPC/ICL"}. ` +
+      `El valor estimado será de aproximadamente: ${montoWhatsapp}. ` +
       `En breve nos pondremos en contacto con usted para confirmar el nuevo valor. Cualquier consulta, puede contactarnos al +54 9 2664 791345.`
     );
   }
@@ -310,7 +332,15 @@ function EventDetailDialog({
 
   // Mensaje WhatsApp pre-cargado (solo para eventos no personalizados con inquilino)
   const waText = !isPersonalizado && event.inquilino
-    ? waMessage(event.tipo, event.inquilino, event.direccion, event.indice)
+    ? waMessage(
+        event.tipo,
+        event.inquilino,
+        event.direccion,
+        event.indice,
+        event.tipo === "actualizacion" || event.tipo === "alerta_actualizacion"
+          ? montoEstimado
+          : undefined,
+      )
     : null;
   const waHref =
     tel && waText
