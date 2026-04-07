@@ -47,7 +47,7 @@ import { EditarContratoDialog } from "@/components/cobranzas/editar-contrato-dia
 const precioFmt = new Intl.NumberFormat("es-AR", {
   style: "currency",
   currency: "ARS",
-  maximumFractionDigits: 2,
+  maximumFractionDigits: 0,
 });
 
 const fechaFmt = new Intl.DateTimeFormat("es-AR", {
@@ -529,10 +529,8 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
                                 </Tooltip>
                               ) : null}
                               {esActualizacion && estimadosPorMes[p.mes_periodo] != null ? (
-                                <span className="inline-flex items-center gap-1 text-[11px]">
-                                  <span className="text-muted-foreground">Valor Estimado por Índice:</span>
-                                  <span className="font-semibold text-orange-700">{precioFmt.format(Number(estimadosPorMes[p.mes_periodo]))}</span>
-                                  <span className="inline-flex rounded bg-amber-500 px-1.5 py-0.5 text-[9px] font-semibold text-white uppercase">VALOR ESTIMADO</span>
+                                <span className="inline-flex items-center text-[11px] font-semibold text-orange-700 uppercase">
+                                  VALOR ESTIMADO
                                 </span>
                               ) : null}
                             </span>

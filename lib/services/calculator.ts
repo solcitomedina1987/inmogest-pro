@@ -44,6 +44,10 @@ function asNumber(v: unknown): number | null {
   return null;
 }
 
+function toIntTrunc(n: number): number {
+  return n < 0 ? Math.ceil(n) : Math.floor(n);
+}
+
 function parseCalculatorResponse(json: unknown): CalculatorResponse {
   const root = (json ?? {}) as Record<string, unknown>;
   debugLog("raw response keys", Object.keys(root));
@@ -58,15 +62,19 @@ function parseCalculatorResponse(json: unknown): CalculatorResponse {
     .map((item) => {
       if (!item || typeof item !== "object") return null;
       const row = item as Record<string, unknown>;
-      const value = asNumber(row.value ?? row.amount ?? row.monto ?? row.result);
+      const value = asNumber(
+        row.AMOUNT ?? row.amount ?? row.VALUE ?? row.value ?? row.monto ?? row.result,
+      );
       if (value == null) return null;
       return {
-        value,
+        value: toIntTrunc(value),
         date:
           typeof row.date === "string"
             ? row.date.slice(0, 10)
             : typeof row.fecha === "string"
               ? row.fecha.slice(0, 10)
+              : typeof row.DATE === "string"
+                ? row.DATE.slice(0, 10)
               : undefined,
         period:
           typeof row.period === "string"
@@ -75,6 +83,8 @@ function parseCalculatorResponse(json: unknown): CalculatorResponse {
               ? row.month.slice(0, 7)
               : typeof row.mes === "string"
                 ? row.mes.slice(0, 7)
+                : typeof row.PERIOD === "string"
+                  ? row.PERIOD.slice(0, 7)
                 : undefined,
       };
     })
@@ -122,7 +132,7 @@ export function pickEstimatedValue(
   const byMonth = response.data.find((d) => d.period === targetMonthYYYYMM || d.date?.slice(0, 7) === targetMonthYYYYMM);
   if (byMonth) {
     debugLog("pickEstimatedValue: exact month match", { targetMonthYYYYMM, value: byMonth.value });
-    return byMonth.value;
+    return toIntTrunc(byMonth.value);
   }
 
   const sorted = [...response.data].sort((a, b) => (a.date ?? a.period ?? "").localeCompare(b.date ?? b.period ?? ""));
@@ -133,10 +143,11 @@ export function pickEstimatedValue(
       picked: next.period ?? next.date,
       value: next.value,
     });
-    return next.value;
+    return toIntTrunc(next.value);
   }
 
-  const fallback = sorted[sorted.length - 1]?.value ?? null;
+  const fallbackRaw = sorted[sorted.length - 1]?.value ?? null;
+  const fallback = fallbackRaw == null ? null : toIntTrunc(fallbackRaw);
   debugLog("pickEstimatedValue: fallback last value", { targetMonthYYYYMM, fallback });
   return fallback;
 }
