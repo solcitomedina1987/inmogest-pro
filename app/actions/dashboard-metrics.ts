@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { mesPeriodoActual } from "@/lib/cobranzas/estado-contrato";
+import { mesProximaActualizacion } from "@/lib/cobranzas/alertas-actualizacion";
 
 export type PagoAtrasadoListItem = {
   id: string;
@@ -15,13 +16,16 @@ export type ExecutiveDashboardData = {
   vencimientosEsteMes: number;
   vencimientosProximoMes: number;
   vencimientosSubsiguiente: number;
-  // Widget 2 — Cobros pendientes
+  // Widget 2 — Actualizaciones de precio (mes actual + 2 siguientes)
+  actualizacionesEsteMes: number;
+  actualizacionesProximoMes: number;
+  actualizacionesSubsiguiente: number;
+  // Widget 3 — Cobros pendientes
   cobrosPendientes: number;
   morosidadPct: number;
   totalContratosActivos: number;
-  // Widget 3 — Propiedades
+  // Widget 4 — Propiedades + ocupación (unificado)
   totalPropiedades: number;
-  // Widget 4 — Ocupación
   ocupacionPct: number;
   alquiladasCount: number;
   // Lista de pagos atrasados (panel de atención)
@@ -46,6 +50,14 @@ function mesRango(offset: number): { start: string; end: string } {
 function unwrapFk<T>(v: T | T[] | null | undefined): T | null {
   if (v == null) return null;
   return Array.isArray(v) ? (v[0] ?? null) : v;
+}
+
+/** YYYY-MM del mes con offset 0 = actual, 1 = próximo, etc. */
+function mesYYYYMM(offset: number): string {
+  const d = new Date();
+  d.setDate(1);
+  d.setMonth(d.getMonth() + offset);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
 // ── Acción ────────────────────────────────────────────────────────────────────
@@ -114,7 +126,7 @@ export async function getExecutiveDashboardData(): Promise<ExecutiveDashboardDat
       .lte("fecha_vencimiento", m2.end),
     supabase
       .from("contratos_cobranza")
-      .select("id, dia_limite_pago")
+      .select("id, dia_limite_pago, fecha_inicio, meses_actualizacion, ultima_actualizacion")
       .eq("is_active", true),
     supabase
       .from("pagos")
@@ -163,7 +175,30 @@ export async function getExecutiveDashboardData(): Promise<ExecutiveDashboardDat
   const morosidadPct =
     totalActivos > 0 ? Math.round((cobrosPendientes / totalActivos) * 100) : 0;
 
-  // ── Widget 4: Ocupación ───────────────────────────────────────────────────
+  // ── Actualizaciones de precio (próximo mes de ajuste = este, +1, +2) ───────
+  const actK0 = mesYYYYMM(0);
+  const actK1 = mesYYYYMM(1);
+  const actK2 = mesYYYYMM(2);
+  let actualizacionesEsteMes = 0;
+  let actualizacionesProximoMes = 0;
+  let actualizacionesSubsiguiente = 0;
+  for (const c of contratosActivos ?? []) {
+    const row = c as {
+      fecha_inicio: string;
+      meses_actualizacion: number;
+      ultima_actualizacion: string | null;
+    };
+    const prox = mesProximaActualizacion(
+      row.fecha_inicio,
+      Number(row.meses_actualizacion),
+      row.ultima_actualizacion,
+    );
+    if (prox === actK0) actualizacionesEsteMes += 1;
+    else if (prox === actK1) actualizacionesProximoMes += 1;
+    else if (prox === actK2) actualizacionesSubsiguiente += 1;
+  }
+
+  // ── Propiedades y ocupación ───────────────────────────────────────────────
   const total = totalPropCount ?? 0;
   const alq = alquiladasCount ?? 0;
   const ocupacionPct = total > 0 ? Math.round((alq / total) * 100) : 0;
@@ -199,6 +234,9 @@ export async function getExecutiveDashboardData(): Promise<ExecutiveDashboardDat
     vencimientosEsteMes: vencM0 ?? 0,
     vencimientosProximoMes: vencM1 ?? 0,
     vencimientosSubsiguiente: vencM2 ?? 0,
+    actualizacionesEsteMes,
+    actualizacionesProximoMes,
+    actualizacionesSubsiguiente,
     cobrosPendientes,
     morosidadPct,
     totalContratosActivos: totalActivos,
