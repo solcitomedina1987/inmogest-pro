@@ -78,16 +78,19 @@ export function CalcularArquilerApiDialog({ contratoId, mesActualizacion }: Prop
         <div className="flex flex-col gap-4 pt-2">
           {!resultado && (
             <p className="text-sm text-muted-foreground">
-              Calculá el nuevo alquiler con la fórmula ICL usando la serie publicada en Arquiler API
-              (índices cacheados en Supabase para ahorrar cupo de RapidAPI).
+              Se consulta primero el endpoint <code className="rounded bg-muted px-1">/calculatei</code> de
+              Arquiler API (monto actual, mes de ajuste, periodicidad e índice). Si no hay respuesta, se usa
+              la serie ICL en caché (ICL) o el cálculo local (IPC). El resultado es siempre un valor estimado.
             </p>
           )}
 
-          {resultado?.ok && resultado.es_estimado && (
+          {resultado?.ok && (
             <div className="flex flex-wrap items-center gap-2">
-              <Badge className="bg-amber-500 text-white hover:bg-amber-600">VALOR ESTIMADO</Badge>
+              <Badge className="bg-amber-500 text-white hover:bg-amber-600">Valor estimado</Badge>
               <p className="text-xs text-muted-foreground">
-                Proyección con variación diaria promedio entre los dos últimos índices disponibles.
+                {resultado.es_estimado
+                  ? "Puede incluir proyección de índices o respuesta de la API; usalo solo como referencia."
+                  : "Cifra orientativa según índices disponibles; verificá antes de aplicar al contrato."}
               </p>
             </div>
           )}
@@ -108,7 +111,7 @@ export function CalcularArquilerApiDialog({ contratoId, mesActualizacion }: Prop
                   <span className="tabular-nums">{precioFmt.format(resultado.monto_actual)}</span>
                 </div>
                 <div className="flex justify-between items-center gap-2 flex-wrap">
-                  <span className="font-semibold">Nuevo monto sugerido</span>
+                  <span className="font-semibold">Nuevo monto sugerido (estimado)</span>
                   <span className="text-xl font-bold tabular-nums text-sky-800">
                     {precioFmt.format(resultado.monto_sugerido)}
                   </span>

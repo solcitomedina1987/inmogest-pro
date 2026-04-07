@@ -5,6 +5,7 @@
 
 const RAPIDAPI_HOST = "arquilerapi1.p.rapidapi.com";
 const STATS_URL = `https://${RAPIDAPI_HOST}/stats`;
+const CALCULATEI_URL = `https://${RAPIDAPI_HOST}/calculatei`;
 
 export type PuntoICLArquiler = { fecha: string; valor: number };
 
@@ -90,6 +91,81 @@ export function parseStatsICL(json: unknown): PuntoICLArquiler[] {
 
   out.sort((a, b) => a.fecha.localeCompare(b.fecha));
   return out;
+}
+
+export type ArquilerCalculateiBody = {
+  amount: number;
+  /** YYYY-MM-DD, día 1 del mes de actualización del alquiler */
+  date: string;
+  months: number;
+  /** "icl" | "ipc" según contrato */
+  rate: "icl" | "ipc";
+};
+
+/**
+ * Extrae el nuevo alquiler de la respuesta de POST /calculatei (campo `value` u homólogos).
+ */
+export function parseCalculateiValue(json: unknown): number | null {
+  if (json == null) return null;
+  if (typeof json === "number" && Number.isFinite(json) && json > 0) return json;
+
+  if (typeof json === "object") {
+    const o = json as Record<string, unknown>;
+    const direct = extraerNumero(o.value ?? o.VALUE ?? o.Value ?? o.newValue ?? o.new_value);
+    if (direct != null && direct > 0) return direct;
+
+    const nested = o.data ?? o.result ?? o.results;
+    if (nested != null && typeof nested === "object") {
+      const inner = nested as Record<string, unknown>;
+      const n = extraerNumero(inner.value ?? inner.VALUE ?? inner.Value);
+      if (n != null && n > 0) return n;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Calcula el nuevo alquiler vía Arquiler API (fórmula índice actual / índice inicio × monto actual).
+ * Devuelve `null` si la API no responde OK o no se puede leer el valor.
+ */
+export async function fetchArquilerCalculatei(
+  params: ArquilerCalculateiBody,
+): Promise<number | null> {
+  const key = getApiKey();
+  if (!key) return null;
+
+  const body = {
+    amount: params.amount,
+    date: params.date,
+    months: params.months,
+    rate: params.rate,
+  };
+
+  const res = await fetch(CALCULATEI_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-rapidapi-key": key,
+      "x-rapidapi-host": RAPIDAPI_HOST,
+    },
+    body: JSON.stringify(body),
+    next: { revalidate: 0 },
+  });
+
+  const text = await res.text();
+  if (!res.ok) {
+    return null;
+  }
+
+  let json: unknown;
+  try {
+    json = JSON.parse(text) as unknown;
+  } catch {
+    return null;
+  }
+
+  return parseCalculateiValue(json);
 }
 
 export async function fetchArquilerStats(): Promise<PuntoICLArquiler[]> {

@@ -4,10 +4,13 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import type { ContratoCobranzaRow, PagoRow } from "@/lib/cobranzas/types";
 import { ensurePagosMensualesExistentes } from "@/lib/cobranzas/sync-pagos-mensuales";
-import { proximaFechaActualizacionAlquiler } from "@/lib/cobranzas/estado-contrato";
+import {
+  proximaFechaActualizacionAlquiler,
+  proximoMesActualizacionPrimerDia,
+} from "@/lib/cobranzas/estado-contrato";
 import { calculateRentalIncrease } from "@/lib/indices/calculator";
 import { calcularSiguienteActualizacionArquilerApi } from "@/lib/indices/arquiler-icl";
-import { isArquilerApiConfigured } from "@/lib/services/arquiler-api";
+import { fetchArquilerCalculatei, isArquilerApiConfigured } from "@/lib/services/arquiler-api";
 import type { ContratoWidgetData } from "@/components/portal/contrato-widgets";
 import type { TipoIndice } from "@/lib/indices/types";
 import { PortalView } from "@/components/portal/portal-view";
@@ -152,9 +155,10 @@ export default async function PortalPage() {
   const fechaVenc = parseLocalDate(contrato.fecha_vencimiento);
   const diasVencimiento = diffDays(hoy, fechaVenc);
 
-  // Widget 2: monto estimado (desde caché historico_indices)
+  // Widget 2: monto estimado (prioridad: POST /calculatei de Arquiler API; fallback índices locales)
   let montoEstimado: number | null = null;
-  let esEstimado = false;
+  /** Todo monto proyectado se trata y muestra como estimado. */
+  const esEstimado = true;
   const contratoParaCalculo = {
     id: contrato.id,
     fecha_inicio: contrato.fecha_inicio,
@@ -165,23 +169,44 @@ export default async function PortalPage() {
     ultima_actualizacion: contrato.ultima_actualizacion ?? null,
   };
   try {
-    if (contrato.indice_actualizacion === "ICL" && isArquilerApiConfigured()) {
-      const arq = await calcularSiguienteActualizacionArquilerApi(db, contratoParaCalculo);
-      if (arq.ok) {
-        montoEstimado = arq.monto_sugerido;
-        esEstimado = arq.es_estimado;
+    const mesAjuste = proximoMesActualizacionPrimerDia(
+      contrato.fecha_inicio,
+      contrato.fecha_vencimiento,
+      contrato.meses_actualizacion,
+      contrato.ultima_actualizacion,
+      hoy,
+    );
+
+    if (isArquilerApiConfigured() && mesAjuste != null) {
+      const rate =
+        contrato.indice_actualizacion === "IPC" ? "ipc" : "icl";
+      const apiNuevo = await fetchArquilerCalculatei({
+        amount: contrato.monto_mensual,
+        date: mesAjuste,
+        months: contrato.meses_actualizacion,
+        rate,
+      });
+      if (apiNuevo != null && apiNuevo > 0) {
+        montoEstimado = Math.round(apiNuevo * 100) / 100;
+      }
+    }
+
+    if (montoEstimado == null) {
+      if (contrato.indice_actualizacion === "ICL" && isArquilerApiConfigured()) {
+        const arq = await calcularSiguienteActualizacionArquilerApi(db, contratoParaCalculo);
+        if (arq.ok) {
+          montoEstimado = arq.monto_sugerido;
+        } else {
+          const calcResult = await calculateRentalIncrease(db, contratoParaCalculo);
+          if (calcResult.ok) {
+            montoEstimado = calcResult.monto_sugerido;
+          }
+        }
       } else {
         const calcResult = await calculateRentalIncrease(db, contratoParaCalculo);
         if (calcResult.ok) {
           montoEstimado = calcResult.monto_sugerido;
-          esEstimado = calcResult.es_estimado;
         }
-      }
-    } else {
-      const calcResult = await calculateRentalIncrease(db, contratoParaCalculo);
-      if (calcResult.ok) {
-        montoEstimado = calcResult.monto_sugerido;
-        esEstimado = calcResult.es_estimado;
       }
     }
   } catch {

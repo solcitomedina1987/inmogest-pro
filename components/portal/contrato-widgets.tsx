@@ -96,13 +96,18 @@ export function ContratoWidgets({ data }: { data: ContratoWidgetData }) {
               </p>
               {montoEstimado != null ? (
                 <div className="flex flex-col gap-1.5">
-                  {esEstimado && (
-                    <Badge className="w-fit bg-amber-500 text-white hover:bg-amber-600 text-[10px] uppercase tracking-wide">
-                      VALOR ESTIMADO
-                    </Badge>
-                  )}
+                  <Badge
+                    className={cn(
+                      "w-fit text-[10px] uppercase tracking-wide text-white",
+                      esEstimado
+                        ? "bg-amber-500 hover:bg-amber-600"
+                        : "bg-amber-600/90 hover:bg-amber-600",
+                    )}
+                  >
+                    Valor estimado
+                  </Badge>
                   <p className="text-sm text-muted-foreground">
-                    Monto proyectado:{" "}
+                    Monto proyectado (estimado):{" "}
                     <span className="font-semibold text-orange-700">
                       {precioFmt.format(montoEstimado)}
                     </span>

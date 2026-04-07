@@ -94,6 +94,30 @@ export function proximaFechaActualizacionAlquiler(
 }
 
 /**
+ * Día 1 del mes calendario en que cae la próxima actualización (YYYY-MM-01), alineado con
+ * {@link proximaFechaActualizacionAlquiler}. Sirve para APIs que piden el mes de ajuste.
+ */
+export function proximoMesActualizacionPrimerDia(
+  fechaInicio: string,
+  fechaVencimiento: string,
+  mesesActualizacion: number,
+  ultimaActualizacion: string | null,
+  hoy: Date = new Date(),
+): string | null {
+  const prox = proximaFechaActualizacionAlquiler(
+    fechaInicio,
+    fechaVencimiento,
+    mesesActualizacion,
+    ultimaActualizacion,
+    hoy,
+  );
+  if (!prox) return null;
+  const y = prox.getFullYear();
+  const m = prox.getMonth() + 1;
+  return `${y}-${String(m).padStart(2, "0")}-01`;
+}
+
+/**
  * Contratos cuya próxima actualización cae en los próximos `diasVentana` días (incluye hoy).
  */
 export function filtrarProximasActualizaciones<
