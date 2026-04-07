@@ -42,8 +42,6 @@ import { RegistrarPagoDialog } from "@/components/cobranzas/registrar-pago-dialo
 import { EditarPagoDialog } from "@/components/cobranzas/editar-pago-dialog";
 import { ReciboPrintButton } from "@/components/cobranzas/recibo-print-button";
 import { EditarContratoDialog } from "@/components/cobranzas/editar-contrato-dialog";
-import { CalcularAumentoDialog } from "@/components/cobranzas/calcular-aumento-dialog";
-import { CalcularArquilerApiDialog } from "@/components/cobranzas/calcular-arquiler-api-dialog";
 
 const precioFmt = new Intl.NumberFormat("es-AR", {
   style: "currency",
@@ -87,11 +85,9 @@ function puntualidadColor(mesPeriodo: string, fechaPago: string | null): "green"
 type Props = {
   contrato: ContratoCobranzaRow;
   pagos: PagoRow[];
-  /** Si está definida RAPIDAPI_ARQUILER_KEY en el servidor */
-  arquilerApiDisponible?: boolean;
 };
 
-export function ContratoDetalleClient({ contrato, pagos, arquilerApiDisponible = false }: Props) {
+export function ContratoDetalleClient({ contrato, pagos }: Props) {
   const [pagoOpen, setPagoOpen] = useState(false);
   const [mesPeriodoPago, setMesPeriodoPago] = useState<string | null>(null);
   const [editarOpen, setEditarOpen] = useState(false);
@@ -101,6 +97,7 @@ export function ContratoDetalleClient({ contrato, pagos, arquilerApiDisponible =
   const [reciboProps, setReciboProps] = useState<ReciboAlquilerProps | null>(null);
   const [imprimirPendiente, setImprimirPendiente] = useState(false);
   const [anulando, startAnulacion] = useTransition();
+  const [estimadosPorMes, setEstimadosPorMes] = useState<Record<string, number>>({});
 
   const nombreInquilino = contrato.inquilino?.nombre_completo?.trim() || "—";
 
@@ -150,6 +147,21 @@ export function ContratoDetalleClient({ contrato, pagos, arquilerApiDisponible =
       progreso,
     };
   }, [pagos]);
+
+  useEffect(() => {
+    let active = true;
+    fetch(`/api/contratos/${contrato.id}/estimado`)
+      .then((r) => r.json())
+      .then((json: { byMonth?: Record<string, number> }) => {
+        if (!active) return;
+        setEstimadosPorMes(json.byMonth ?? {});
+      })
+      .catch(() => {
+        if (!active) return;
+        setEstimadosPorMes({});
+      });
+    return () => { active = false; };
+  }, [contrato.id]);
 
   useEffect(() => {
     if (!imprimirPendiente || !reciboProps) return;
@@ -460,20 +472,13 @@ export function ContratoDetalleClient({ contrato, pagos, arquilerApiDisponible =
                                   Actualización
                                 </span>
                               )}
-                              {esActualizacion && !esPagado && (
-                                <span className="inline-flex flex-wrap items-center gap-1">
-                                  <CalcularAumentoDialog
-                                    contratoId={contrato.id}
-                                    mesActualizacion={p.mes_periodo}
-                                  />
-                                  {contrato.indice_actualizacion === "ICL" && arquilerApiDisponible ? (
-                                    <CalcularArquilerApiDialog
-                                      contratoId={contrato.id}
-                                      mesActualizacion={p.mes_periodo}
-                                    />
-                                  ) : null}
+                              {esActualizacion && estimadosPorMes[p.mes_periodo] != null ? (
+                                <span className="inline-flex items-center gap-1 text-[11px]">
+                                  <span className="text-muted-foreground">Valor Estimado por Índice:</span>
+                                  <span className="font-semibold text-orange-700">{precioFmt.format(Number(estimadosPorMes[p.mes_periodo]))}</span>
+                                  <span className="inline-flex rounded bg-amber-500 px-1.5 py-0.5 text-[9px] font-semibold text-white uppercase">VALOR ESTIMADO</span>
                                 </span>
-                              )}
+                              ) : null}
                             </span>
                           </TableCell>
 

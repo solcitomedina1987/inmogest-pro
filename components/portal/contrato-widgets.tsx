@@ -102,7 +102,7 @@ export function ContratoWidgets({ data }: { data: ContratoWidgetData }) {
                     </Badge>
                   )}
                   <p className="text-sm text-muted-foreground">
-                    Monto proyectado:{" "}
+                    Monto Estimado de Próximo Alquiler:{" "}
                     <span className="font-semibold text-orange-700">
                       {precioFmt.format(montoEstimado)}
                     </span>

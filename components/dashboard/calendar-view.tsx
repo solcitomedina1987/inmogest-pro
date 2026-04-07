@@ -236,6 +236,27 @@ function EventDetailDialog({
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [montoEstimado, setMontoEstimado] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!event || !(event.tipo === "actualizacion" || event.tipo === "alerta_actualizacion") || !event.contratoId) {
+      setMontoEstimado(null);
+      return;
+    }
+    let active = true;
+    const targetMonth = event.fecha.slice(0, 7);
+    fetch(`/api/contratos/${event.contratoId}/estimado`)
+      .then((r) => r.json())
+      .then((json: { byMonth?: Record<string, number> }) => {
+        if (!active) return;
+        setMontoEstimado(json.byMonth?.[targetMonth] ?? null);
+      })
+      .catch(() => {
+        if (!active) return;
+        setMontoEstimado(null);
+      });
+    return () => { active = false; };
+  }, [event]);
 
   if (!event) return null;
 
@@ -300,6 +321,9 @@ function EventDetailDialog({
         event.indice ? `Índice: ${event.indice}` : null,
         event.montoMensual != null
           ? `Monto actual: ${precioFmt.format(event.montoMensual)}`
+          : null,
+        montoEstimado != null
+          ? `Valor estimado por índice: ${precioFmt.format(montoEstimado)} · VALOR ESTIMADO`
           : null,
       ].filter(Boolean);
       const base = partes.join(" · ") || "Actualización de valor";

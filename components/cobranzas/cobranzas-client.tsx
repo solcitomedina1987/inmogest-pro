@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, CalendarClock, Eye, FileText, Loader2, RefreshCw } from "lucide-react";
+import { AlertTriangle, CalendarClock, Eye, FileText, Loader2 } from "lucide-react";
 import type { ContratoCobranzaRow, PagoRow } from "@/lib/cobranzas/types";
 import {
   estadoCobranzaContrato,
@@ -87,6 +87,7 @@ type Props = {
   propiedades: SelectOption[];
   clientes: SelectOption[];
   locadores: SelectOption[];
+  estimatedByContratoId?: Record<string, number | null>;
 };
 
 export function CobranzasClient({
@@ -95,40 +96,12 @@ export function CobranzasClient({
   propiedades,
   clientes,
   locadores,
+  estimatedByContratoId = {},
 }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [navigatingId, setNavigatingId] = useState<string | null>(null);
-  const [syncLoading, setSyncLoading] = useState(false);
   const mes = mesPeriodoActual();
-
-  async function handleSyncIndices() {
-    setSyncLoading(true);
-    try {
-      const res = await fetch("/api/indices/sync", { method: "POST" });
-      const json = (await res.json()) as {
-        ok: boolean;
-        errores?: string[];
-        resultados?: {
-          ipc?: { registros?: number; ok?: boolean; error?: string };
-          icl?: { ok?: boolean; fecha?: string; error?: string };
-        };
-      };
-      const r = json.resultados;
-      const detalle = r
-        ? `IPC: ${r.ipc?.ok ? `${r.ipc?.registros ?? 0} meses` : r.ipc?.error ?? "error"}\nICL: ${r.icl?.ok ? `OK (${r.icl?.fecha ?? "—"})` : r.icl?.error ?? "error"}`
-        : "";
-      if (json.ok) {
-        alert(`Índices guardados en historico_indices.\n${detalle}`);
-      } else {
-        alert(`Sincronización parcial o con errores.\n${detalle}\n\n${(json.errores ?? []).join("\n")}`);
-      }
-    } catch (e) {
-      alert("Error al sincronizar: " + String(e));
-    } finally {
-      setSyncLoading(false);
-    }
-  }
 
   const pagosMap = useMemo(() => {
     const m = new Map<string, PagoRow>();
@@ -154,20 +127,6 @@ export function CobranzasClient({
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="gap-1.5 text-muted-foreground"
-            disabled={syncLoading}
-            onClick={handleSyncIndices}
-            title="Guarda IPC (datos.gob.ar, 12 meses) e ICL (tabla pública BCRA) en historico_indices"
-          >
-            {syncLoading
-              ? <Loader2 className="size-4 animate-spin" aria-hidden />
-              : <RefreshCw className="size-4" aria-hidden />}
-            Actualizar índices
-          </Button>
           <Button type="button" className="gap-2" onClick={() => setOpen(true)}>
             <FileText className="size-4" aria-hidden />
             Nuevo contrato
@@ -252,8 +211,17 @@ export function CobranzasClient({
                         <TableCell className="whitespace-nowrap tabular-nums text-sm">
                           {fmtFecha(c.fecha_inicio)}
                         </TableCell>
-                        <TableCell className="whitespace-nowrap tabular-nums text-sm">
-                          {formatProximaActualizacion(c)}
+                        <TableCell className="whitespace-nowrap tabular-nums text-sm align-top">
+                          <div className="flex flex-col gap-1">
+                            <span>{formatProximaActualizacion(c)}</span>
+                            {estimatedByContratoId[c.id] != null ? (
+                              <div className="text-[11px] leading-tight">
+                                <span className="text-muted-foreground">Valor Estimado por Índice: </span>
+                                <span className="font-semibold text-orange-700">{precioFmt.format(Number(estimatedByContratoId[c.id]))}</span>
+                                <span className="ml-1 inline-flex rounded bg-amber-500 px-1.5 py-0.5 text-[9px] font-semibold text-white uppercase">VALOR ESTIMADO</span>
+                              </div>
+                            ) : null}
+                          </div>
                         </TableCell>
                         <TableCell className="whitespace-nowrap tabular-nums text-sm">
                           {fmtFecha(c.fecha_vencimiento)}

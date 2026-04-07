@@ -4,12 +4,9 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import type { ContratoCobranzaRow, PagoRow } from "@/lib/cobranzas/types";
 import { ensurePagosMensualesExistentes } from "@/lib/cobranzas/sync-pagos-mensuales";
-import { proximaFechaActualizacionAlquiler } from "@/lib/cobranzas/estado-contrato";
-import { calculateRentalIncrease } from "@/lib/indices/calculator";
-import { calcularSiguienteActualizacionArquilerApi } from "@/lib/indices/arquiler-icl";
-import { isArquilerApiConfigured } from "@/lib/services/arquiler-api";
+import { mesPeriodoDesdeFecha, proximaFechaActualizacionAlquiler } from "@/lib/cobranzas/estado-contrato";
+import { calculateArquiler, isCalculatorConfigured, pickEstimatedValue } from "@/lib/services/calculator";
 import type { ContratoWidgetData } from "@/components/portal/contrato-widgets";
-import type { TipoIndice } from "@/lib/indices/types";
 import { PortalView } from "@/components/portal/portal-view";
 import { PortalHeader } from "@/components/portal/portal-header";
 
@@ -152,40 +149,32 @@ export default async function PortalPage() {
   const fechaVenc = parseLocalDate(contrato.fecha_vencimiento);
   const diasVencimiento = diffDays(hoy, fechaVenc);
 
-  // Widget 2: monto estimado (desde caché historico_indices)
+  // Widget 2: monto estimado desde API externa /calculate
   let montoEstimado: number | null = null;
-  let esEstimado = false;
-  const contratoParaCalculo = {
-    id: contrato.id,
-    fecha_inicio: contrato.fecha_inicio,
-    fecha_vencimiento: contrato.fecha_vencimiento,
-    monto_mensual: contrato.monto_mensual,
-    meses_actualizacion: contrato.meses_actualizacion,
-    indice_actualizacion: contrato.indice_actualizacion as TipoIndice,
-    ultima_actualizacion: contrato.ultima_actualizacion ?? null,
-  };
+  const esEstimado = true;
+
   try {
-    if (contrato.indice_actualizacion === "ICL" && isArquilerApiConfigured()) {
-      const arq = await calcularSiguienteActualizacionArquilerApi(db, contratoParaCalculo);
-      if (arq.ok) {
-        montoEstimado = arq.monto_sugerido;
-        esEstimado = arq.es_estimado;
-      } else {
-        const calcResult = await calculateRentalIncrease(db, contratoParaCalculo);
-        if (calcResult.ok) {
-          montoEstimado = calcResult.monto_sugerido;
-          esEstimado = calcResult.es_estimado;
-        }
-      }
-    } else {
-      const calcResult = await calculateRentalIncrease(db, contratoParaCalculo);
-      if (calcResult.ok) {
-        montoEstimado = calcResult.monto_sugerido;
-        esEstimado = calcResult.es_estimado;
-      }
+    const proxima = proximaFechaActualizacionAlquiler(
+      contrato.fecha_inicio,
+      contrato.fecha_vencimiento,
+      contrato.meses_actualizacion,
+      contrato.ultima_actualizacion,
+      hoy,
+    );
+
+    if (proxima && isCalculatorConfigured()) {
+      const proximaISO = `${proxima.getFullYear()}-${String(proxima.getMonth() + 1).padStart(2, "0")}-${String(proxima.getDate()).padStart(2, "0")}`;
+      const targetMonth = mesPeriodoDesdeFecha(proximaISO);
+      const resp = await calculateArquiler({
+        amount: contrato.monto_mensual,
+        date: contrato.fecha_inicio,
+        months: contrato.meses_actualizacion,
+        rate: contrato.indice_actualizacion === "IPC" ? "ipc" : "icl",
+      });
+      montoEstimado = pickEstimatedValue(resp, targetMonth);
     }
   } catch {
-    // Si no hay índices cargados simplemente no mostramos el estimado
+    // Si la API no está disponible no mostramos el estimado
   }
 
   const widgets: ContratoWidgetData = {
