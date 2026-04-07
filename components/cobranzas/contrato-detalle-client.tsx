@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
+  Calculator,
   CheckCircle2,
   CircleDollarSign,
   Clock,
@@ -215,8 +216,18 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
   async function calcularEstimadoMes(mes: string) {
     setCalculandoMes(mes);
     try {
-      const res = await fetch(`/api/contratos/${contrato.id}/estimado?month=${mes}`);
-      const json = (await res.json()) as { value?: number | null; error?: string };
+      const res = await fetch("/api/calculator/estimate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: Number(contrato.monto_mensual),
+          date: contrato.fecha_inicio,
+          months: Number(contrato.meses_actualizacion),
+          rate: contrato.indice_actualizacion === "IPC" ? "ipc" : "icl",
+          month: mes,
+        }),
+      });
+      const json = (await res.json()) as { ok?: boolean; value?: number | null; error?: string };
       if (!res.ok) {
         toast.error(json.error ?? "No se pudo calcular el valor estimado.");
         return;
@@ -495,6 +506,28 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
                                   Actualización
                                 </span>
                               )}
+                              {esActualizacion ? (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className="size-6 text-orange-700 hover:bg-orange-100"
+                                      onClick={() => calcularEstimadoMes(p.mes_periodo)}
+                                      disabled={calculandoMes === p.mes_periodo}
+                                      aria-label="Calcular nuevo alquiler estimado"
+                                    >
+                                      <Calculator className="size-3.5" aria-hidden />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    {calculandoMes === p.mes_periodo
+                                      ? "Calculando estimado..."
+                                      : "Calcular nuevo alquiler estimado"}
+                                  </TooltipContent>
+                                </Tooltip>
+                              ) : null}
                               {esActualizacion && estimadosPorMes[p.mes_periodo] != null ? (
                                 <span className="inline-flex items-center gap-1 text-[11px]">
                                   <span className="text-muted-foreground">Valor Estimado por Índice:</span>
@@ -607,25 +640,6 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
                                 </>
                               ) : contrato.is_active ? (
                                 <>
-                                  {esActualizacion ? (
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button
-                                          type="button"
-                                          variant="outline"
-                                          size="sm"
-                                          className="h-7 px-2 text-xs border-orange-400 text-orange-700 hover:bg-orange-50 hover:text-orange-900 hover:border-orange-600"
-                                          onClick={() => calcularEstimadoMes(p.mes_periodo)}
-                                          disabled={calculandoMes === p.mes_periodo}
-                                          aria-label="Calcular nuevo alquiler estimado"
-                                        >
-                                          {calculandoMes === p.mes_periodo ? "Calculando…" : "Calcular estimado"}
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>Calcular nuevo alquiler estimado</TooltipContent>
-                                    </Tooltip>
-                                  ) : null}
-
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <Button
