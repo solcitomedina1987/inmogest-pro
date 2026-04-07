@@ -18,12 +18,28 @@ export type ContratoWidgetData = {
   esEstimado: boolean;
   indice: string;                   // 'ICL' | 'IPC'
   // Widget 3
+  fechaVencimiento: string; // YYYY-MM-DD
   diasVencimiento: number; // negativo = ya venció
 };
 
+function fmtFechaVencimiento(iso: string): string {
+  const d = new Date(iso.slice(0, 10) + "T12:00:00");
+  return new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "long", year: "numeric" }).format(d);
+}
+
 export function ContratoWidgets({ data }: { data: ContratoWidgetData }) {
-  const { mesesPagados, totalMeses, progresoPct, diasActualizacion, diasVencimiento,
-          montoActual, montoEstimado, esEstimado, indice } = data;
+  const {
+    mesesPagados,
+    totalMeses,
+    progresoPct,
+    diasActualizacion,
+    diasVencimiento,
+    fechaVencimiento,
+    montoActual,
+    montoEstimado,
+    esEstimado,
+    indice,
+  } = data;
 
   const precioFmt = new Intl.NumberFormat("es-AR", {
     style: "currency", currency: "ARS", maximumFractionDigits: 0,
@@ -111,23 +127,29 @@ export function ContratoWidgets({ data }: { data: ContratoWidgetData }) {
             Vencimiento
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col gap-1.5">
+          <p
+            className={cn(
+              "text-2xl font-bold tabular-nums leading-tight",
+              diasVencimiento >= 0 && diasVencimiento < 60 ? "text-red-600" : "text-foreground",
+              diasVencimiento < 0 && "text-muted-foreground",
+            )}
+          >
+            {fmtFechaVencimiento(fechaVencimiento)}
+          </p>
           {diasVencimiento < 0 ? (
-            <p className="text-xl font-semibold text-muted-foreground">Contrato Finalizado</p>
+            <p className="text-sm text-muted-foreground">Contrato finalizado</p>
           ) : (
-            <p
-              className={cn(
-                "text-2xl font-bold tabular-nums",
-                diasVencimiento < 60 ? "text-red-600" : "text-foreground",
-              )}
-            >
-              En {diasVencimiento} día{diasVencimiento !== 1 ? "s" : ""}
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+              <span>
+                Faltan {diasVencimiento} día{diasVencimiento !== 1 ? "s" : ""}
+              </span>
               {diasVencimiento < 60 && (
-                <span className="ml-2 inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-700">
+                <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700">
                   Próximo vencimiento
                 </span>
               )}
-            </p>
+            </div>
           )}
         </CardContent>
       </Card>

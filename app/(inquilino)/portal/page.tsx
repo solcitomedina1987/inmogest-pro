@@ -197,6 +197,7 @@ export default async function PortalPage() {
     montoEstimado,
     esEstimado,
     indice: contrato.indice_actualizacion ?? "ICL",
+    fechaVencimiento: contrato.fecha_vencimiento,
     diasVencimiento,
   };
 
