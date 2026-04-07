@@ -84,11 +84,9 @@ export default async function DashboardHomePage() {
       <header className="flex flex-col gap-2 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6">
         <div className="min-w-0 space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Dashboard</h1>
-          {mostrarMetricas ? (
-            <p className="text-muted-foreground text-sm">Centro de control — datos en tiempo real</p>
-          ) : (
+          {!mostrarMetricas ? (
             <p className="text-muted-foreground text-sm">Resumen de tu cuenta en {BRAND_NAME}</p>
-          )}
+          ) : null}
         </div>
         <p className="text-muted-foreground shrink-0 text-xs tracking-wide sm:text-right">
           <span className="font-medium text-foreground/80">Usuario:</span> {nombre}{" "}
