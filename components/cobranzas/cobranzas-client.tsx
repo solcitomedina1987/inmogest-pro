@@ -296,8 +296,8 @@ export function CobranzasClient({
                         <TableCell className="whitespace-nowrap tabular-nums text-sm">
                           {fmtFecha(c.fecha_inicio)}
                         </TableCell>
-                        <TableCell className="whitespace-nowrap tabular-nums text-sm align-top">
-                          <div className="flex flex-wrap items-center gap-1">
+                        <TableCell className="whitespace-nowrap tabular-nums text-sm">
+                          <div className="inline-flex max-w-full flex-wrap items-center gap-1">
                             <span>{formatProximaActualizacion(c)}</span>
                             {calculatorConfigured &&
                             contratoTieneEstimacionEnMesReferencia(c, mesPeriodoReferencia) ? (
