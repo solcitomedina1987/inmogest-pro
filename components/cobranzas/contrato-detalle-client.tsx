@@ -43,6 +43,7 @@ import { EditarPagoDialog } from "@/components/cobranzas/editar-pago-dialog";
 import { ReciboPrintButton } from "@/components/cobranzas/recibo-print-button";
 import { EditarContratoDialog } from "@/components/cobranzas/editar-contrato-dialog";
 import { CalcularAumentoDialog } from "@/components/cobranzas/calcular-aumento-dialog";
+import { CalcularArquilerApiDialog } from "@/components/cobranzas/calcular-arquiler-api-dialog";
 
 const precioFmt = new Intl.NumberFormat("es-AR", {
   style: "currency",
@@ -86,9 +87,11 @@ function puntualidadColor(mesPeriodo: string, fechaPago: string | null): "green"
 type Props = {
   contrato: ContratoCobranzaRow;
   pagos: PagoRow[];
+  /** Si está definida RAPIDAPI_ARQUILER_KEY en el servidor */
+  arquilerApiDisponible?: boolean;
 };
 
-export function ContratoDetalleClient({ contrato, pagos }: Props) {
+export function ContratoDetalleClient({ contrato, pagos, arquilerApiDisponible = false }: Props) {
   const [pagoOpen, setPagoOpen] = useState(false);
   const [mesPeriodoPago, setMesPeriodoPago] = useState<string | null>(null);
   const [editarOpen, setEditarOpen] = useState(false);
@@ -458,10 +461,18 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
                                 </span>
                               )}
                               {esActualizacion && !esPagado && (
-                                <CalcularAumentoDialog
-                                  contratoId={contrato.id}
-                                  mesActualizacion={p.mes_periodo}
-                                />
+                                <span className="inline-flex flex-wrap items-center gap-1">
+                                  <CalcularAumentoDialog
+                                    contratoId={contrato.id}
+                                    mesActualizacion={p.mes_periodo}
+                                  />
+                                  {contrato.indice_actualizacion === "ICL" && arquilerApiDisponible ? (
+                                    <CalcularArquilerApiDialog
+                                      contratoId={contrato.id}
+                                      mesActualizacion={p.mes_periodo}
+                                    />
+                                  ) : null}
+                                </span>
                               )}
                             </span>
                           </TableCell>

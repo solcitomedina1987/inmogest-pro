@@ -2,6 +2,7 @@
 
 import { CalendarClock, CalendarX2, TrendingUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 
@@ -78,18 +79,20 @@ export function ContratoWidgets({ data }: { data: ContratoWidgetData }) {
                 )}
               </p>
               {montoEstimado != null ? (
-                <p className="text-sm text-muted-foreground">
-                  Valor estimado:{" "}
-                  <span className="font-semibold text-orange-700">
-                    {precioFmt.format(montoEstimado)}
-                  </span>
+                <div className="flex flex-col gap-1.5">
                   {esEstimado && (
-                    <span className="ml-1 text-[11px] text-orange-500" title="Basado en el último índice disponible">
-                      ≈ estimado
-                    </span>
+                    <Badge className="w-fit bg-amber-500 text-white hover:bg-amber-600 text-[10px] uppercase tracking-wide">
+                      VALOR ESTIMADO
+                    </Badge>
                   )}
-                  <span className="ml-1 text-[11px] text-muted-foreground">({indice})</span>
-                </p>
+                  <p className="text-sm text-muted-foreground">
+                    Monto proyectado:{" "}
+                    <span className="font-semibold text-orange-700">
+                      {precioFmt.format(montoEstimado)}
+                    </span>
+                    <span className="ml-1 text-[11px] text-muted-foreground">({indice})</span>
+                  </p>
+                </div>
               ) : (
                 <p className="text-xs text-muted-foreground">
                   Monto actual: {precioFmt.format(montoActual)}

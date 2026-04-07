@@ -6,6 +6,8 @@ import type { ContratoCobranzaRow, PagoRow } from "@/lib/cobranzas/types";
 import { ensurePagosMensualesExistentes } from "@/lib/cobranzas/sync-pagos-mensuales";
 import { proximaFechaActualizacionAlquiler } from "@/lib/cobranzas/estado-contrato";
 import { calculateRentalIncrease } from "@/lib/indices/calculator";
+import { calcularSiguienteActualizacionArquilerApi } from "@/lib/indices/arquiler-icl";
+import { isArquilerApiConfigured } from "@/lib/services/arquiler-api";
 import type { ContratoWidgetData } from "@/components/portal/contrato-widgets";
 import type { TipoIndice } from "@/lib/indices/types";
 import { PortalView } from "@/components/portal/portal-view";
@@ -163,10 +165,24 @@ export default async function PortalPage() {
     ultima_actualizacion: contrato.ultima_actualizacion ?? null,
   };
   try {
-    const calcResult = await calculateRentalIncrease(db, contratoParaCalculo);
-    if (calcResult.ok) {
-      montoEstimado = calcResult.monto_sugerido;
-      esEstimado = calcResult.es_estimado;
+    if (contrato.indice_actualizacion === "ICL" && isArquilerApiConfigured()) {
+      const arq = await calcularSiguienteActualizacionArquilerApi(db, contratoParaCalculo);
+      if (arq.ok) {
+        montoEstimado = arq.monto_sugerido;
+        esEstimado = arq.es_estimado;
+      } else {
+        const calcResult = await calculateRentalIncrease(db, contratoParaCalculo);
+        if (calcResult.ok) {
+          montoEstimado = calcResult.monto_sugerido;
+          esEstimado = calcResult.es_estimado;
+        }
+      }
+    } else {
+      const calcResult = await calculateRentalIncrease(db, contratoParaCalculo);
+      if (calcResult.ok) {
+        montoEstimado = calcResult.monto_sugerido;
+        esEstimado = calcResult.es_estimado;
+      }
     }
   } catch {
     // Si no hay índices cargados simplemente no mostramos el estimado

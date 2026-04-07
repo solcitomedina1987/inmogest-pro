@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { ContratoCobranzaRow, PagoRow } from "@/lib/cobranzas/types";
 import { ensurePagosMensualesExistentes } from "@/lib/cobranzas/sync-pagos-mensuales";
 import { ContratoDetalleClient } from "@/components/cobranzas/contrato-detalle-client";
+import { isArquilerApiConfigured } from "@/lib/services/arquiler-api";
 
 function unwrapFk<T>(v: T | T[] | null | undefined): T | null {
   if (v == null) {
@@ -123,5 +124,11 @@ export default async function CobranzasContratoDetallePage({ params }: PageProps
 
   const pagos = (pagosRaw ?? []) as PagoRow[];
 
-  return <ContratoDetalleClient contrato={contrato} pagos={pagos} />;
+  return (
+    <ContratoDetalleClient
+      contrato={contrato}
+      pagos={pagos}
+      arquilerApiDisponible={isArquilerApiConfigured()}
+    />
+  );
 }
