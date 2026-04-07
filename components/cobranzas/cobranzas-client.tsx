@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Calculator, Eye, FileText, Loader2 } from "lucide-react";
+import { AlertTriangle, Calculator, Eye, FileText, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { eliminarContratoCobranza } from "@/app/actions/cobranzas";
 import type { ContratoCobranzaRow, PagoRow } from "@/lib/cobranzas/types";
 import {
   estadoCobranzaContrato,
@@ -27,6 +28,16 @@ import {
 import { AlquileresContratosFiltros } from "@/components/cobranzas/alquileres-contratos-filtros";
 import { ContratoFormDialog, type SelectOption } from "@/components/cobranzas/contrato-form-dialog";
 import { ActualizacionEstimadaDialog } from "@/components/shared/actualizacion-estimada-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
@@ -133,7 +144,23 @@ export function CobranzasClient({
   const [estimadaError, setEstimadaError] = useState<string | null>(null);
   const [estimadaMonto, setEstimadaMonto] = useState<number | null>(null);
   const [estimadaMesPeriodo, setEstimadaMesPeriodo] = useState<string | null>(null);
+  const [eliminarId, setEliminarId] = useState<string | null>(null);
+  const [eliminando, startEliminar] = useTransition();
   const mes = mesPeriodoActual();
+
+  function confirmarEliminar() {
+    if (!eliminarId) return;
+    startEliminar(async () => {
+      const res = await eliminarContratoCobranza(eliminarId);
+      setEliminarId(null);
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+      toast.success("Contrato eliminado (baja lógica).");
+      router.refresh();
+    });
+  }
 
   async function solicitEstimada(c: ContratoCobranzaRow) {
     const prox = proximaFechaActualizacionAlquiler(
@@ -244,7 +271,7 @@ export function CobranzasClient({
                     <TableHead className="text-right">Monto / mes</TableHead>
                     <TableHead>Estado cobro</TableHead>
                     <TableHead>Contrato</TableHead>
-                    <TableHead className="w-[56px] text-center">Ver</TableHead>
+                    <TableHead className="w-[88px] text-center">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -321,23 +348,47 @@ export function CobranzasClient({
                           )}
                         </TableCell>
                         <TableCell className="text-center">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="size-8"
-                            aria-label="Ver detalle del contrato"
-                            disabled={navigatingId === c.id}
-                            onClick={() => {
-                              setNavigatingId(c.id);
-                              router.push(`/dashboard/cobranzas/${c.id}`);
-                            }}
-                          >
-                            {navigatingId === c.id ? (
-                              <Loader2 className="size-4 animate-spin" aria-hidden />
-                            ) : (
-                              <Eye className="size-4" aria-hidden />
-                            )}
-                          </Button>
+                          <div className="flex items-center justify-center gap-0.5">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="size-8"
+                                  aria-label="Ver detalle del contrato"
+                                  disabled={navigatingId === c.id}
+                                  onClick={() => {
+                                    setNavigatingId(c.id);
+                                    router.push(`/dashboard/cobranzas/${c.id}`);
+                                  }}
+                                >
+                                  {navigatingId === c.id ? (
+                                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                                  ) : (
+                                    <Eye className="size-4" aria-hidden />
+                                  )}
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Ver detalle</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="size-8 text-red-500 hover:bg-red-50 hover:text-red-700"
+                                    aria-label="Eliminar contrato"
+                                    disabled={eliminado || eliminando}
+                                    onClick={() => setEliminarId(c.id)}
+                                  >
+                                    <Trash2 className="size-4" aria-hidden />
+                                  </Button>
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent>Eliminar contrato</TooltipContent>
+                            </Tooltip>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -348,6 +399,36 @@ export function CobranzasClient({
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog
+        open={!!eliminarId}
+        onOpenChange={(o) => { if (!o) setEliminarId(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar este contrato?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se desactivará el contrato (<strong>is_active = false</strong>), se registrará la fecha y hora en{" "}
+              <strong>deleted_at</strong> y dejará de mostrarse en el listado habitual. El historial de cuotas se
+              conserva.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={eliminando}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                confirmarEliminar();
+              }}
+              disabled={eliminando}
+              className="bg-destructive text-white hover:bg-destructive/90"
+            >
+              {eliminando ? "Eliminando…" : "Sí, eliminar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <ActualizacionEstimadaDialog
         open={estimadaOpen}

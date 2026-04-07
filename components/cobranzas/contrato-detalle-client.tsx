@@ -297,9 +297,9 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
             <AlertDialogHeader>
               <AlertDialogTitle>¿Eliminar este contrato?</AlertDialogTitle>
               <AlertDialogDescription>
-                Se aplicará una <strong>baja lógica</strong>: el contrato dejará de mostrarse en los
-                listados habituales y no se podrán registrar nuevos cobros. Los datos y el historial de
-                cuotas se conservan.
+                Se pondrá <strong>is_active</strong> en <strong>false</strong>, se guardará fecha y hora en{" "}
+                <strong>deleted_at</strong>, el contrato dejará de mostrarse en los listados habituales y no se
+                podrán registrar nuevos cobros. Los datos y el historial de cuotas se conservan.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

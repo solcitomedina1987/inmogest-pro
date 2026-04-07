@@ -372,7 +372,10 @@ export async function eliminarContratoCobranza(contratoId: string): Promise<Cobr
 
   const { error: upErr } = await supabase
     .from("contratos_cobranza")
-    .update({ deleted_at: new Date().toISOString() })
+    .update({
+      is_active: false,
+      deleted_at: new Date().toISOString(),
+    })
     .eq("id", contratoId);
 
   if (upErr) {
