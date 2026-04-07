@@ -43,6 +43,7 @@ import { RegistrarPagoDialog } from "@/components/cobranzas/registrar-pago-dialo
 import { EditarPagoDialog } from "@/components/cobranzas/editar-pago-dialog";
 import { ReciboPrintButton } from "@/components/cobranzas/recibo-print-button";
 import { EditarContratoDialog } from "@/components/cobranzas/editar-contrato-dialog";
+import { ActualizacionEstimadaDialog } from "@/components/shared/actualizacion-estimada-dialog";
 
 const precioFmt = new Intl.NumberFormat("es-AR", {
   style: "currency",
@@ -98,8 +99,11 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
   const [reciboProps, setReciboProps] = useState<ReciboAlquilerProps | null>(null);
   const [imprimirPendiente, setImprimirPendiente] = useState(false);
   const [anulando, startAnulacion] = useTransition();
-  const [estimadosPorMes, setEstimadosPorMes] = useState<Record<string, number>>({});
-  const [calculandoMes, setCalculandoMes] = useState<string | null>(null);
+  const [estimadaOpen, setEstimadaOpen] = useState(false);
+  const [estimadaLoading, setEstimadaLoading] = useState(false);
+  const [estimadaError, setEstimadaError] = useState<string | null>(null);
+  const [estimadaMonto, setEstimadaMonto] = useState<number | null>(null);
+  const [estimadaMesPeriodo, setEstimadaMesPeriodo] = useState<string | null>(null);
 
   const nombreInquilino = contrato.inquilino?.nombre_completo?.trim() || "—";
 
@@ -151,21 +155,6 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
   }, [pagos]);
 
   useEffect(() => {
-    let active = true;
-    fetch(`/api/contratos/${contrato.id}/estimado`)
-      .then((r) => r.json())
-      .then((json: { byMonth?: Record<string, number> }) => {
-        if (!active) return;
-        setEstimadosPorMes(json.byMonth ?? {});
-      })
-      .catch(() => {
-        if (!active) return;
-        setEstimadosPorMes({});
-      });
-    return () => { active = false; };
-  }, [contrato.id]);
-
-  useEffect(() => {
     if (!imprimirPendiente || !reciboProps) return;
     let cancelled = false;
     const limpiar = () => {
@@ -213,8 +202,12 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
     });
   }
 
-  async function calcularEstimadoMes(mes: string) {
-    setCalculandoMes(mes);
+  async function abrirEstimadoMes(mes: string) {
+    setEstimadaMesPeriodo(mes);
+    setEstimadaOpen(true);
+    setEstimadaMonto(null);
+    setEstimadaError(null);
+    setEstimadaLoading(true);
     try {
       const res = await fetch("/api/calculator/estimate", {
         method: "POST",
@@ -229,19 +222,18 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
       });
       const json = (await res.json()) as { ok?: boolean; value?: number | null; error?: string };
       if (!res.ok) {
-        toast.error(json.error ?? "No se pudo calcular el valor estimado.");
+        setEstimadaError(json.error ?? "No se pudo calcular el valor estimado.");
         return;
       }
       if (json.value == null) {
-        toast.error("No se encontró un valor estimado para este período.");
+        setEstimadaError("No se encontró un valor estimado para este período.");
         return;
       }
-      setEstimadosPorMes((prev) => ({ ...prev, [mes]: Number(json.value) }));
-      toast.success("Valor estimado calculado.");
+      setEstimadaMonto(Number(json.value));
     } catch {
-      toast.error("Error de conexión al calcular el valor estimado.");
+      setEstimadaError("Error de conexión al calcular el valor estimado.");
     } finally {
-      setCalculandoMes(null);
+      setEstimadaLoading(false);
     }
   }
 
@@ -249,6 +241,15 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
     <TooltipProvider delayDuration={300}>
       <div className="print-container flex flex-col gap-8">
         {reciboProps ? <ReciboAlquiler {...reciboProps} /> : null}
+
+        <ActualizacionEstimadaDialog
+          open={estimadaOpen}
+          onOpenChange={setEstimadaOpen}
+          loading={estimadaLoading}
+          error={estimadaError}
+          monto={estimadaMonto}
+          mesPeriodo={estimadaMesPeriodo}
+        />
 
         <EditarContratoDialog open={editarOpen} onOpenChange={setEditarOpen} contrato={contrato} />
 
@@ -514,24 +515,15 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
                                       variant="ghost"
                                       size="icon"
                                       className="size-6 text-orange-700 hover:bg-orange-100"
-                                      onClick={() => calcularEstimadoMes(p.mes_periodo)}
-                                      disabled={calculandoMes === p.mes_periodo}
-                                      aria-label="Calcular nuevo alquiler estimado"
+                                      onClick={() => void abrirEstimadoMes(p.mes_periodo)}
+                                      disabled={estimadaLoading}
+                                      aria-label="Ver actualización estimada"
                                     >
                                       <Calculator className="size-3.5" aria-hidden />
                                     </Button>
                                   </TooltipTrigger>
-                                  <TooltipContent>
-                                    {calculandoMes === p.mes_periodo
-                                      ? "Calculando estimado..."
-                                      : "Calcular nuevo alquiler estimado"}
-                                  </TooltipContent>
+                                  <TooltipContent>Ver actualización estimada</TooltipContent>
                                 </Tooltip>
-                              ) : null}
-                              {esActualizacion && estimadosPorMes[p.mes_periodo] != null ? (
-                                <span className="inline-flex items-center text-[11px] font-semibold text-orange-700 uppercase">
-                                  VALOR ESTIMADO
-                                </span>
                               ) : null}
                             </span>
                           </TableCell>
@@ -567,11 +559,6 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
                                   ? precioFmt.format(Number(p.monto_pagado))
                                   : "—"}
                               </span>
-                              {esActualizacion && estimadosPorMes[p.mes_periodo] != null ? (
-                                <span className="text-[11px] text-orange-700 font-semibold">
-                                  Est.: {precioFmt.format(Number(estimadosPorMes[p.mes_periodo]))}
-                                </span>
-                              ) : null}
                             </div>
                           </TableCell>
 

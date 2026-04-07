@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { mesPeriodoActual, mesPeriodoDesdeFecha, proximaFechaActualizacionAlquiler } from "@/lib/cobranzas/estado-contrato";
+import { mesPeriodoActual } from "@/lib/cobranzas/estado-contrato";
 import { contratosConAlertaEnMes } from "@/lib/cobranzas/alertas-actualizacion";
 import type { ContratoCobranzaRow, PagoRow } from "@/lib/cobranzas/types";
 import { CobranzasClient } from "@/components/cobranzas/cobranzas-client";
 import { BannerActualizaciones } from "@/components/cobranzas/banner-actualizaciones";
 import type { SelectOption } from "@/components/cobranzas/contrato-form-dialog";
-import { calculateArquiler, isCalculatorConfigured, pickEstimatedValue } from "@/lib/services/calculator";
+import { isCalculatorConfigured } from "@/lib/services/calculator";
 
 export const metadata: Metadata = {
   title: "Cobranzas",
@@ -168,37 +168,6 @@ export default async function DashboardCobranzasPage() {
 
   const contratosAlerta = contratosConAlertaEnMes(contratos);
 
-  const estimatedByContratoId: Record<string, number | null> = {};
-  if (isCalculatorConfigured()) {
-    await Promise.all(
-      contratos
-        .filter((c) => c.is_active)
-        .map(async (c) => {
-          try {
-            const prox = proximaFechaActualizacionAlquiler(
-              c.fecha_inicio,
-              c.fecha_vencimiento,
-              c.meses_actualizacion,
-              c.ultima_actualizacion,
-            );
-            if (!prox) return;
-            const proxIso = `${prox.getFullYear()}-${String(prox.getMonth() + 1).padStart(2, "0")}-${String(prox.getDate()).padStart(2, "0")}`;
-            if (mesPeriodoDesdeFecha(proxIso) !== mes) return;
-
-            const resp = await calculateArquiler({
-              amount: Number(c.monto_mensual),
-              date: c.fecha_inicio,
-              months: c.meses_actualizacion,
-              rate: c.indice_actualizacion === "IPC" ? "ipc" : "icl",
-            });
-            estimatedByContratoId[c.id] = pickEstimatedValue(resp, mes);
-          } catch {
-            estimatedByContratoId[c.id] = null;
-          }
-        }),
-    );
-  }
-
   return (
     <div className="flex flex-col gap-6">
       <BannerActualizaciones contratos={contratosAlerta} />
@@ -208,7 +177,8 @@ export default async function DashboardCobranzasPage() {
         propiedades={propiedades}
         clientes={clientes}
         locadores={locadores}
-        estimatedByContratoId={estimatedByContratoId}
+        mesPeriodoReferencia={mes}
+        calculatorConfigured={isCalculatorConfigured()}
       />
     </div>
   );

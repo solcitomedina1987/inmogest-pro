@@ -5,7 +5,7 @@ import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import type { ContratoCobranzaRow, PagoRow } from "@/lib/cobranzas/types";
 import { ensurePagosMensualesExistentes } from "@/lib/cobranzas/sync-pagos-mensuales";
 import { mesPeriodoDesdeFecha, proximaFechaActualizacionAlquiler } from "@/lib/cobranzas/estado-contrato";
-import { calculateArquiler, isCalculatorConfigured, pickEstimatedValue } from "@/lib/services/calculator";
+import { isCalculatorConfigured } from "@/lib/services/calculator";
 import type { ContratoWidgetData } from "@/components/portal/contrato-widgets";
 import { PortalView } from "@/components/portal/portal-view";
 import { PortalHeader } from "@/components/portal/portal-header";
@@ -144,6 +144,7 @@ export default async function PortalPage() {
   const progresoPct = totalMeses > 0 ? Math.round((mesesPagados / totalMeses) * 100) : 0;
 
   let diasActualizacion: number | null = null;
+  let estimacionMes: string | null = null;
   if (contrato.meses_actualizacion > 0) {
     const proxima = proximaFechaActualizacionAlquiler(
       contrato.fecha_inicio,
@@ -152,49 +153,18 @@ export default async function PortalPage() {
       contrato.ultima_actualizacion,
       hoy,
     );
-    diasActualizacion = proxima ? diffDays(hoy, proxima) : null;
+    if (proxima) {
+      diasActualizacion = diffDays(hoy, proxima);
+      if (isCalculatorConfigured()) {
+        const proximaISO = `${proxima.getFullYear()}-${String(proxima.getMonth() + 1).padStart(2, "0")}-${String(proxima.getDate()).padStart(2, "0")}`;
+        estimacionMes = mesPeriodoDesdeFecha(proximaISO);
+        devLog("estimación disponible vía modal", { contratoId: contrato.id, estimacionMes });
+      }
+    }
   }
 
   const fechaVenc = parseLocalDate(contrato.fecha_vencimiento);
   const diasVencimiento = diffDays(hoy, fechaVenc);
-
-  // Widget 2: monto estimado desde API externa /calculate
-  let montoEstimado: number | null = null;
-  const esEstimado = true;
-
-  try {
-    const proxima = proximaFechaActualizacionAlquiler(
-      contrato.fecha_inicio,
-      contrato.fecha_vencimiento,
-      contrato.meses_actualizacion,
-      contrato.ultima_actualizacion,
-      hoy,
-    );
-
-    if (proxima && isCalculatorConfigured()) {
-      const proximaISO = `${proxima.getFullYear()}-${String(proxima.getMonth() + 1).padStart(2, "0")}-${String(proxima.getDate()).padStart(2, "0")}`;
-      const targetMonth = mesPeriodoDesdeFecha(proximaISO);
-      devLog("request /calculate", {
-        contratoId: contrato.id,
-        amount: contrato.monto_mensual,
-        date: contrato.fecha_inicio,
-        months: contrato.meses_actualizacion,
-        rate: contrato.indice_actualizacion === "IPC" ? "ipc" : "icl",
-        targetMonth,
-      });
-      const resp = await calculateArquiler({
-        amount: contrato.monto_mensual,
-        date: contrato.fecha_inicio,
-        months: contrato.meses_actualizacion,
-        rate: contrato.indice_actualizacion === "IPC" ? "ipc" : "icl",
-      });
-      montoEstimado = pickEstimatedValue(resp, targetMonth);
-      devLog("monto estimado resuelto", { contratoId: contrato.id, targetMonth, montoEstimado });
-    }
-  } catch {
-    // Si la API no está disponible no mostramos el estimado
-    devLog("error calculando monto estimado");
-  }
 
   const widgets: ContratoWidgetData = {
     mesesPagados,
@@ -202,11 +172,12 @@ export default async function PortalPage() {
     progresoPct,
     diasActualizacion,
     montoActual: contrato.monto_mensual,
-    montoEstimado,
-    esEstimado,
     indice: contrato.indice_actualizacion ?? "ICL",
     fechaVencimiento: contrato.fecha_vencimiento,
     diasVencimiento,
+    contratoId: contrato.id,
+    estimacionMes,
+    calculatorConfigured: isCalculatorConfigured(),
   };
 
   return (

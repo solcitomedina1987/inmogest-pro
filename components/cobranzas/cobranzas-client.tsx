@@ -2,12 +2,14 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, CalendarClock, Eye, FileText, Loader2 } from "lucide-react";
+import { AlertTriangle, Calculator, CalendarClock, Eye, FileText, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import type { ContratoCobranzaRow, PagoRow } from "@/lib/cobranzas/types";
 import {
   estadoCobranzaContrato,
   filtrarProximasActualizaciones,
   mesPeriodoActual,
+  mesPeriodoDesdeFecha,
   proximaFechaActualizacionAlquiler,
   type EstadoVisualCobranza,
   type PagoMesInfo,
@@ -24,6 +26,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ContratoFormDialog, type SelectOption } from "@/components/cobranzas/contrato-form-dialog";
+import { ActualizacionEstimadaDialog } from "@/components/shared/actualizacion-estimada-dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const precioFmt = new Intl.NumberFormat("es-AR", {
   style: "currency",
@@ -62,6 +66,22 @@ function formatProximaActualizacion(c: ContratoCobranzaRow): string {
   return fmtFecha(iso);
 }
 
+function contratoTieneEstimacionEnMesReferencia(
+  c: ContratoCobranzaRow,
+  mesReferencia: string,
+): boolean {
+  if (!c.is_active) return false;
+  const prox = proximaFechaActualizacionAlquiler(
+    c.fecha_inicio,
+    c.fecha_vencimiento,
+    c.meses_actualizacion,
+    c.ultima_actualizacion,
+  );
+  if (!prox) return false;
+  const proxIso = `${prox.getFullYear()}-${String(prox.getMonth() + 1).padStart(2, "0")}-${String(prox.getDate()).padStart(2, "0")}`;
+  return mesPeriodoDesdeFecha(proxIso) === mesReferencia;
+}
+
 function badgeEstado(visual: EstadoVisualCobranza) {
   if (visual === "al_dia") {
     return (
@@ -87,7 +107,9 @@ type Props = {
   propiedades: SelectOption[];
   clientes: SelectOption[];
   locadores: SelectOption[];
-  estimatedByContratoId?: Record<string, number | null>;
+  /** YYYY-MM del mes calendario usado para destacar actualizaciones (ej. pagos del mes). */
+  mesPeriodoReferencia: string;
+  calculatorConfigured: boolean;
 };
 
 export function CobranzasClient({
@@ -96,12 +118,65 @@ export function CobranzasClient({
   propiedades,
   clientes,
   locadores,
-  estimatedByContratoId = {},
+  mesPeriodoReferencia,
+  calculatorConfigured,
 }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [navigatingId, setNavigatingId] = useState<string | null>(null);
+  const [estimadaOpen, setEstimadaOpen] = useState(false);
+  const [estimadaLoading, setEstimadaLoading] = useState(false);
+  const [estimadaError, setEstimadaError] = useState<string | null>(null);
+  const [estimadaMonto, setEstimadaMonto] = useState<number | null>(null);
+  const [estimadaMesPeriodo, setEstimadaMesPeriodo] = useState<string | null>(null);
   const mes = mesPeriodoActual();
+
+  async function solicitEstimada(c: ContratoCobranzaRow) {
+    const prox = proximaFechaActualizacionAlquiler(
+      c.fecha_inicio,
+      c.fecha_vencimiento,
+      c.meses_actualizacion,
+      c.ultima_actualizacion,
+    );
+    if (!prox) {
+      toast.error("No hay fecha de próxima actualización.");
+      return;
+    }
+    const proxIso = `${prox.getFullYear()}-${String(prox.getMonth() + 1).padStart(2, "0")}-${String(prox.getDate()).padStart(2, "0")}`;
+    const month = mesPeriodoDesdeFecha(proxIso);
+    setEstimadaMesPeriodo(month);
+    setEstimadaOpen(true);
+    setEstimadaMonto(null);
+    setEstimadaError(null);
+    setEstimadaLoading(true);
+    try {
+      const res = await fetch("/api/calculator/estimate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: Number(c.monto_mensual),
+          date: c.fecha_inicio,
+          months: Number(c.meses_actualizacion),
+          rate: c.indice_actualizacion === "IPC" ? "ipc" : "icl",
+          month,
+        }),
+      });
+      const json = (await res.json()) as { ok?: boolean; value?: number | null; error?: string };
+      if (!res.ok) {
+        setEstimadaError(json.error ?? "No se pudo calcular.");
+        return;
+      }
+      if (json.value == null) {
+        setEstimadaError("No hay valor estimado para ese período.");
+        return;
+      }
+      setEstimadaMonto(Number(json.value));
+    } catch {
+      setEstimadaError("Error de conexión.");
+    } finally {
+      setEstimadaLoading(false);
+    }
+  }
 
   const pagosMap = useMemo(() => {
     const m = new Map<string, PagoRow>();
@@ -117,6 +192,7 @@ export function CobranzasClient({
   const proximas = useMemo(() => filtrarProximasActualizaciones(contratosActivos, 90), [contratosActivos]);
 
   return (
+    <TooltipProvider delayDuration={300}>
     <div className="flex max-w-full min-w-0 flex-col gap-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
@@ -212,14 +288,25 @@ export function CobranzasClient({
                           {fmtFecha(c.fecha_inicio)}
                         </TableCell>
                         <TableCell className="whitespace-nowrap tabular-nums text-sm align-top">
-                          <div className="flex flex-col gap-1">
+                          <div className="flex flex-wrap items-center gap-1">
                             <span>{formatProximaActualizacion(c)}</span>
-                            {estimatedByContratoId[c.id] != null ? (
-                              <div className="text-[11px] leading-tight">
-                                <span className="text-muted-foreground">Valor Estimado por Índice: </span>
-                                <span className="font-semibold text-orange-700">{precioFmt.format(Number(estimatedByContratoId[c.id]))}</span>
-                                <span className="ml-1 inline-flex rounded bg-amber-500 px-1.5 py-0.5 text-[9px] font-semibold text-white uppercase">VALOR ESTIMADO</span>
-                              </div>
+                            {calculatorConfigured &&
+                            contratoTieneEstimacionEnMesReferencia(c, mesPeriodoReferencia) ? (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="size-7 shrink-0 text-orange-700 hover:bg-orange-100"
+                                    aria-label="Ver actualización estimada"
+                                    onClick={() => void solicitEstimada(c)}
+                                  >
+                                    <Calculator className="size-3.5" aria-hidden />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Ver actualización estimada</TooltipContent>
+                              </Tooltip>
                             ) : null}
                           </div>
                         </TableCell>
@@ -274,6 +361,15 @@ export function CobranzasClient({
         </CardContent>
       </Card>
 
+      <ActualizacionEstimadaDialog
+        open={estimadaOpen}
+        onOpenChange={setEstimadaOpen}
+        loading={estimadaLoading}
+        error={estimadaError}
+        monto={estimadaMonto}
+        mesPeriodo={estimadaMesPeriodo}
+      />
+
       <ContratoFormDialog
         open={open}
         onOpenChange={setOpen}
@@ -282,5 +378,6 @@ export function CobranzasClient({
         locadores={locadores}
       />
     </div>
+    </TooltipProvider>
   );
 }
