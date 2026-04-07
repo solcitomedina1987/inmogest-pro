@@ -21,6 +21,7 @@ function mapRow(r: Record<string, unknown>): ClienteListRow {
     fecha_nacimiento: (r.fecha_nacimiento as string) ?? null,
     notas: (r.notas as string) ?? null,
     is_active: Boolean(r.is_active),
+    portal_propietario_habilitado: Boolean(r.portal_propietario_habilitado),
   };
 }
 
@@ -43,7 +44,7 @@ export default async function DashboardClientesPage() {
   const { data, error } = await supabase
     .from("clientes")
     .select(
-      "id, nombre_completo, dni, domicilio_real, tipo_cliente, telefono, email, fecha_nacimiento, notas, is_active",
+      "id, nombre_completo, dni, domicilio_real, tipo_cliente, telefono, email, fecha_nacimiento, notas, is_active, portal_propietario_habilitado",
     )
     .order("nombre_completo", { ascending: true });
 

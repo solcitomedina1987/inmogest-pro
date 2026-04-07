@@ -2,10 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { KeyRound, Loader2, MessageCircle, Pencil, UserMinus, UserPlus } from "lucide-react";
+import { Building2, KeyRound, Loader2, MessageCircle, Pencil, UserMinus, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { deactivateCliente } from "@/app/actions/clientes";
 import { crearAccesoPortal } from "@/app/actions/portal-acceso";
+import { crearAccesoPortalPropietario } from "@/app/actions/portal-propietario";
 import type { TipoCliente } from "@/lib/constants/clientes";
 import { TIPO_CLIENTE_VALUES } from "@/lib/constants/clientes";
 import {
@@ -79,6 +80,7 @@ export function ClientesClient({ initial }: Props) {
   const [verInactivos, setVerInactivos] = useState(false);
   const [cascadeTarget, setCascadeTarget] = useState<ClienteListRow | null>(null);
   const [accesoLoading, setAccesoLoading] = useState<string | null>(null); // id del cliente en proceso
+  const [portalPropLoading, setPortalPropLoading] = useState<string | null>(null);
 
   const filtrados = useMemo(() => {
     const nq = normalizar(qNombre);
@@ -140,6 +142,24 @@ export function ClientesClient({ initial }: Props) {
           : `Contraseña restablecida a DNI ${row.dni} para ${row.nombre_completo}.`,
         { duration: 6000 },
       );
+      router.refresh();
+    } else {
+      toast.error(res.error);
+    }
+  }
+
+  async function handlePortalPropietario(row: ClienteListRow) {
+    setPortalPropLoading(row.id);
+    const res = await crearAccesoPortalPropietario(row.id);
+    setPortalPropLoading(null);
+    if (res.ok) {
+      toast.success(
+        res.created
+          ? `Portal propietario habilitado. Usuario: ${row.email} · Contraseña: DNI ${row.dni}.`
+          : `Acceso propietario actualizado. Contraseña restablecida a DNI ${row.dni}.`,
+        { duration: 8000 },
+      );
+      router.refresh();
     } else {
       toast.error(res.error);
     }
@@ -338,15 +358,45 @@ export function ClientesClient({ initial }: Props) {
                                     size="icon"
                                     className="text-indigo-600 hover:bg-indigo-50 hover:text-indigo-800"
                                     disabled={accesoLoading === r.id}
-                                    onClick={() => handleCrearAcceso(r)}
+                                    onClick={() => void handleCrearAcceso(r)}
                                   >
                                     {accesoLoading === r.id
                                       ? <Loader2 className="size-4 animate-spin" aria-hidden />
                                       : <KeyRound className="size-4" aria-hidden />}
-                                    <span className="sr-only">Crear/restablecer acceso portal</span>
+                                    <span className="sr-only">Crear/restablecer acceso portal inquilino</span>
                                   </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>Crear / restablecer acceso al Portal</TooltipContent>
+                                <TooltipContent>Portal inquilino (email + DNI)</TooltipContent>
+                              </Tooltip>
+                            ) : null}
+
+                            {r.is_active && (r.tipo_cliente === "Propietario" || r.tipo_cliente === "Ambos") && r.email && r.dni ? (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className={cn(
+                                      "text-sky-700 hover:bg-sky-50 hover:text-sky-900",
+                                      r.portal_propietario_habilitado && "ring-1 ring-sky-400",
+                                    )}
+                                    disabled={portalPropLoading === r.id}
+                                    onClick={() => void handlePortalPropietario(r)}
+                                  >
+                                    {portalPropLoading === r.id ? (
+                                      <Loader2 className="size-4 animate-spin" aria-hidden />
+                                    ) : (
+                                      <Building2 className="size-4" aria-hidden />
+                                    )}
+                                    <span className="sr-only">Habilitar portal propietario</span>
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  {r.portal_propietario_habilitado
+                                    ? "Restablecer acceso portal propietario (email + DNI)"
+                                    : "Habilitar portal propietario (usuario: email, contraseña: DNI)"}
+                                </TooltipContent>
                               </Tooltip>
                             ) : null}
 

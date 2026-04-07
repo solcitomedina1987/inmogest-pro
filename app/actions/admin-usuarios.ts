@@ -12,10 +12,30 @@ export type AdminUsuarioActionResult =
 
 const uuid = z.string().uuid();
 
+function normalizeEmail(email: string) {
+  return email.trim().toLowerCase();
+}
+
+async function emailOcupadoEnPerfiles(
+  service: ReturnType<typeof createServiceRoleClient>,
+  email: string,
+  exceptUserId?: string,
+): Promise<boolean> {
+  const norm = normalizeEmail(email);
+  let q = service.from("perfiles").select("id").eq("email", norm);
+  if (exceptUserId) {
+    q = q.neq("id", exceptUserId);
+  }
+  const { data } = await q.maybeSingle();
+  return data != null;
+}
+
 const updatePerfilSchema = z.object({
   id: uuid,
   nombre: z.string().trim().min(2, "Nombre demasiado corto").max(200),
+  email: z.string().trim().email("Email inválido"),
   rol: z.enum(PERFIL_ROLES_EDITABLES),
+  is_active: z.boolean(),
 });
 
 export async function updatePerfilUsuario(input: unknown): Promise<AdminUsuarioActionResult> {
@@ -28,17 +48,51 @@ export async function updatePerfilUsuario(input: unknown): Promise<AdminUsuarioA
     const first = Object.values(parsed.error.flatten().fieldErrors).flat()[0] ?? "Datos inválidos";
     return { ok: false, error: first };
   }
-  const { id, nombre, rol } = parsed.data;
+  const { id, nombre, email, rol, is_active } = parsed.data;
 
   if (id === gate.user.id && rol !== "admin") {
     return { ok: false, error: "No podés quitarte el rol de administrador a vos mismo." };
   }
 
+  if (id === gate.user.id && !is_active) {
+    return { ok: false, error: "No podés desactivar tu propia cuenta." };
+  }
+
+  const normEmail = normalizeEmail(email);
+
+  const ocupado = await emailOcupadoEnPerfiles(createServiceRoleClient(), normEmail, id);
+  if (ocupado) {
+    return { ok: false, error: "Ya existe otro usuario con ese email." };
+  }
+
+  let service: ReturnType<typeof createServiceRoleClient>;
+  try {
+    service = createServiceRoleClient();
+  } catch {
+    return {
+      ok: false,
+      error: "Falta SUPABASE_SERVICE_ROLE_KEY para actualizar el email en autenticación.",
+    };
+  }
+
+  const { error: authErr } = await service.auth.admin.updateUserById(id, {
+    email: normEmail,
+  });
+
+  if (authErr) {
+    return { ok: false, error: authErr.message };
+  }
+
+  const deleted_at = is_active ? null : new Date().toISOString();
+
   const { error } = await gate.supabase
     .from("perfiles")
     .update({
       nombre,
+      email: normEmail,
       rol,
+      is_active,
+      deleted_at,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id);
@@ -75,7 +129,7 @@ export async function crearUsuarioDesdeAdmin(input: unknown): Promise<AdminUsuar
     return { ok: false, error: first };
   }
 
-  let service;
+  let service: ReturnType<typeof createServiceRoleClient>;
   try {
     service = createServiceRoleClient();
   } catch {
@@ -87,9 +141,14 @@ export async function crearUsuarioDesdeAdmin(input: unknown): Promise<AdminUsuar
   }
 
   const { nombre, email, password, rol } = parsed.data;
+  const normEmail = normalizeEmail(email);
+
+  if (await emailOcupadoEnPerfiles(service, normEmail)) {
+    return { ok: false, error: "Ya existe un usuario con ese email." };
+  }
 
   const { data: created, error: createErr } = await service.auth.admin.createUser({
-    email,
+    email: normEmail,
     password,
     email_confirm: false,
     user_metadata: { nombre },
@@ -109,7 +168,9 @@ export async function crearUsuarioDesdeAdmin(input: unknown): Promise<AdminUsuar
     .update({
       nombre,
       rol,
-      email,
+      email: normEmail,
+      is_active: true,
+      deleted_at: null,
       updated_at: new Date().toISOString(),
     })
     .eq("id", uid);
@@ -129,7 +190,7 @@ export async function crearUsuarioDesdeAdmin(input: unknown): Promise<AdminUsuar
 
   const { error: resendErr } = await service.auth.resend({
     type: "signup",
-    email,
+    email: normEmail,
     options: {
       emailRedirectTo: callback,
     },

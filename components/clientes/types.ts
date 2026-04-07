@@ -11,4 +11,5 @@ export type ClienteListRow = {
   fecha_nacimiento: string | null;
   notas: string | null;
   is_active: boolean;
+  portal_propietario_habilitado: boolean;
 };

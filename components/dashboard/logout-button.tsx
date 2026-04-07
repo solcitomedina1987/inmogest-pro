@@ -5,8 +5,11 @@ import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
-export function LogoutButton() {
+type LogoutButtonProps = { className?: string };
+
+export function LogoutButton({ className }: LogoutButtonProps = {}) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
@@ -22,7 +25,10 @@ export function LogoutButton() {
     <Button
       type="button"
       variant="ghost"
-      className="text-muted-foreground hover:text-foreground w-full justify-start gap-2 px-3"
+      className={cn(
+        "text-muted-foreground hover:text-foreground gap-2 px-3 w-full justify-start",
+        className,
+      )}
       disabled={loading}
       onClick={handleLogout}
     >

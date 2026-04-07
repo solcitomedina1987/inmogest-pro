@@ -7,12 +7,13 @@ export const metadata: Metadata = {
 };
 
 type Props = {
-  searchParams: Promise<{ redirect?: string }>;
+  searchParams: Promise<{ redirect?: string; error?: string }>;
 };
 
 export default async function LoginPage({ searchParams }: Props) {
-  const { redirect } = await searchParams;
-  const redirectTo = safeRedirectPath(redirect, "/dashboard");
+  const sp = await searchParams;
+  const redirectTo = safeRedirectPath(sp.redirect, "/dashboard");
+  const errorKey = sp.error;
 
-  return <LoginForm redirectTo={redirectTo} />;
+  return <LoginForm redirectTo={redirectTo} errorKey={errorKey} />;
 }

@@ -28,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -36,6 +37,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 
 type Props = {
   initial: PerfilListRow[];
@@ -61,7 +63,9 @@ export function AdminUsuariosClient({ initial, currentUserId }: Props) {
   const [editRow, setEditRow] = useState<PerfilListRow | null>(null);
 
   const [editNombre, setEditNombre] = useState("");
+  const [editEmail, setEditEmail] = useState("");
   const [editRol, setEditRol] = useState<string>("cliente");
+  const [editActivo, setEditActivo] = useState(true);
 
   const [nuNombre, setNuNombre] = useState("");
   const [nuEmail, setNuEmail] = useState("");
@@ -71,7 +75,9 @@ export function AdminUsuariosClient({ initial, currentUserId }: Props) {
   function abrirEditar(row: PerfilListRow) {
     setEditRow(row);
     setEditNombre(row.nombre);
+    setEditEmail(row.email);
     setEditRol(row.rol);
+    setEditActivo(row.is_active);
     setEditOpen(true);
   }
 
@@ -87,11 +93,17 @@ export function AdminUsuariosClient({ initial, currentUserId }: Props) {
     if (!editRow) {
       return;
     }
+    if (editRow.id === currentUserId && !editActivo) {
+      toast.error("No podés desactivar tu propia cuenta desde aquí.");
+      return;
+    }
     startTransition(async () => {
       const res = await updatePerfilUsuario({
         id: editRow.id,
         nombre: editNombre,
+        email: editEmail.trim(),
         rol: editRol as (typeof PERFIL_ROLES_EDITABLES)[number],
+        is_active: editActivo,
       });
       if (!res.ok) {
         toast.error(res.error);
@@ -105,10 +117,15 @@ export function AdminUsuariosClient({ initial, currentUserId }: Props) {
   }
 
   function crearNuevo() {
+    const emailNorm = nuEmail.trim().toLowerCase();
+    if (initial.some((r) => r.email.toLowerCase() === emailNorm)) {
+      toast.error("Ya hay un usuario con ese email en el listado.");
+      return;
+    }
     startTransition(async () => {
       const res = await crearUsuarioDesdeAdmin({
         nombre: nuNombre,
-        email: nuEmail,
+        email: nuEmail.trim(),
         password: nuPassword,
         rol: nuRol as (typeof PERFIL_ROLES_EDITABLES)[number],
       });
@@ -134,7 +151,9 @@ export function AdminUsuariosClient({ initial, currentUserId }: Props) {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Editar usuario</DialogTitle>
-            <DialogDescription>Nombre y rol. El email no se modifica desde aquí.</DialogDescription>
+            <DialogDescription>
+              Nombre, email, rol y estado. El email se sincroniza con Supabase Auth.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
@@ -144,6 +163,16 @@ export function AdminUsuariosClient({ initial, currentUserId }: Props) {
                 value={editNombre}
                 onChange={(e) => setEditNombre(e.target.value)}
                 autoComplete="name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="adm-email">Email</Label>
+              <Input
+                id="adm-email"
+                type="email"
+                value={editEmail}
+                onChange={(e) => setEditEmail(e.target.value)}
+                autoComplete="email"
               />
             </div>
             <div className="space-y-2">
@@ -168,6 +197,20 @@ export function AdminUsuariosClient({ initial, currentUserId }: Props) {
                 <p className="text-muted-foreground text-xs">Tu rol administrador no puede modificarse desde aquí.</p>
               ) : null}
             </div>
+            <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
+              <div className="space-y-0.5">
+                <Label htmlFor="adm-activo">Usuario activo</Label>
+                <p className="text-muted-foreground text-xs">
+                  Si está desactivado, no podrá iniciar sesión (baja lógica).
+                </p>
+              </div>
+              <Switch
+                id="adm-activo"
+                checked={editActivo}
+                onCheckedChange={setEditActivo}
+                disabled={editRow?.id === currentUserId}
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setEditOpen(false)} disabled={pending}>
@@ -186,6 +229,7 @@ export function AdminUsuariosClient({ initial, currentUserId }: Props) {
             <DialogTitle>Nuevo usuario</DialogTitle>
             <DialogDescription>
               Mismos datos que el registro público. Se envía email de confirmación de Supabase al crear la cuenta.
+              No podés repetir un email ya registrado.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -277,17 +321,27 @@ export function AdminUsuariosClient({ initial, currentUserId }: Props) {
                   <TableHead>Nombre</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Rol</TableHead>
+                  <TableHead>Estado</TableHead>
                   <TableHead>Creado</TableHead>
                   <TableHead className="w-[100px] text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {initial.map((r) => (
-                  <TableRow key={r.id}>
+                  <TableRow key={r.id} className={cn(!r.is_active && "bg-muted/50")}>
                     <TableCell className="font-medium">{r.nombre}</TableCell>
                     <TableCell className="text-sm">{r.email}</TableCell>
                     <TableCell>
                       <Badge variant="secondary">{roleLabel(r.rol)}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      {r.is_active ? (
+                        <Badge variant="outline" className="border-emerald-600 text-emerald-800">
+                          Activo
+                        </Badge>
+                      ) : (
+                        <Badge variant="destructive">Inactivo</Badge>
+                      )}
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm tabular-nums">
                       {formatCreado(r.created_at)}

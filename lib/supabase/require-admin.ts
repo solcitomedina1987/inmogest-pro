@@ -16,7 +16,15 @@ export async function requireAdmin(): Promise<AdminResult> {
     return { ok: false, supabase: null, code: "no-auth" };
   }
 
-  const { data: perfil } = await supabase.from("perfiles").select("rol").eq("id", user.id).maybeSingle();
+  const { data: perfil } = await supabase
+    .from("perfiles")
+    .select("rol, is_active")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (perfil?.is_active === false) {
+    return { ok: false, supabase, code: "forbidden" };
+  }
 
   if (perfil?.rol !== "admin") {
     return { ok: false, supabase, code: "forbidden" };
