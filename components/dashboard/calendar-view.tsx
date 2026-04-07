@@ -190,6 +190,31 @@ const precioFmt = new Intl.NumberFormat("es-AR", {
   style: "currency", currency: "ARS", maximumFractionDigits: 0,
 });
 
+/** Desglose de actualización (índice, monto vigente, estimado si existe). Sin duplicar "VALOR ESTIMADO". */
+function desgloseActualizacionTexto(
+  event: Pick<EventoCalendario, "indice" | "montoMensual">,
+  montoEstimado: number | null,
+): string {
+  const partes = [
+    event.indice ? `Índice: ${event.indice}` : null,
+    event.montoMensual != null ? `Monto actual: ${precioFmt.format(event.montoMensual)}` : null,
+    montoEstimado != null ? `Valor estimado por índice: ${precioFmt.format(montoEstimado)}` : null,
+  ].filter(Boolean) as string[];
+  return partes.join(" · ") || "Actualización de valor";
+}
+
+/** Vista rápida (title): mismo formato conciso que el modal; estimado solo si se pasa (p. ej. null en celdas). */
+function tooltipActualizacion(event: EventoCalendario, montoEstimado: number | null): string {
+  const inner = desgloseActualizacionTexto(event, montoEstimado);
+  const desglose = `📊 ${inner}`;
+  const place = event.direccion?.trim();
+  const suffix = place ? ` · ${place}` : "";
+  if (event.tipo === "alerta_actualizacion") {
+    return `🔔 Próxima actualización — ${desglose}${suffix}`;
+  }
+  return `${desglose}${suffix}`;
+}
+
 function formatDateISO(iso: string): string {
   const [y, m, d] = iso.split("-").map(Number);
   return fechaFmt.format(new Date(y, m - 1, d));
@@ -317,19 +342,16 @@ function EventDetailDialog({
       };
     }
     if (event.tipo === "actualizacion" || event.tipo === "alerta_actualizacion") {
-      const partes = [
-        event.indice ? `Índice: ${event.indice}` : null,
-        event.montoMensual != null
-          ? `Monto actual: ${precioFmt.format(event.montoMensual)}`
-          : null,
-        montoEstimado != null
-          ? `Valor estimado por índice: ${precioFmt.format(montoEstimado)} · VALOR ESTIMADO`
-          : null,
-      ].filter(Boolean);
-      const base = partes.join(" · ") || "Actualización de valor";
+      const inner = desgloseActualizacionTexto(event, montoEstimado);
+      if (event.tipo === "alerta_actualizacion") {
+        return {
+          icon: "🔔",
+          text: `Próxima actualización — 📊 ${inner}`,
+        };
+      }
       return {
-        icon: event.tipo === "alerta_actualizacion" ? "🔔" : "📊",
-        text: event.tipo === "alerta_actualizacion" ? `Próxima actualización — ${base}` : base,
+        icon: "📊",
+        text: inner,
       };
     }
     return null;
@@ -573,6 +595,13 @@ function EventPill({
     ? (event.inquilino || event.direccion || event.titulo)
     : event.direccion;
 
+  const nativeTitle =
+    event.tipo === "actualizacion" || event.tipo === "alerta_actualizacion"
+      ? tooltipActualizacion(event, null)
+      : detail
+        ? `${label}: ${detail}`
+        : label;
+
   return (
     <button
       type="button"
@@ -582,7 +611,7 @@ function EventPill({
         "text-[10px] font-medium leading-tight truncate text-left transition-opacity hover:opacity-80",
         st.pill,
       )}
-      title={detail ? `${label}: ${detail}` : label}
+      title={nativeTitle}
     >
       <span className={cn("size-1.5 shrink-0 rounded-full", st.dot)} aria-hidden />
       <span className="truncate">{label}</span>
@@ -602,6 +631,11 @@ function EventCard({
   const st = eventStyle(event.tipo);
   const tel = normTel(event.telefono);
 
+  const cardTitle =
+    event.tipo === "actualizacion" || event.tipo === "alerta_actualizacion"
+      ? tooltipActualizacion(event, null)
+      : undefined;
+
   return (
     <div
       className={cn(
@@ -614,6 +648,7 @@ function EventCard({
         type="button"
         onClick={() => onClick(event)}
         className="block w-full text-left"
+        title={cardTitle}
       >
         <p className="font-semibold leading-snug">{st.label}</p>
         <p className="mt-0.5 truncate opacity-80">{event.direccion}</p>
@@ -901,11 +936,16 @@ function AgendaList({
                 const detail = esEventoPersonalizado(ev.tipo)
                   ? (ev.inquilino || ev.direccion || ev.nombreInteresado || "")
                   : (ev.direccion || "");
+                const agendaTitle =
+                  ev.tipo === "actualizacion" || ev.tipo === "alerta_actualizacion"
+                    ? tooltipActualizacion(ev, null)
+                    : undefined;
                 return (
                   <button
                     key={ev.id}
                     type="button"
                     onClick={() => onEventClick(ev)}
+                    title={agendaTitle}
                     className={cn(
                       "flex w-full items-start gap-2 rounded-md border px-3 py-2 text-left transition-opacity hover:opacity-80",
                       st.badge,
