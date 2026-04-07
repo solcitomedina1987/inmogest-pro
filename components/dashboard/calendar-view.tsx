@@ -234,14 +234,14 @@ function waMessage(tipo: TipoEvento, nombre: string, direccion: string, indice?:
   const primerNombre = nombre.split(" ")[0] ?? nombre;
   if (tipo === "actualizacion" || tipo === "alerta_actualizacion") {
     return (
-      `Hola ${primerNombre} 👋, le contactamos desde *Consultora Medina & Asociados*. ` +
+      `Hola ${primerNombre}!, le contactamos desde Consultora Medina & Asociados. ` +
       `Le informamos que corresponde actualizar el valor del alquiler en *${direccion}* ` +
       `según el índice ${indice ?? "IPC/ICL"}. ` +
-      `Nos pondremos en contacto con el nuevo valor. Consultas al +54 9 2664 791345.`
+      `En breve nos pondremos en contacto con usted para confirmar el nuevo valor. Cualquier consulta, puede contactarnos al +54 9 2664 791345.`
     );
   }
   return (
-    `Hola ${primerNombre} 👋, le contactamos desde *Consultora Medina & Asociados*. ` +
+    `Hola ${primerNombre}!, le contactamos desde Consultora Medina & Asociados. ` +
     `Le informamos que el contrato de alquiler en *${direccion}* se encuentra ` +
     `próximo a su vencimiento. Le pedimos que se comunique a la brevedad. ` +
     `Consultas al +54 9 2664 791345.`
