@@ -72,8 +72,8 @@ export default async function DashboardHomePage() {
               Vencimientos y actualizaciones de contratos. Clic en un evento para ver el detalle.
             </p>
           </div>
-          <CalendarDiagnostico />
           <CalendarView refreshToken={Date.now()} />
+          <CalendarDiagnostico />
         </section>
       ) : null}
     </div>

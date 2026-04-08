@@ -1157,24 +1157,43 @@ export function CalendarView({ refreshToken }: { refreshToken?: number } = {}) {
           </div>
         </div>
 
-        {/* ── Barra de modo Calendario / Lista ── */}
-        <div className="flex items-center gap-1 border-b bg-muted/30 px-4 py-1.5">
-          {(["calendario", "agenda"] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => setDisplayMode(m)}
-              className={cn(
-                "flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors",
-                displayMode === m
-                  ? "bg-background text-foreground shadow-sm border"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {m === "calendario" ? <CalendarDays className="size-3.5" /> : <List className="size-3.5" />}
-              {m === "calendario" ? "Calendario" : "Lista de Agenda"}
-            </button>
-          ))}
+        {/* ── Barra modo Calendario / Lista + leyenda de colores ── */}
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b bg-muted/30 px-4 py-1.5">
+          <div className="flex items-center gap-1">
+            {(["calendario", "agenda"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setDisplayMode(m)}
+                className={cn(
+                  "flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors",
+                  displayMode === m
+                    ? "border bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {m === "calendario" ? <CalendarDays className="size-3.5" /> : <List className="size-3.5" />}
+                {m === "calendario" ? "Calendario" : "Lista de Agenda"}
+              </button>
+            ))}
+          </div>
+          <div className="flex min-w-0 max-w-full flex-1 flex-wrap items-center justify-end gap-x-3 gap-y-1 sm:max-w-none sm:flex-none">
+            <span className="flex items-center gap-1.5 whitespace-nowrap text-[10px] text-muted-foreground sm:text-xs">
+              <span className="size-2.5 shrink-0 rounded-full bg-rose-600" aria-hidden /> Vencimiento contrato
+            </span>
+            <span className="flex items-center gap-1.5 whitespace-nowrap text-[10px] text-muted-foreground sm:text-xs">
+              <span className="size-2.5 shrink-0 rounded-full bg-amber-400" aria-hidden /> Alerta vencimiento
+            </span>
+            <span className="flex items-center gap-1.5 whitespace-nowrap text-[10px] text-muted-foreground sm:text-xs">
+              <span className="size-2.5 shrink-0 rounded-full bg-blue-600" aria-hidden /> Actualización alquiler
+            </span>
+            <span className="flex items-center gap-1.5 whitespace-nowrap text-[10px] text-muted-foreground sm:text-xs">
+              <span className="size-2.5 shrink-0 rounded-full bg-sky-400" aria-hidden /> Actualización próxima
+            </span>
+            <span className="flex items-center gap-1.5 whitespace-nowrap text-[10px] text-muted-foreground sm:text-xs">
+              <span className="size-2.5 shrink-0 rounded-full bg-emerald-500" aria-hidden /> Otros Eventos
+            </span>
+          </div>
         </div>
 
         {/* Alertas */}
@@ -1209,27 +1228,6 @@ export function CalendarView({ refreshToken }: { refreshToken?: number } = {}) {
             <span>No hay eventos en este período. Si ya configuraste Google Calendar, usá <strong>&quot;Sincronizar contratos&quot;</strong> para crear los eventos de los contratos existentes.</span>
           </div>
         ) : null}
-
-        {/* Leyenda — solo en modo calendario */}
-        {displayMode === "calendario" && (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b bg-muted/20 px-4 py-2">
-            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span className="size-2.5 rounded-full bg-rose-600" aria-hidden /> Vencimiento contrato
-            </span>
-            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span className="size-2.5 rounded-full bg-amber-400" aria-hidden /> Alerta vencimiento
-            </span>
-            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span className="size-2.5 rounded-full bg-blue-600" aria-hidden /> Actualización alquiler
-            </span>
-            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span className="size-2.5 rounded-full bg-sky-400" aria-hidden /> Alerta actualización
-            </span>
-            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span className="size-2.5 rounded-full bg-emerald-500" aria-hidden /> Evento operativo
-            </span>
-          </div>
-        )}
 
         {/* Vista */}
         <div className={cn("relative", displayMode === "agenda" ? "min-h-[200px]" : "min-h-[320px]")}>

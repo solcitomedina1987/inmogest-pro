@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, Home, Loader2, MessageCircle, Pencil, ReceiptText, RotateCcw, Search, Trash2 } from "lucide-react";
@@ -49,9 +50,10 @@ type Props = {
   rows: PropiedadListRow[];
   propietarios: PersonaOption[];
   clientes: PersonaOption[];
+  children?: ReactNode;
 };
 
-export function PropiedadesTable({ rows, propietarios, clientes }: Props) {
+export function PropiedadesTable({ rows, propietarios, clientes, children }: Props) {
   const router = useRouter();
   const [q, setQ] = useState("");
   const [filtroTipo, setFiltroTipo] = useState<string>("todas");
@@ -114,19 +116,21 @@ export function PropiedadesTable({ rows, propietarios, clientes }: Props) {
   return (
     <>
       <div className="flex max-w-full min-w-0 flex-col gap-8">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
+        <header className="flex max-w-full flex-col gap-3">
+          <div className="flex flex-row items-center justify-between gap-3">
             <h1 className="text-2xl font-semibold tracking-tight">Propiedades</h1>
-            <p className="text-muted-foreground mt-1 text-sm">
-              Inmuebles activos. Si el estado es <strong>Alquilada</strong>, se muestra el inquilino vinculado en la
-              ficha. La columna Cobros enlaza al contrato de alquiler cuando existe.
-            </p>
+            <Button type="button" className="shrink-0 gap-2" onClick={openCreate}>
+              <Home className="size-4" aria-hidden />
+              Nueva propiedad
+            </Button>
           </div>
-          <Button type="button" className="gap-2" onClick={openCreate}>
-            <Home className="size-4" aria-hidden />
-            Nueva propiedad
-          </Button>
-        </div>
+          <p className="text-muted-foreground text-sm">
+            Inmuebles activos. Si el estado es <strong>Alquilada</strong>, se muestra el inquilino vinculado en la
+            ficha. La columna Cobros enlaza al contrato de alquiler cuando existe.
+          </p>
+        </header>
+
+        {children ? <div className="flex flex-col gap-8">{children}</div> : null}
 
         <Card className="border shadow-sm">
           <CardHeader className="space-y-4">

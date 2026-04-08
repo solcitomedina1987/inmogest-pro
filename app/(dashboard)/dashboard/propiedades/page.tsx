@@ -149,11 +149,10 @@ export default async function DashboardPropiedadesPage() {
   const inquilinosOpts = todas.filter((p) => p.tipo_cliente === "Inquilino" || p.tipo_cliente === "Ambos");
 
   return (
-    <div className="flex flex-col gap-8">
+    <PropiedadesTable rows={rows} propietarios={propietariosOpts} clientes={inquilinosOpts}>
       <Suspense fallback={<ExecutiveDashboardSkeleton />}>
         <ExecutiveDashboardPanel />
       </Suspense>
-      <PropiedadesTable rows={rows} propietarios={propietariosOpts} clientes={inquilinosOpts} />
-    </div>
+    </PropiedadesTable>
   );
 }
