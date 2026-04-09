@@ -4,9 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import type { ContratoCobranzaRow, PagoRow } from "@/lib/cobranzas/types";
 import { ensurePagosMensualesExistentes } from "@/lib/cobranzas/sync-pagos-mensuales";
-import { mesPeriodoDesdeFecha, proximaFechaActualizacionAlquiler } from "@/lib/cobranzas/estado-contrato";
 import { isCalculatorConfigured } from "@/lib/services/calculator";
-import type { ContratoWidgetData } from "@/components/portal/contrato-widgets";
+import { buildContratoWidgetData } from "@/lib/portal/contrato-widget-data";
 import { PortalView } from "@/components/portal/portal-view";
 import { PortalHeader } from "@/components/portal/portal-header";
 
@@ -19,18 +18,6 @@ function devLog(message: string, payload?: unknown) {
     return;
   }
   console.info(`[portal] ${message}`, payload);
-}
-
-function diffDays(from: Date, to: Date): number {
-  const msPerDay = 1000 * 60 * 60 * 24;
-  const a = Date.UTC(from.getFullYear(), from.getMonth(), from.getDate());
-  const b = Date.UTC(to.getFullYear(), to.getMonth(), to.getDate());
-  return Math.round((b - a) / msPerDay);
-}
-
-function parseLocalDate(s: string): Date {
-  const [y, m, d] = s.split("-").map(Number);
-  return new Date(y, m - 1, d);
 }
 
 function unwrapFk<T>(v: T | T[] | null | undefined): T | null {
@@ -138,49 +125,11 @@ export default async function PortalPage() {
 
   const pagos = (pagosRaw ?? []) as PagoRow[];
 
-  /* ── 7. Calcular widgets ── */
-  const hoy = new Date();
-
-  const mesesPagados = pagos.filter((p) => p.estado === "Pagado").length;
-  const totalMeses = pagos.length;
-  const progresoPct = totalMeses > 0 ? Math.round((mesesPagados / totalMeses) * 100) : 0;
-
-  let diasActualizacion: number | null = null;
-  let estimacionMes: string | null = null;
-  if (contrato.meses_actualizacion > 0) {
-    const proxima = proximaFechaActualizacionAlquiler(
-      contrato.fecha_inicio,
-      contrato.fecha_vencimiento,
-      contrato.meses_actualizacion,
-      contrato.ultima_actualizacion,
-      hoy,
-    );
-    if (proxima) {
-      diasActualizacion = diffDays(hoy, proxima);
-      if (isCalculatorConfigured()) {
-        const proximaISO = `${proxima.getFullYear()}-${String(proxima.getMonth() + 1).padStart(2, "0")}-${String(proxima.getDate()).padStart(2, "0")}`;
-        estimacionMes = mesPeriodoDesdeFecha(proximaISO);
-        devLog("estimación disponible vía modal", { contratoId: contrato.id, estimacionMes });
-      }
-    }
+  const calcOn = isCalculatorConfigured();
+  const widgets = buildContratoWidgetData(contrato, pagos, calcOn);
+  if (process.env.NODE_ENV === "development" && widgets.estimacionMes) {
+    devLog("estimación disponible vía modal", { contratoId: contrato.id, estimacionMes: widgets.estimacionMes });
   }
-
-  const fechaVenc = parseLocalDate(contrato.fecha_vencimiento);
-  const diasVencimiento = diffDays(hoy, fechaVenc);
-
-  const widgets: ContratoWidgetData = {
-    mesesPagados,
-    totalMeses,
-    progresoPct,
-    diasActualizacion,
-    montoActual: contrato.monto_mensual,
-    indice: contrato.indice_actualizacion ?? "ICL",
-    fechaVencimiento: contrato.fecha_vencimiento,
-    diasVencimiento,
-    contratoId: contrato.id,
-    estimacionMes,
-    calculatorConfigured: isCalculatorConfigured(),
-  };
 
   return (
     <>

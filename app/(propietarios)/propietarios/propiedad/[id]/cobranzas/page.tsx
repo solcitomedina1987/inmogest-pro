@@ -3,35 +3,24 @@ import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
-import type { PagoRow } from "@/lib/cobranzas/types";
+import type { ContratoCobranzaRow, PagoRow } from "@/lib/cobranzas/types";
+import { ensurePagosMensualesExistentes } from "@/lib/cobranzas/sync-pagos-mensuales";
+import { buildContratoWidgetData } from "@/lib/portal/contrato-widget-data";
+import { isCalculatorConfigured } from "@/lib/services/calculator";
 import { PropietarioHeader } from "@/components/propietarios/propietario-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { ContratoDetallesCard } from "@/components/portal/contrato-detalles-card";
+import { ContratoPagosHistorial } from "@/components/portal/contrato-pagos-historial";
+import { ContratoWidgets } from "@/components/portal/contrato-widgets";
 
 export const dynamic = "force-dynamic";
 
-function fmtFecha(iso: string): string {
-  const d = new Date(iso + "T12:00:00");
-  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
-}
-
-function estadoBadge(estado: string) {
-  if (estado === "Pagado") {
-    return <Badge variant="outline" className="border-emerald-600 text-emerald-800">Pagado</Badge>;
+function unwrapFk<T>(v: T | T[] | null | undefined): T | null {
+  if (v == null) {
+    return null;
   }
-  if (estado === "Atrasado") {
-    return <Badge variant="destructive">Atrasado</Badge>;
-  }
-  return <Badge variant="secondary">Pendiente</Badge>;
+  return Array.isArray(v) ? (v[0] ?? null) : v;
 }
 
 type PageProps = { params: Promise<{ id: string }> };
@@ -64,7 +53,7 @@ export default async function PropietarioPropiedadCobranzasPage({ params }: Page
 
   const { data: prop, error: propErr } = await db
     .from("propiedades")
-    .select("id, direccion, propietario_id")
+    .select("id, direccion, nombre, propietario_id")
     .eq("id", propiedadId)
     .eq("is_active", true)
     .maybeSingle();
@@ -74,44 +63,104 @@ export default async function PropietarioPropiedadCobranzasPage({ params }: Page
   }
 
   const direccion = (prop as { direccion: string }).direccion;
+  const nombreProp = (prop as { nombre?: string }).nombre?.trim() || direccion;
 
   const { data: contratosRaw } = await db
     .from("contratos_cobranza")
-    .select("id, fecha_inicio, fecha_vencimiento, is_active, monto_mensual")
+    .select(
+      `
+      id,
+      propiedad_id,
+      cliente_id,
+      locador_id,
+      fecha_inicio,
+      fecha_vencimiento,
+      monto_mensual,
+      dia_limite_pago,
+      meses_actualizacion,
+      indice_actualizacion,
+      ultima_actualizacion,
+      is_active,
+      deleted_at,
+      propiedad:propiedades ( nombre, direccion ),
+      inquilino:clientes!contratos_cobranza_cliente_id_fkey ( nombre_completo ),
+      locador:clientes!contratos_cobranza_locador_id_fkey ( nombre_completo )
+    `,
+    )
     .eq("propiedad_id", propiedadId)
     .is("deleted_at", null)
     .order("is_active", { ascending: false })
     .order("created_at", { ascending: false });
 
-  const contratos = contratosRaw ?? [];
-  const contrato =
-    (contratos as { id: string; is_active: boolean }[]).find((c) => c.is_active) ??
-    (contratos[0] as { id: string } | undefined);
+  const contratos = (contratosRaw ?? []) as Record<string, unknown>[];
+  const rawContrato =
+    contratos.find((c) => c.is_active === true) ?? (contratos.length > 0 ? contratos[0] : null);
 
-  let pagos: PagoRow[] = [];
-  if (contrato?.id) {
-    const { data: pagosData } = await db
-      .from("pagos")
-      .select("*")
-      .eq("contrato_id", contrato.id)
-      .order("mes_periodo", { ascending: true });
-    pagos = (pagosData ?? []) as PagoRow[];
+  if (!rawContrato) {
+    return (
+      <>
+        <PropietarioHeader nombre={perfil.nombre as string} />
+        <main className="mx-auto flex max-w-4xl flex-col gap-8 px-4 py-6 md:px-8 md:py-8">
+          <div className="flex flex-wrap items-center gap-3">
+            <Button variant="ghost" size="sm" className="gap-2" asChild>
+              <Link href="/propietarios/dashboard">
+                <ArrowLeft className="size-4" />
+                Volver al resumen
+              </Link>
+            </Button>
+          </div>
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Cobranzas</h1>
+            <p className="text-muted-foreground mt-1 text-sm">{direccion}</p>
+          </div>
+          <p className="text-muted-foreground text-sm">
+            No hay contrato de cobranzas registrado para esta propiedad.
+          </p>
+        </main>
+      </>
+    );
   }
 
-  const c = contrato as
-    | { id: string; fecha_inicio: string; fecha_vencimiento: string; monto_mensual: number; is_active: boolean }
-    | undefined;
+  const r = rawContrato;
+  const contrato: ContratoCobranzaRow = {
+    id: r.id as string,
+    propiedad_id: r.propiedad_id as string,
+    cliente_id: r.cliente_id as string,
+    locador_id: r.locador_id as string,
+    fecha_inicio: r.fecha_inicio as string,
+    fecha_vencimiento: r.fecha_vencimiento as string,
+    monto_mensual: Number(r.monto_mensual),
+    dia_limite_pago: Number(r.dia_limite_pago),
+    meses_actualizacion: Number(r.meses_actualizacion),
+    indice_actualizacion: (r.indice_actualizacion as "IPC" | "ICL") ?? "ICL",
+    ultima_actualizacion: (r.ultima_actualizacion as string | null) ?? null,
+    is_active: Boolean(r.is_active),
+    deleted_at: (r.deleted_at as string | null | undefined) ?? null,
+    propiedad: unwrapFk(
+      r.propiedad as { nombre: string; direccion?: string } | { nombre: string; direccion?: string }[] | null,
+    ),
+    inquilino: unwrapFk(
+      r.inquilino as { nombre_completo: string } | { nombre_completo: string }[] | null,
+    ),
+    locador: unwrapFk(r.locador as { nombre_completo: string } | { nombre_completo: string }[] | null),
+  };
 
-  const precioFmt = new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency: "ARS",
-    maximumFractionDigits: 0,
-  });
+  await ensurePagosMensualesExistentes(db, contrato.id);
+
+  const { data: pagosRaw } = await db
+    .from("pagos")
+    .select("*")
+    .eq("contrato_id", contrato.id)
+    .order("mes_periodo", { ascending: true });
+
+  const pagos = (pagosRaw ?? []) as PagoRow[];
+
+  const widgets = buildContratoWidgetData(contrato, pagos, isCalculatorConfigured());
 
   return (
     <>
       <PropietarioHeader nombre={perfil.nombre as string} />
-      <main className="mx-auto max-w-4xl space-y-6 px-4 py-6 md:px-6 md:py-8">
+      <main className="mx-auto flex max-w-4xl flex-col gap-8 px-4 py-6 md:px-8 md:py-8">
         <div className="flex flex-wrap items-center gap-3">
           <Button variant="ghost" size="sm" className="gap-2" asChild>
             <Link href="/propietarios/dashboard">
@@ -121,86 +170,30 @@ export default async function PropietarioPropiedadCobranzasPage({ params }: Page
           </Button>
         </div>
 
-        <div>
+        <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight">Cobranzas</h1>
-          <p className="text-muted-foreground mt-1 text-sm">{direccion}</p>
-          <p className="text-muted-foreground text-xs mt-2">
-            Vista solo lectura. Para gestión y pagos, la administración usa el panel interno.
+          <p className="text-muted-foreground text-sm">
+            {nombreProp}
+            {contrato.is_active ? (
+              <Badge variant="outline" className="ml-2 border-emerald-600 text-emerald-700">
+                Contrato activo
+              </Badge>
+            ) : (
+              <Badge variant="secondary" className="ml-2">
+                Contrato finalizado
+              </Badge>
+            )}
+          </p>
+          <p className="text-muted-foreground text-xs">
+            Vista solo lectura. Misma información resumida que ve el inquilino en su portal.
           </p>
         </div>
 
-        {c ? (
-          <Card className="border shadow-sm">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Contrato de alquiler</CardTitle>
-              <CardDescription>
-                {c.is_active ? (
-                  <Badge variant="outline" className="border-emerald-600 text-emerald-800">
-                    Activo
-                  </Badge>
-                ) : (
-                  <Badge variant="secondary">Finalizado</Badge>
-                )}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-2 text-sm sm:grid-cols-2">
-              <div>
-                <span className="text-muted-foreground">Inicio </span>
-                <span className="font-medium tabular-nums">{fmtFecha(c.fecha_inicio)}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Vencimiento </span>
-                <span className="font-medium tabular-nums">{fmtFecha(c.fecha_vencimiento)}</span>
-              </div>
-              <div className="sm:col-span-2">
-                <span className="text-muted-foreground">Alquiler mensual </span>
-                <span className="font-semibold tabular-nums">{precioFmt.format(Number(c.monto_mensual))}</span>
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <p className="text-muted-foreground text-sm">No hay contrato de cobranzas registrado para esta propiedad.</p>
-        )}
+        <ContratoWidgets data={widgets} />
 
-        {pagos.length > 0 ? (
-          <Card className="border shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-lg">Cuotas mensuales</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0 sm:p-0">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Período</TableHead>
-                      <TableHead>Fecha pago</TableHead>
-                      <TableHead className="text-right">Monto</TableHead>
-                      <TableHead>Estado</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pagos.map((p) => (
-                      <TableRow key={p.id}>
-                        <TableCell className="font-mono text-sm">{p.mes_periodo}</TableCell>
-                        <TableCell className="tabular-nums text-sm">
-                          {p.fecha_pago_realizado ? fmtFecha(p.fecha_pago_realizado) : "—"}
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums text-sm">
-                          {p.monto_pagado != null
-                            ? precioFmt.format(Number(p.monto_pagado))
-                            : "—"}
-                        </TableCell>
-                        <TableCell>{estadoBadge(p.estado)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-        ) : c ? (
-          <p className="text-muted-foreground text-sm">Todavía no hay cuotas cargadas para este contrato.</p>
-        ) : null}
+        <ContratoDetallesCard contrato={contrato} />
+
+        <ContratoPagosHistorial contrato={contrato} pagos={pagos} />
       </main>
     </>
   );

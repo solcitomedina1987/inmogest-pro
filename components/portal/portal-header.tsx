@@ -1,12 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { LogOut, Loader2 } from "lucide-react";
+import { LogOut, Loader2, UserRound } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { BrandLogo } from "@/components/brand/brand-logo";
 import { Button } from "@/components/ui/button";
-import { BRAND_NAME } from "@/lib/constants/branding";
-
 type Props = {
   nombreInquilino?: string;
 };
@@ -23,19 +23,19 @@ export function PortalHeader({ nombreInquilino }: Props) {
   }
 
   return (
-    <header className="sticky top-0 z-30 border-b bg-white/90 backdrop-blur-sm">
-      <div className="mx-auto flex h-14 max-w-4xl items-center justify-between px-4 md:px-8">
-        <div className="flex flex-col leading-tight">
-          <span className="text-sm font-semibold text-primary">{BRAND_NAME}</span>
-          <span className="text-[11px] text-muted-foreground">Portal de Inquilinos</span>
-        </div>
+    <header className="sticky top-0 z-30 border-b bg-card/95 backdrop-blur-sm print:hidden">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-4 md:px-6">
+        <Link href="/portal" className="inline-flex min-w-0 items-center gap-3">
+          <UserRound className="size-7 shrink-0 text-emerald-700" aria-hidden />
+          <div className="min-w-0">
+            <BrandLogo className="h-6 max-w-[200px] w-auto object-contain object-left" />
+            <p className="text-muted-foreground mt-0.5 truncate text-xs">
+              Portal inquilinos{nombreInquilino ? ` · ${nombreInquilino}` : ""}
+            </p>
+          </div>
+        </Link>
 
-        <div className="flex items-center gap-3">
-          {nombreInquilino && (
-            <span className="hidden text-sm text-muted-foreground sm:block">
-              {nombreInquilino}
-            </span>
-          )}
+        <div className="flex shrink-0 items-center gap-3">
           <Button
             variant="ghost"
             size="sm"
@@ -43,9 +43,11 @@ export function PortalHeader({ nombreInquilino }: Props) {
             disabled={loading}
             onClick={handleLogout}
           >
-            {loading
-              ? <Loader2 className="size-4 animate-spin" aria-hidden />
-              : <LogOut className="size-4" aria-hidden />}
+            {loading ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+            ) : (
+              <LogOut className="size-4" aria-hidden />
+            )}
             <span className="hidden sm:inline">Cerrar sesión</span>
           </Button>
         </div>

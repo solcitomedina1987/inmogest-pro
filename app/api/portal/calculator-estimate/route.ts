@@ -31,31 +31,53 @@ export async function POST(req: Request) {
 
   const db = createServiceRoleClient();
 
+  const { data: contrato, error: cErr } = await db
+    .from("contratos_cobranza")
+    .select(
+      "id, cliente_id, propiedad_id, fecha_inicio, monto_mensual, meses_actualizacion, indice_actualizacion, is_active, deleted_at",
+    )
+    .eq("id", body.contratoId)
+    .maybeSingle();
+
+  if (cErr || !contrato || contrato.deleted_at) {
+    return NextResponse.json({ ok: false, error: "Contrato no disponible." }, { status: 403 });
+  }
+
   const { data: cliente, error: cliErr } = await db
     .from("clientes")
     .select("id")
     .ilike("email", user.email)
     .maybeSingle();
 
-  if (cliErr || !cliente) {
-    return NextResponse.json({ ok: false, error: "Cliente no encontrado." }, { status: 403 });
+  const inquilinoOk =
+    !cliErr &&
+    cliente != null &&
+    contrato.cliente_id === cliente.id &&
+    contrato.is_active === true;
+
+  let propietarioOk = false;
+  if (!inquilinoOk) {
+    const { data: perfil } = await db
+      .from("perfiles")
+      .select("cliente_id, rol, is_active")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (
+      perfil?.rol === "propietario" &&
+      perfil.is_active !== false &&
+      perfil.cliente_id &&
+      contrato.propiedad_id
+    ) {
+      const { data: prop } = await db
+        .from("propiedades")
+        .select("propietario_id")
+        .eq("id", contrato.propiedad_id)
+        .maybeSingle();
+      propietarioOk = prop?.propietario_id === perfil.cliente_id;
+    }
   }
 
-  const { data: contrato, error: cErr } = await db
-    .from("contratos_cobranza")
-    .select(
-      "id, cliente_id, fecha_inicio, monto_mensual, meses_actualizacion, indice_actualizacion, is_active, deleted_at",
-    )
-    .eq("id", body.contratoId)
-    .maybeSingle();
-
-  if (
-    cErr ||
-    !contrato ||
-    contrato.cliente_id !== cliente.id ||
-    !contrato.is_active ||
-    contrato.deleted_at
-  ) {
+  if (!inquilinoOk && !propietarioOk) {
     return NextResponse.json({ ok: false, error: "Contrato no disponible." }, { status: 403 });
   }
 
