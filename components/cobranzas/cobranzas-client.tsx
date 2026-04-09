@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Calculator, Eye, FileText, Loader2, Pencil, Trash2 } from "lucide-react";
+import { AlertTriangle, Calculator, FileText, Loader2, Pencil, ScrollText, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { eliminarContratoCobranza } from "@/app/actions/cobranzas";
 import type { ContratoCobranzaRow, PagoRow } from "@/lib/cobranzas/types";
@@ -386,7 +386,7 @@ export function CobranzasClient({
                                   {navigatingId === c.id ? (
                                     <Loader2 className="size-4 animate-spin" aria-hidden />
                                   ) : (
-                                    <Eye className="size-4" aria-hidden />
+                                    <ScrollText className="size-4" aria-hidden />
                                   )}
                                 </Button>
                               </TooltipTrigger>
