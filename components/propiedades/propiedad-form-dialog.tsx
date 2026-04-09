@@ -94,7 +94,6 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   editing: PropiedadListRow | null;
   propietarios: PersonaOption[];
-  clientes: PersonaOption[];
 };
 
 /** Sube archivos directamente al bucket de Supabase desde el navegador.
@@ -131,7 +130,7 @@ async function uploadFilesToSupabase(
   return urls;
 }
 
-export function PropiedadFormDialog({ open, onOpenChange, editing, propietarios, clientes }: Props) {
+export function PropiedadFormDialog({ open, onOpenChange, editing, propietarios }: Props) {
   const router = useRouter();
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
@@ -219,7 +218,9 @@ export function PropiedadFormDialog({ open, onOpenChange, editing, propietarios,
     fd.append("tipo", values.tipo);
     fd.append("estado", values.estado);
     fd.append("propietario_id", values.propietario_id);
-    fd.append("cliente_id", values.cliente_id && values.cliente_id !== "none" ? values.cliente_id : "none");
+    const clienteParaGuardar =
+      editing?.cliente_id != null && editing.cliente_id !== "" ? editing.cliente_id : "none";
+    fd.append("cliente_id", clienteParaGuardar);
     fd.append("dormitorios", String(values.dormitorios));
     fd.append("banos", String(values.banos));
     fd.append("m2_totales", String(values.m2_totales));
@@ -428,36 +429,6 @@ export function PropiedadFormDialog({ open, onOpenChange, editing, propietarios,
                         <SelectItem key={p.id} value={p.id}>
                           {p.nombre_completo}
                           {personaSubtitle(p)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="cliente_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Cliente (opcional)</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    value={field.value && field.value !== "" ? field.value : "none"}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Sin cliente" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent position="popper" className={DIALOG_SELECT_CONTENT_CLASS}>
-                      <SelectItem value="none">Sin cliente</SelectItem>
-                      {clientes.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.nombre_completo}
-                          {personaSubtitle(c)}
                         </SelectItem>
                       ))}
                     </SelectContent>

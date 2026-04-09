@@ -32,6 +32,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -118,9 +119,33 @@ export function EditarContratoDialog({ open, onOpenChange, contrato }: Props) {
         <DialogHeader>
           <DialogTitle>Editar contrato</DialogTitle>
           <DialogDescription>
-            Modificá condiciones del alquiler. La fecha de inicio no se puede cambiar desde aquí.
+            Datos fijos del vínculo (igual que en nuevo contrato). Podés ajustar montos, plazos e índice abajo.
           </DialogDescription>
         </DialogHeader>
+
+        <div className="space-y-3 rounded-lg border bg-muted/40 px-4 py-3 text-sm">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <Label className="text-muted-foreground text-xs">Propiedad</Label>
+              <p className="mt-1 font-medium leading-snug">{contrato.propiedad?.nombre ?? "—"}</p>
+              {contrato.propiedad?.direccion ? (
+                <p className="text-muted-foreground mt-0.5 text-xs">{contrato.propiedad.direccion}</p>
+              ) : null}
+            </div>
+            <div>
+              <Label className="text-muted-foreground text-xs">Inquilino</Label>
+              <p className="mt-1 font-medium">{contrato.inquilino?.nombre_completo ?? "—"}</p>
+            </div>
+            <div>
+              <Label className="text-muted-foreground text-xs">Propietario (locador)</Label>
+              <p className="mt-1 font-medium">{contrato.locador?.nombre_completo ?? "—"}</p>
+            </div>
+            <div>
+              <Label className="text-muted-foreground text-xs">Inicio del contrato</Label>
+              <p className="mt-1 font-medium tabular-nums">{contrato.fecha_inicio}</p>
+            </div>
+          </div>
+        </div>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">

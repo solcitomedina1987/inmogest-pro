@@ -4,7 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { mesPeriodoActual } from "@/lib/cobranzas/estado-contrato";
 import type { ContratoCobranzaRow, PagoRow } from "@/lib/cobranzas/types";
 import { CobranzasClient } from "@/components/cobranzas/cobranzas-client";
-import type { SelectOption } from "@/components/cobranzas/contrato-form-dialog";
+import type { PropiedadSelectContrato, SelectOption } from "@/components/cobranzas/contrato-form-dialog";
+import { ESTADO_PROPIEDAD_CARTEL_ALQUILER } from "@/lib/constants/propiedades";
 import { isCalculatorConfigured } from "@/lib/services/calculator";
 
 export const metadata: Metadata = {
@@ -140,14 +141,35 @@ export default async function DashboardCobranzasPage({ searchParams }: PageProps
     );
   }
 
-  const [{ data: propRows }, { data: personasRows, error: personasErr }] = await Promise.all([
-    supabase.from("propiedades").select("id, nombre, direccion").eq("is_active", true).order("nombre"),
+  const [
+    { data: propRows, error: propErr },
+    { data: personasRows, error: personasErr },
+    { data: contratosActivosRows },
+  ] = await Promise.all([
+    supabase
+      .from("propiedades")
+      .select(
+        "id, nombre, direccion, propietario_id, estado, propietario:clientes!propiedades_propietario_id_fkey ( nombre_completo )",
+      )
+      .eq("is_active", true)
+      .eq("estado", ESTADO_PROPIEDAD_CARTEL_ALQUILER)
+      .order("nombre"),
     supabase
       .from("clientes")
       .select("id, nombre_completo, dni, tipo_cliente, email, telefono")
       .eq("is_active", true)
       .order("nombre_completo"),
+    supabase.from("contratos_cobranza").select("cliente_id").eq("is_active", true).is("deleted_at", null),
   ]);
+
+  if (propErr) {
+    return (
+      <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-4 text-sm">
+        <p className="font-medium">Error al cargar propiedades</p>
+        <p className="text-muted-foreground mt-1">{propErr.message}</p>
+      </div>
+    );
+  }
 
   if (personasErr) {
     return (
@@ -163,25 +185,26 @@ export default async function DashboardCobranzasPage({ searchParams }: PageProps
     return e ? `${nombre} · ${e}` : nombre;
   }
 
-  const propiedades: SelectOption[] =
-    propRows?.map((p) => ({
+  const clientesConContratoActivo = new Set(
+    (contratosActivosRows ?? []).map((r) => r.cliente_id as string).filter(Boolean),
+  );
+
+  const propiedades: PropiedadSelectContrato[] = (propRows ?? []).map((p) => {
+    const propietarioEmb = unwrapFk(
+      (p as { propietario?: { nombre_completo: string } | { nombre_completo: string }[] | null }).propietario,
+    );
+    return {
       id: p.id as string,
       label: optLabel(p.nombre as string, (p.direccion as string) || null),
-    })) ?? [];
+      propietario_id: p.propietario_id as string,
+      propietarioNombre: propietarioEmb?.nombre_completo?.trim() || "—",
+    };
+  });
 
   const personas = personasRows ?? [];
   const clientes: SelectOption[] = personas
     .filter((p) => p.tipo_cliente === "Inquilino" || p.tipo_cliente === "Ambos")
-    .map((p) => ({
-      id: p.id as string,
-      label: optLabel(
-        p.nombre_completo as string,
-        (p.email as string) || `DNI ${p.dni}` || (p.telefono as string) || null,
-      ),
-    }));
-
-  const locadores: SelectOption[] = personas
-    .filter((p) => p.tipo_cliente === "Propietario" || p.tipo_cliente === "Ambos")
+    .filter((p) => !clientesConContratoActivo.has(p.id as string))
     .map((p) => ({
       id: p.id as string,
       label: optLabel(
@@ -197,7 +220,6 @@ export default async function DashboardCobranzasPage({ searchParams }: PageProps
         pagosMesActual={pagosMes}
         propiedades={propiedades}
         clientes={clientes}
-        locadores={locadores}
         mesPeriodoReferencia={mes}
         calculatorConfigured={isCalculatorConfigured()}
         filtros={{

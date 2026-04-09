@@ -42,6 +42,13 @@ const DIALOG_SELECT_CONTENT_CLASS =
 
 export type SelectOption = { id: string; label: string };
 
+export type PropiedadSelectContrato = {
+  id: string;
+  label: string;
+  propietario_id: string;
+  propietarioNombre: string;
+};
+
 function defaultVencimientoDesdeInicio(fechaInicio: string): string {
   if (!fechaInicio) {
     return "";
@@ -72,12 +79,11 @@ const defaults: ContratoCobranzaFormValues = {
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  propiedades: SelectOption[];
+  propiedades: PropiedadSelectContrato[];
   clientes: SelectOption[];
-  locadores: SelectOption[];
 };
 
-export function ContratoFormDialog({ open, onOpenChange, propiedades, clientes, locadores }: Props) {
+export function ContratoFormDialog({ open, onOpenChange, propiedades, clientes }: Props) {
   const router = useRouter();
   const [actionError, setActionError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -113,6 +119,22 @@ export function ContratoFormDialog({ open, onOpenChange, propiedades, clientes, 
     }
   }, [fechaInicio, form, open]);
 
+  const propiedadId = form.watch("propiedad_id");
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    const found = propiedades.find((p) => p.id === propiedadId);
+    if (found?.propietario_id) {
+      form.setValue("locador_id", found.propietario_id, { shouldValidate: true });
+    } else {
+      form.setValue("locador_id", "", { shouldValidate: true });
+    }
+  }, [open, propiedadId, propiedades, form]);
+
+  const propiedadSeleccionada = propiedades.find((p) => p.id === propiedadId);
+
   function onSubmit(values: ContratoCobranzaFormValues) {
     setActionError(null);
     startTransition(async () => {
@@ -132,7 +154,8 @@ export function ContratoFormDialog({ open, onOpenChange, propiedades, clientes, 
         <DialogHeader>
           <DialogTitle>Nuevo contrato de alquiler</DialogTitle>
           <DialogDescription>
-            Vinculá propiedad, inquilino y locador. Se genera la cuota del mes actual en estado Pendiente.
+            Elegí una propiedad disponible y el inquilino. El propietario se toma de la ficha de la propiedad. Se
+            genera la cuota del mes actual en estado Pendiente.
           </DialogDescription>
         </DialogHeader>
 
@@ -158,17 +181,37 @@ export function ContratoFormDialog({ open, onOpenChange, propiedades, clientes, 
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent position="popper" className={DIALOG_SELECT_CONTENT_CLASS}>
-                      {propiedades.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.label}
+                      {propiedades.length === 0 ? (
+                        <SelectItem value="__sin_prop__" disabled>
+                          Sin propiedades disponibles para nuevo contrato
                         </SelectItem>
-                      ))}
+                      ) : (
+                        propiedades.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.label}
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
+            <FormItem>
+              <FormLabel>Propietario (locador)</FormLabel>
+              <Input
+                readOnly
+                disabled
+                className="bg-muted"
+                value={propiedadSeleccionada?.propietarioNombre ? propiedadSeleccionada.propietarioNombre : ""}
+                placeholder="Seleccioná una propiedad primero"
+              />
+              <p className="text-muted-foreground text-xs">
+                Corresponde al titular registrado en la propiedad. No se puede modificar desde el contrato.
+              </p>
+            </FormItem>
 
             <FormField
               control={form.control}
@@ -179,15 +222,21 @@ export function ContratoFormDialog({ open, onOpenChange, propiedades, clientes, 
                   <Select onValueChange={field.onChange} value={field.value || undefined}>
                     <FormControl>
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Seleccioná cliente" />
+                        <SelectValue placeholder="Seleccioná inquilino" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent position="popper" className={DIALOG_SELECT_CONTENT_CLASS}>
-                      {clientes.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.label}
+                      {clientes.length === 0 ? (
+                        <SelectItem value="__sin_inq__" disabled>
+                          Sin inquilinos disponibles (sin contrato activo)
                         </SelectItem>
-                      ))}
+                      ) : (
+                        clientes.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.label}
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -195,30 +244,7 @@ export function ContratoFormDialog({ open, onOpenChange, propiedades, clientes, 
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="locador_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Locador</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value || undefined}>
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Seleccioná propietario (locador)" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent position="popper" className={DIALOG_SELECT_CONTENT_CLASS}>
-                      {locadores.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <input type="hidden" {...form.register("locador_id")} />
 
             <FormField
               control={form.control}

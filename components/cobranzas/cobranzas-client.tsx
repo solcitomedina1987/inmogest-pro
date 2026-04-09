@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Calculator, Eye, FileText, Loader2, Trash2 } from "lucide-react";
+import { AlertTriangle, Calculator, Eye, FileText, Loader2, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { eliminarContratoCobranza } from "@/app/actions/cobranzas";
 import type { ContratoCobranzaRow, PagoRow } from "@/lib/cobranzas/types";
@@ -26,7 +26,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { AlquileresContratosFiltros } from "@/components/cobranzas/alquileres-contratos-filtros";
-import { ContratoFormDialog, type SelectOption } from "@/components/cobranzas/contrato-form-dialog";
+import { EditarContratoDialog } from "@/components/cobranzas/editar-contrato-dialog";
+import {
+  ContratoFormDialog,
+  type PropiedadSelectContrato,
+  type SelectOption,
+} from "@/components/cobranzas/contrato-form-dialog";
 import { ActualizacionEstimadaDialog } from "@/components/shared/actualizacion-estimada-dialog";
 import {
   AlertDialog,
@@ -117,9 +122,8 @@ function badgeEstado(visual: EstadoVisualCobranza) {
 type Props = {
   contratos: ContratoCobranzaRow[];
   pagosMesActual: PagoRow[];
-  propiedades: SelectOption[];
+  propiedades: PropiedadSelectContrato[];
   clientes: SelectOption[];
-  locadores: SelectOption[];
   /** YYYY-MM del mes calendario usado para destacar actualizaciones (ej. pagos del mes). */
   mesPeriodoReferencia: string;
   calculatorConfigured: boolean;
@@ -131,13 +135,13 @@ export function CobranzasClient({
   pagosMesActual,
   propiedades,
   clientes,
-  locadores,
   mesPeriodoReferencia,
   calculatorConfigured,
   filtros,
 }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [editarContrato, setEditarContrato] = useState<ContratoCobranzaRow | null>(null);
   const [navigatingId, setNavigatingId] = useState<string | null>(null);
   const [estimadaOpen, setEstimadaOpen] = useState(false);
   const [estimadaLoading, setEstimadaLoading] = useState(false);
@@ -271,7 +275,7 @@ export function CobranzasClient({
                     <TableHead className="text-right">Monto / mes</TableHead>
                     <TableHead>Estado cobro</TableHead>
                     <TableHead>Contrato</TableHead>
-                    <TableHead className="w-[88px] text-center">Acciones</TableHead>
+                    <TableHead className="w-[120px] text-center">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -349,6 +353,23 @@ export function CobranzasClient({
                         </TableCell>
                         <TableCell className="text-center">
                           <div className="flex items-center justify-center gap-0.5">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="size-8"
+                                    aria-label="Editar contrato"
+                                    disabled={eliminado}
+                                    onClick={() => setEditarContrato(c)}
+                                  >
+                                    <Pencil className="size-4" aria-hidden />
+                                  </Button>
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent>Editar contrato</TooltipContent>
+                            </Tooltip>
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Button
@@ -439,13 +460,19 @@ export function CobranzasClient({
         mesPeriodo={estimadaMesPeriodo}
       />
 
-      <ContratoFormDialog
-        open={open}
-        onOpenChange={setOpen}
-        propiedades={propiedades}
-        clientes={clientes}
-        locadores={locadores}
-      />
+      <ContratoFormDialog open={open} onOpenChange={setOpen} propiedades={propiedades} clientes={clientes} />
+
+      {editarContrato ? (
+        <EditarContratoDialog
+          open={!!editarContrato}
+          onOpenChange={(o) => {
+            if (!o) {
+              setEditarContrato(null);
+            }
+          }}
+          contrato={editarContrato}
+        />
+      ) : null}
     </div>
     </TooltipProvider>
   );

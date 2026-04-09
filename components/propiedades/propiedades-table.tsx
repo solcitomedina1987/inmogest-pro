@@ -49,11 +49,10 @@ function labelTipo(t: string) {
 type Props = {
   rows: PropiedadListRow[];
   propietarios: PersonaOption[];
-  clientes: PersonaOption[];
   children?: ReactNode;
 };
 
-export function PropiedadesTable({ rows, propietarios, clientes, children }: Props) {
+export function PropiedadesTable({ rows, propietarios, children }: Props) {
   const router = useRouter();
   const [q, setQ] = useState("");
   const [filtroTipo, setFiltroTipo] = useState<string>("todas");
@@ -116,18 +115,12 @@ export function PropiedadesTable({ rows, propietarios, clientes, children }: Pro
   return (
     <>
       <div className="flex max-w-full min-w-0 flex-col gap-8">
-        <header className="flex max-w-full flex-col gap-3">
-          <div className="flex flex-row items-center justify-between gap-3">
-            <h1 className="text-2xl font-semibold tracking-tight">Propiedades</h1>
-            <Button type="button" className="shrink-0 gap-2" onClick={openCreate}>
-              <Home className="size-4" aria-hidden />
-              Nueva propiedad
-            </Button>
-          </div>
-          <p className="text-muted-foreground text-sm">
-            Inmuebles activos. Si el estado es <strong>Alquilada</strong>, se muestra el inquilino vinculado en la
-            ficha. La columna Cobros enlaza al contrato de alquiler cuando existe.
-          </p>
+        <header className="flex max-w-full flex-row items-center justify-between gap-3">
+          <h1 className="text-2xl font-semibold tracking-tight">Propiedades</h1>
+          <Button type="button" className="shrink-0 gap-2" onClick={openCreate}>
+            <Home className="size-4" aria-hidden />
+            Nueva propiedad
+          </Button>
         </header>
 
         {children ? <div className="flex flex-col gap-8">{children}</div> : null}
@@ -360,7 +353,6 @@ export function PropiedadesTable({ rows, propietarios, clientes, children }: Pro
         onOpenChange={setOpen}
         editing={editing}
         propietarios={propietarios}
-        clientes={clientes}
       />
 
       <PropiedadVistaPreviaDialog

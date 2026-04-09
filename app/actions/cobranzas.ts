@@ -4,10 +4,13 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/supabase/require-admin";
 import { mesPeriodoActual } from "@/lib/cobranzas/estado-contrato";
 import { mesesPeriodoEntreFechasContrato } from "@/lib/cobranzas/meses-contrato";
+import { ESTADO_PROPIEDAD_CARTEL_ALQUILER } from "@/lib/constants/propiedades";
 import { contratoCobranzaSchema } from "@/lib/validations/contrato-cobranza";
 import { registroPagoSchema, editarPagoSchema } from "@/lib/validations/registro-pago";
 import { updateContratoCobranzaSchema } from "@/lib/validations/update-contrato-cobranza";
 import { crearEventosContrato, googleCalendarConfigurado } from "@/lib/google/calendar";
+
+const ESTADO_PROPIEDAD_CONTRATO_VIGENTE = "Alquilada";
 
 export type CobranzaActionResult = { ok: true } | { ok: false; error: string };
 
@@ -29,6 +32,28 @@ export async function createContratoCobranza(input: unknown): Promise<CobranzaAc
   }
 
   const v = parsed.data;
+
+  const { data: propiedadRow, error: propErr } = await supabase
+    .from("propiedades")
+    .select("id, estado, propietario_id")
+    .eq("id", v.propiedad_id)
+    .maybeSingle();
+
+  if (propErr || !propiedadRow) {
+    return { ok: false, error: propErr?.message ?? "Propiedad no encontrada." };
+  }
+  if (propiedadRow.estado !== ESTADO_PROPIEDAD_CARTEL_ALQUILER) {
+    return {
+      ok: false,
+      error: "La propiedad no está disponible para un nuevo contrato (debe estar en cartel / sin alquiler activo).",
+    };
+  }
+  if (propiedadRow.propietario_id !== v.locador_id) {
+    return {
+      ok: false,
+      error: "El locador debe coincidir con el propietario registrado en la propiedad.",
+    };
+  }
 
   const { data: created, error: insErr } = await supabase
     .from("contratos_cobranza")
@@ -65,6 +90,15 @@ export async function createContratoCobranza(input: unknown): Promise<CobranzaAc
     if (pagoErr) {
       return { ok: false, error: pagoErr.message };
     }
+  }
+
+  const { error: propUpErr } = await supabase
+    .from("propiedades")
+    .update({ estado: ESTADO_PROPIEDAD_CONTRATO_VIGENTE, cliente_id: v.cliente_id })
+    .eq("id", v.propiedad_id);
+
+  if (propUpErr) {
+    return { ok: false, error: propUpErr.message };
   }
 
   // ── Google Calendar: crear eventos de vencimiento y actualizaciones ────────
@@ -106,6 +140,7 @@ export async function createContratoCobranza(input: unknown): Promise<CobranzaAc
   }
 
   revalidatePath("/dashboard/cobranzas");
+  revalidatePath("/dashboard/propiedades");
   return { ok: true };
 }
 
@@ -276,7 +311,7 @@ export async function updateContract(input: unknown): Promise<CobranzaActionResu
 
   const { data: existente, error: exErr } = await supabase
     .from("contratos_cobranza")
-    .select("id, fecha_inicio, monto_mensual, deleted_at")
+    .select("id, fecha_inicio, monto_mensual, deleted_at, propiedad_id, cliente_id")
     .eq("id", v.contrato_id)
     .maybeSingle();
 
@@ -315,6 +350,26 @@ export async function updateContract(input: unknown): Promise<CobranzaActionResu
     return { ok: false, error: upErr.message };
   }
 
+  const propId = existente.propiedad_id as string;
+  const cliId = existente.cliente_id as string;
+  if (v.is_active) {
+    const { error: propSyncErr } = await supabase
+      .from("propiedades")
+      .update({ estado: ESTADO_PROPIEDAD_CONTRATO_VIGENTE, cliente_id: cliId })
+      .eq("id", propId);
+    if (propSyncErr) {
+      return { ok: false, error: propSyncErr.message };
+    }
+  } else {
+    const { error: propSyncErr } = await supabase
+      .from("propiedades")
+      .update({ estado: ESTADO_PROPIEDAD_CARTEL_ALQUILER, cliente_id: null })
+      .eq("id", propId);
+    if (propSyncErr) {
+      return { ok: false, error: propSyncErr.message };
+    }
+  }
+
   if (montoCambio) {
     const mes = mesPeriodoActual();
     const builder = () =>
@@ -336,6 +391,7 @@ export async function updateContract(input: unknown): Promise<CobranzaActionResu
   revalidatePath("/dashboard/cobranzas");
   revalidatePath(`/dashboard/cobranzas/${v.contrato_id}`);
   revalidatePath("/dashboard");
+  revalidatePath("/dashboard/propiedades");
   return { ok: true };
 }
 
@@ -358,7 +414,7 @@ export async function eliminarContratoCobranza(contratoId: string): Promise<Cobr
 
   const { data: row, error: exErr } = await supabase
     .from("contratos_cobranza")
-    .select("id, deleted_at")
+    .select("id, deleted_at, propiedad_id")
     .eq("id", contratoId)
     .maybeSingle();
 
@@ -380,6 +436,17 @@ export async function eliminarContratoCobranza(contratoId: string): Promise<Cobr
 
   if (upErr) {
     return { ok: false, error: upErr.message };
+  }
+
+  const pid = row.propiedad_id as string | null;
+  if (pid) {
+    const { error: propSyncErr } = await supabase
+      .from("propiedades")
+      .update({ estado: ESTADO_PROPIEDAD_CARTEL_ALQUILER, cliente_id: null })
+      .eq("id", pid);
+    if (propSyncErr) {
+      return { ok: false, error: propSyncErr.message };
+    }
   }
 
   revalidatePath("/dashboard/cobranzas");

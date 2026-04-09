@@ -146,10 +146,9 @@ export default async function DashboardPropiedadesPage() {
     telefono: (r.telefono as string) ?? null,
   }));
   const propietariosOpts = todas.filter((p) => p.tipo_cliente === "Propietario" || p.tipo_cliente === "Ambos");
-  const inquilinosOpts = todas.filter((p) => p.tipo_cliente === "Inquilino" || p.tipo_cliente === "Ambos");
 
   return (
-    <PropiedadesTable rows={rows} propietarios={propietariosOpts} clientes={inquilinosOpts}>
+    <PropiedadesTable rows={rows} propietarios={propietariosOpts}>
       <Suspense fallback={<ExecutiveDashboardSkeleton />}>
         <ExecutiveDashboardPanel />
       </Suspense>

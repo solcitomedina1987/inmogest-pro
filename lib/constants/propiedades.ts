@@ -15,6 +15,9 @@ export const TIPO_PROPIEDAD_VALUES = [
   "Otro",
 ] as const;
 
+/** Disponible en cartel / sin contrato activo que la ocupe (equivalente operativo a “activa” para nuevos alquileres). */
+export const ESTADO_PROPIEDAD_CARTEL_ALQUILER = "Alquiler";
+
 export const ESTADO_PROPIEDAD_VALUES = [
   "Alquiler",
   "Alquilada",
