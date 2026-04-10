@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Building2 } from "lucide-react";
-import { BrandLogo } from "@/components/brand/brand-logo";
+import { BRAND_PORTAL_HEADER } from "@/lib/constants/branding";
 import { LogoutButton } from "@/components/dashboard/logout-button";
 
 type Props = {
@@ -14,7 +14,9 @@ export function PropietarioHeader({ nombre }: Props) {
         <Link href="/propietarios/dashboard" className="inline-flex items-center gap-3 min-w-0">
           <Building2 className="size-7 shrink-0 text-sky-700" aria-hidden />
           <div className="min-w-0">
-            <BrandLogo className="h-6 max-w-[200px] w-auto object-contain object-left" />
+            <p className="truncate font-semibold tracking-tight text-foreground text-lg leading-tight">
+              {BRAND_PORTAL_HEADER}
+            </p>
             <p className="text-muted-foreground truncate text-xs mt-0.5">
               Portal propietarios{nombre ? ` · ${nombre}` : ""}
             </p>

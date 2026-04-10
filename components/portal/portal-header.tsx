@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut, Loader2, UserRound } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { BrandLogo } from "@/components/brand/brand-logo";
+import { BRAND_PORTAL_HEADER } from "@/lib/constants/branding";
 import { Button } from "@/components/ui/button";
 type Props = {
   nombreInquilino?: string;
@@ -28,7 +28,9 @@ export function PortalHeader({ nombreInquilino }: Props) {
         <Link href="/portal" className="inline-flex min-w-0 items-center gap-3">
           <UserRound className="size-7 shrink-0 text-emerald-700" aria-hidden />
           <div className="min-w-0">
-            <BrandLogo className="h-6 max-w-[200px] w-auto object-contain object-left" />
+            <p className="truncate font-semibold tracking-tight text-foreground text-lg leading-tight">
+              {BRAND_PORTAL_HEADER}
+            </p>
             <p className="text-muted-foreground mt-0.5 truncate text-xs">
               Portal inquilinos{nombreInquilino ? ` · ${nombreInquilino}` : ""}
             </p>
