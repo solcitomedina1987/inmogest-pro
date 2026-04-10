@@ -16,6 +16,8 @@ export type PropiedadListRow = {
   tipo: string;
   estado: string;
   direccion: string;
+  ciudad: string | null;
+  provincia: string | null;
   dormitorios: number;
   banos: number;
   m2_totales: number;

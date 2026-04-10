@@ -76,13 +76,17 @@ function fromRow(row: ClienteListRow): ClienteFormValues {
   };
 }
 
+export type ClienteCreatedPayload = { id: string; label: string };
+
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editing: ClienteListRow | null;
+  /** Tras crear un cliente (no en edición); útil para precargar selectores sin cerrar el flujo padre. */
+  onClienteCreated?: (payload: ClienteCreatedPayload) => void;
 };
 
-export function ClienteFormDialog({ open, onOpenChange, editing }: Props) {
+export function ClienteFormDialog({ open, onOpenChange, editing, onClienteCreated }: Props) {
   const router = useRouter();
   const [actionError, setActionError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -112,6 +116,10 @@ export function ClienteFormDialog({ open, onOpenChange, editing }: Props) {
         return;
       }
       toast.success(editing ? "Cliente actualizado." : "Cliente creado.");
+      if (!editing && res.id && onClienteCreated) {
+        const label = `${values.nombre_completo.trim()}${values.email?.trim() ? ` · ${values.email.trim()}` : ` · DNI ${values.dni}`}`;
+        onClienteCreated({ id: res.id, label });
+      }
       onOpenChange(false);
       router.refresh();
     });

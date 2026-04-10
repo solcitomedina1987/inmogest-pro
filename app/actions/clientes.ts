@@ -7,7 +7,7 @@ import { requireAdmin } from "@/lib/supabase/require-admin";
 import { ERROR_CONTRATO_VIGENTE_INQUILINO, type DeactivateClienteResult } from "@/lib/clientes/deactivate-cliente";
 import { clienteFormSchema, toClienteInsertPayload } from "@/lib/validations/cliente";
 
-export type ClienteActionResult = { ok: true } | { ok: false; error: string };
+export type ClienteActionResult = { ok: true; id?: string } | { ok: false; error: string };
 
 const idSchema = z.string().uuid();
 
@@ -32,18 +32,22 @@ export async function createCliente(input: unknown): Promise<ClienteActionResult
     return { ok: false, error: first };
   }
   const row = toClienteInsertPayload(parsed.data);
-  const { error } = await gate.supabase.from("clientes").insert({
-    ...row,
-    dni: Number(row.dni),
-    is_active: true,
-  });
+  const { data: inserted, error } = await gate.supabase
+    .from("clientes")
+    .insert({
+      ...row,
+      dni: Number(row.dni),
+      is_active: true,
+    })
+    .select("id")
+    .single();
   if (error) {
     return { ok: false, error: error.message };
   }
   revalidatePath("/dashboard/clientes");
   revalidatePath("/dashboard/propiedades");
   revalidatePath("/dashboard/cobranzas");
-  return { ok: true };
+  return { ok: true, id: inserted?.id as string };
 }
 
 export async function updateCliente(input: unknown): Promise<ClienteActionResult> {

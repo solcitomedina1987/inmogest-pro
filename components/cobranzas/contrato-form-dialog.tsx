@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, type Resolver } from "react-hook-form";
@@ -36,6 +36,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ClienteFormDialog } from "@/components/clientes/cliente-form-dialog";
 
 const DIALOG_SELECT_CONTENT_CLASS =
   "z-[300] max-h-[min(18rem,var(--radix-select-content-available-height))]";
@@ -87,6 +88,19 @@ export function ContratoFormDialog({ open, onOpenChange, propiedades, clientes }
   const router = useRouter();
   const [actionError, setActionError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [nuevoClienteOpen, setNuevoClienteOpen] = useState(false);
+  const [inquilinosExtra, setInquilinosExtra] = useState<SelectOption[]>([]);
+
+  const opcionesInquilinos = useMemo(() => {
+    const byId = new Map<string, SelectOption>();
+    for (const c of clientes) {
+      byId.set(c.id, c);
+    }
+    for (const c of inquilinosExtra) {
+      byId.set(c.id, c);
+    }
+    return [...byId.values()];
+  }, [clientes, inquilinosExtra]);
 
   const form = useForm<ContratoCobranzaFormValues>({
     resolver: zodResolver(contratoCobranzaSchema) as Resolver<ContratoCobranzaFormValues>,
@@ -98,6 +112,7 @@ export function ContratoFormDialog({ open, onOpenChange, propiedades, clientes }
       return;
     }
     setActionError(null);
+    setInquilinosExtra([]);
     const hoy = new Date();
     const fi = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-${String(hoy.getDate()).padStart(2, "0")}`;
     form.reset({
@@ -149,6 +164,7 @@ export function ContratoFormDialog({ open, onOpenChange, propiedades, clientes }
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
@@ -218,7 +234,18 @@ export function ContratoFormDialog({ open, onOpenChange, propiedades, clientes }
               name="cliente_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Inquilino</FormLabel>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <FormLabel className="mb-0">Inquilino</FormLabel>
+                    <Button
+                      type="button"
+                      variant="link"
+                      size="sm"
+                      className="h-auto shrink-0 px-0 text-sm"
+                      onClick={() => setNuevoClienteOpen(true)}
+                    >
+                      + Agregar nuevo inquilino
+                    </Button>
+                  </div>
                   <Select onValueChange={field.onChange} value={field.value || undefined}>
                     <FormControl>
                       <SelectTrigger className="w-full">
@@ -226,12 +253,12 @@ export function ContratoFormDialog({ open, onOpenChange, propiedades, clientes }
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent position="popper" className={DIALOG_SELECT_CONTENT_CLASS}>
-                      {clientes.length === 0 ? (
+                      {opcionesInquilinos.length === 0 ? (
                         <SelectItem value="__sin_inq__" disabled>
                           Sin inquilinos disponibles (sin contrato activo)
                         </SelectItem>
                       ) : (
-                        clientes.map((p) => (
+                        opcionesInquilinos.map((p) => (
                           <SelectItem key={p.id} value={p.id}>
                             {p.label}
                           </SelectItem>
@@ -380,5 +407,17 @@ export function ContratoFormDialog({ open, onOpenChange, propiedades, clientes }
         </Form>
       </DialogContent>
     </Dialog>
+    <ClienteFormDialog
+      open={nuevoClienteOpen}
+      onOpenChange={setNuevoClienteOpen}
+      editing={null}
+      onClienteCreated={(payload) => {
+        setInquilinosExtra((prev) =>
+          prev.some((p) => p.id === payload.id) ? prev : [...prev, { id: payload.id, label: payload.label }],
+        );
+        form.setValue("cliente_id", payload.id, { shouldValidate: true });
+      }}
+    />
+    </>
   );
 }

@@ -5,6 +5,8 @@ export const propiedadFormClientSchema = z
   .object({
     nombre: z.string().min(1, "El nombre es obligatorio"),
     direccion: z.string().min(1, "La dirección es obligatoria"),
+    ciudad: z.string().optional(),
+    provincia: z.string().optional(),
     valor: z.coerce.number().positive("El valor debe ser mayor a 0"),
     tipo: z.enum(TIPO_PROPIEDAD_VALUES),
     estado: z.enum(ESTADO_PROPIEDAD_VALUES),
@@ -30,6 +32,8 @@ export function toPropiedadDbPayload(values: PropiedadFormClientValues) {
   return {
     nombre: values.nombre.trim(),
     direccion: values.direccion.trim(),
+    ciudad: values.ciudad?.trim() || null,
+    provincia: values.provincia?.trim() || null,
     valor: values.valor,
     tipo: values.tipo,
     estado: values.estado,
@@ -49,6 +53,8 @@ export function parsePropiedadFormData(formData: FormData) {
   const raw = {
     nombre: formData.get("nombre"),
     direccion: formData.get("direccion"),
+    ciudad: formData.get("ciudad") || "",
+    provincia: formData.get("provincia") || "",
     valor: formData.get("valor"),
     tipo: formData.get("tipo"),
     estado: formData.get("estado"),

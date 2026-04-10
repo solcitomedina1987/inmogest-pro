@@ -60,6 +60,8 @@ function personaSubtitle(p: PersonaOption) {
 const defaults: PropiedadFormClientValues = {
   nombre: "",
   direccion: "",
+  ciudad: "",
+  provincia: "",
   valor: 0,
   tipo: "Casa",
   estado: "Consultar",
@@ -76,6 +78,8 @@ function rowToFormValues(row: PropiedadListRow): PropiedadFormClientValues {
   return {
     nombre: row.nombre,
     direccion: row.direccion,
+    ciudad: row.ciudad ?? "",
+    provincia: row.provincia ?? "",
     valor: Number(row.valor),
     tipo: row.tipo as PropiedadFormClientValues["tipo"],
     estado: row.estado as PropiedadFormClientValues["estado"],
@@ -214,6 +218,8 @@ export function PropiedadFormDialog({ open, onOpenChange, editing, propietarios 
     const fd = new FormData();
     fd.append("nombre", values.nombre);
     fd.append("direccion", values.direccion);
+    fd.append("ciudad", values.ciudad ?? "");
+    fd.append("provincia", values.provincia ?? "");
     fd.append("valor", String(values.valor));
     fd.append("tipo", values.tipo);
     fd.append("estado", values.estado);
@@ -336,6 +342,35 @@ export function PropiedadFormDialog({ open, onOpenChange, editing, propietarios 
                 </FormItem>
               )}
             />
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="ciudad"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Ciudad</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Opcional" autoComplete="address-level2" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="provincia"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Provincia</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Opcional" autoComplete="address-level1" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <FormField
               control={form.control}

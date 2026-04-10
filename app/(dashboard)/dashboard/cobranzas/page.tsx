@@ -7,6 +7,7 @@ import { CobranzasClient } from "@/components/cobranzas/cobranzas-client";
 import type { PropiedadSelectContrato, SelectOption } from "@/components/cobranzas/contrato-form-dialog";
 import { ESTADO_PROPIEDAD_CARTEL_ALQUILER } from "@/lib/constants/propiedades";
 import { isCalculatorConfigured } from "@/lib/services/calculator";
+import { getExecutiveDashboardData } from "@/app/actions/dashboard-metrics";
 
 export const metadata: Metadata = {
   title: "Alquileres",
@@ -201,6 +202,8 @@ export default async function DashboardCobranzasPage({ searchParams }: PageProps
     };
   });
 
+  const widgetsData = await getExecutiveDashboardData();
+
   const personas = personasRows ?? [];
   const clientes: SelectOption[] = personas
     .filter((p) => p.tipo_cliente === "Inquilino" || p.tipo_cliente === "Ambos")
@@ -222,6 +225,7 @@ export default async function DashboardCobranzasPage({ searchParams }: PageProps
         clientes={clientes}
         mesPeriodoReferencia={mes}
         calculatorConfigured={isCalculatorConfigured()}
+        widgetsData={widgetsData}
         filtros={{
           q: qRaw,
           incluirEliminados,

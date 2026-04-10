@@ -55,6 +55,7 @@ type Props = {
 export function PropiedadesTable({ rows, propietarios, children }: Props) {
   const router = useRouter();
   const [q, setQ] = useState("");
+  const [ciudadQ, setCiudadQ] = useState("");
   const [filtroTipo, setFiltroTipo] = useState<string>("todas");
   const [filtroEstado, setFiltroEstado] = useState<string>("todos");
   const [open, setOpen] = useState(false);
@@ -66,9 +67,16 @@ export function PropiedadesTable({ rows, propietarios, children }: Props) {
 
   const filtradas = useMemo(() => {
     const nq = q.trim().toLowerCase();
+    const cq = ciudadQ.trim().toLowerCase();
     return rows.filter((r) => {
       if (nq && !r.nombre.toLowerCase().includes(nq)) {
         return false;
+      }
+      if (cq) {
+        const city = (r.ciudad ?? "").trim().toLowerCase();
+        if (!city.includes(cq)) {
+          return false;
+        }
       }
       if (filtroTipo !== "todas" && r.tipo !== filtroTipo) {
         return false;
@@ -78,10 +86,11 @@ export function PropiedadesTable({ rows, propietarios, children }: Props) {
       }
       return true;
     });
-  }, [rows, q, filtroTipo, filtroEstado]);
+  }, [rows, q, ciudadQ, filtroTipo, filtroEstado]);
 
   function limpiarFiltros() {
     setQ("");
+    setCiudadQ("");
     setFiltroTipo("todas");
     setFiltroEstado("todos");
   }
@@ -146,6 +155,15 @@ export function PropiedadesTable({ rows, propietarios, children }: Props) {
                     value={q}
                     onChange={(e) => setQ(e.target.value)}
                     aria-label="Buscar por nombre"
+                  />
+                </div>
+                <div className="relative min-w-[180px] flex-1 sm:max-w-[220px]">
+                  <Input
+                    placeholder="Filtrar por ciudad…"
+                    value={ciudadQ}
+                    onChange={(e) => setCiudadQ(e.target.value)}
+                    aria-label="Filtrar por ciudad"
+                    autoComplete="off"
                   />
                 </div>
                 <div className="w-full space-y-1.5 sm:w-48">

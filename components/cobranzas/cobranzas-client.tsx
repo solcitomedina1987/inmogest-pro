@@ -45,6 +45,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { ExecutiveWidgetsGrid } from "@/components/dashboard/executive-widgets-grid";
+import type { ExecutiveDashboardData } from "@/app/actions/dashboard-metrics";
 
 const precioFmt = new Intl.NumberFormat("es-AR", {
   style: "currency",
@@ -127,6 +129,7 @@ type Props = {
   /** YYYY-MM del mes calendario usado para destacar actualizaciones (ej. pagos del mes). */
   mesPeriodoReferencia: string;
   calculatorConfigured: boolean;
+  widgetsData: ExecutiveDashboardData | null;
   filtros: { q: string; incluirEliminados: boolean };
 };
 
@@ -137,6 +140,7 @@ export function CobranzasClient({
   clientes,
   mesPeriodoReferencia,
   calculatorConfigured,
+  widgetsData,
   filtros,
 }: Props) {
   const router = useRouter();
@@ -241,6 +245,8 @@ export function CobranzasClient({
           </Button>
         </div>
       </div>
+
+      {widgetsData ? <ExecutiveWidgetsGrid data={widgetsData} /> : null}
 
       <AlquileresContratosFiltros
         defaultQ={filtros.q}
