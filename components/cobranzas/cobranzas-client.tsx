@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Calculator, FileText, Loader2, Pencil, ScrollText, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -25,7 +26,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { AlquileresContratosFiltros } from "@/components/cobranzas/alquileres-contratos-filtros";
+import {
+  AlquileresContratosFiltros,
+  type EstadoCobroFiltro,
+  type PropietarioFiltroOption,
+} from "@/components/cobranzas/alquileres-contratos-filtros";
 import { EditarContratoDialog } from "@/components/cobranzas/editar-contrato-dialog";
 import {
   ContratoFormDialog,
@@ -102,6 +107,20 @@ function contratoTieneEstimacionEnMesReferencia(
   return mesPeriodoDesdeFecha(proxIso) === mesReferencia;
 }
 
+function filtraPorEstadoCobro(
+  c: ContratoCobranzaRow,
+  pago: PagoRow | undefined,
+  filtro: EstadoCobroFiltro,
+): boolean {
+  if (filtro === "todos") return true;
+  if (c.deleted_at || !c.is_active) return false;
+  const visual = estadoCobranzaContrato(c.dia_limite_pago, toPagoMesInfo(pago));
+  if (filtro === "pagado") return visual === "al_dia";
+  if (filtro === "pendiente") return visual === "pendiente";
+  if (filtro === "atrasado") return visual === "en_mora";
+  return true;
+}
+
 function badgeEstado(visual: EstadoVisualCobranza) {
   if (visual === "al_dia") {
     return (
@@ -126,11 +145,12 @@ type Props = {
   pagosMesActual: PagoRow[];
   propiedades: PropiedadSelectContrato[];
   clientes: SelectOption[];
+  propietariosFiltro: PropietarioFiltroOption[];
   /** YYYY-MM del mes calendario usado para destacar actualizaciones (ej. pagos del mes). */
   mesPeriodoReferencia: string;
   calculatorConfigured: boolean;
   widgetsData: ExecutiveDashboardData | null;
-  filtros: { q: string; incluirEliminados: boolean };
+  incluirEliminados: boolean;
 };
 
 export function CobranzasClient({
@@ -138,10 +158,11 @@ export function CobranzasClient({
   pagosMesActual,
   propiedades,
   clientes,
+  propietariosFiltro,
   mesPeriodoReferencia,
   calculatorConfigured,
   widgetsData,
-  filtros,
+  incluirEliminados,
 }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -155,6 +176,14 @@ export function CobranzasClient({
   const [eliminarId, setEliminarId] = useState<string | null>(null);
   const [eliminando, startEliminar] = useTransition();
   const mes = mesPeriodoActual();
+
+  const [direccionInput, setDireccionInput] = useState("");
+  const [inquilinoInput, setInquilinoInput] = useState("");
+  const [propietarioId, setPropietarioId] = useState("");
+  const [estadoCobro, setEstadoCobro] = useState<EstadoCobroFiltro>("todos");
+
+  const direccionDebounced = useDebouncedValue(direccionInput, 300);
+  const inquilinoDebounced = useDebouncedValue(inquilinoInput, 300);
 
   function confirmarEliminar() {
     if (!eliminarId) return;
@@ -227,6 +256,25 @@ export function CobranzasClient({
     return m;
   }, [pagosMesActual, mes]);
 
+  const contratosFiltrados = useMemo(() => {
+    const d = direccionDebounced.trim().toLowerCase();
+    const inq = inquilinoDebounced.trim().toLowerCase();
+    return contratos.filter((c) => {
+      if (d) {
+        const dir = (c.propiedad?.direccion ?? "").toLowerCase();
+        if (!dir.includes(d)) return false;
+      }
+      if (inq) {
+        const nombre = (c.inquilino?.nombre_completo ?? "").toLowerCase();
+        if (!nombre.includes(inq)) return false;
+      }
+      if (propietarioId && c.locador_id !== propietarioId) return false;
+      const pago = pagosMap.get(c.id);
+      if (!filtraPorEstadoCobro(c, pago, estadoCobro)) return false;
+      return true;
+    });
+  }, [contratos, direccionDebounced, inquilinoDebounced, propietarioId, estadoCobro, pagosMap]);
+
   return (
     <TooltipProvider delayDuration={300}>
     <div className="flex max-w-full min-w-0 flex-col gap-8">
@@ -249,8 +297,16 @@ export function CobranzasClient({
       {widgetsData ? <ExecutiveWidgetsGrid data={widgetsData} /> : null}
 
       <AlquileresContratosFiltros
-        defaultQ={filtros.q}
-        incluirEliminados={filtros.incluirEliminados}
+        direccion={direccionInput}
+        onDireccionChange={setDireccionInput}
+        inquilino={inquilinoInput}
+        onInquilinoChange={setInquilinoInput}
+        propietarioId={propietarioId}
+        onPropietarioIdChange={setPropietarioId}
+        propietarios={propietariosFiltro}
+        estadoCobro={estadoCobro}
+        onEstadoCobroChange={setEstadoCobro}
+        incluirEliminados={incluirEliminados}
       />
 
       <Card className="border shadow-sm">
@@ -264,9 +320,11 @@ export function CobranzasClient({
         <CardContent>
           {contratos.length === 0 ? (
             <p className="text-muted-foreground py-8 text-center text-sm">
-              {filtros.q.trim() || filtros.incluirEliminados
-                ? "No hay contratos que coincidan con los filtros. Probá otro texto o destildá opciones."
-                : "No hay contratos registrados. Creá uno con el botón superior."}
+              No hay contratos registrados. Creá uno con el botón superior.
+            </p>
+          ) : contratosFiltrados.length === 0 ? (
+            <p className="text-muted-foreground py-8 text-center text-sm">
+              No se encontraron cobranzas que coincidan con los filtros.
             </p>
           ) : (
             <div className="max-w-full overflow-x-auto">
@@ -285,7 +343,7 @@ export function CobranzasClient({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {contratos.map((c) => {
+                  {contratosFiltrados.map((c) => {
                     const pago = pagosMap.get(c.id);
                     const visual = estadoCobranzaContrato(c.dia_limite_pago, toPagoMesInfo(pago));
                     const eliminado = c.deleted_at != null;

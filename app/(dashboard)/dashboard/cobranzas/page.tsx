@@ -41,7 +41,7 @@ function normalizeContratoRow(row: Record<string, unknown>): ContratoCobranzaRow
   };
 }
 
-type PageProps = { searchParams: Promise<{ q?: string; eliminados?: string }> };
+type PageProps = { searchParams: Promise<{ eliminados?: string }> };
 
 export default async function DashboardCobranzasPage({ searchParams }: PageProps) {
   const supabase = await createClient();
@@ -60,7 +60,6 @@ export default async function DashboardCobranzasPage({ searchParams }: PageProps
   }
 
   const sp = await searchParams;
-  const qRaw = (sp.q ?? "").trim();
   const incluirEliminados = sp.eliminados === "1";
 
   let queryContratos = supabase
@@ -96,18 +95,7 @@ export default async function DashboardCobranzasPage({ searchParams }: PageProps
   const { data: contratosRaw, error: cErr } = await queryContratos;
 
   const mes = mesPeriodoActual();
-  let contratos = (contratosRaw ?? []).map((r) => normalizeContratoRow(r as Record<string, unknown>));
-
-  if (qRaw) {
-    const ql = qRaw.toLowerCase();
-    contratos = contratos.filter((c) => {
-      const dir = (c.propiedad?.direccion ?? "").toLowerCase();
-      const nom = (c.propiedad?.nombre ?? "").toLowerCase();
-      const inq = (c.inquilino?.nombre_completo ?? "").toLowerCase();
-      const loc = (c.locador?.nombre_completo ?? "").toLowerCase();
-      return dir.includes(ql) || nom.includes(ql) || inq.includes(ql) || loc.includes(ql);
-    });
-  }
+  const contratos = (contratosRaw ?? []).map((r) => normalizeContratoRow(r as Record<string, unknown>));
   const ids = contratos.map((c) => c.id);
 
   let pagosMes: PagoRow[] = [];
@@ -205,6 +193,15 @@ export default async function DashboardCobranzasPage({ searchParams }: PageProps
   const widgetsData = await getExecutiveDashboardData();
 
   const personas = personasRows ?? [];
+
+  const propietariosFiltro = personas
+    .filter((p) => p.tipo_cliente === "Propietario" || p.tipo_cliente === "Ambos")
+    .map((p) => ({
+      id: p.id as string,
+      label: ((p.nombre_completo as string) ?? "").trim() || "—",
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label, "es"));
+
   const clientes: SelectOption[] = personas
     .filter((p) => p.tipo_cliente === "Inquilino" || p.tipo_cliente === "Ambos")
     .filter((p) => !clientesConContratoActivo.has(p.id as string))
@@ -223,13 +220,11 @@ export default async function DashboardCobranzasPage({ searchParams }: PageProps
         pagosMesActual={pagosMes}
         propiedades={propiedades}
         clientes={clientes}
+        propietariosFiltro={propietariosFiltro}
         mesPeriodoReferencia={mes}
         calculatorConfigured={isCalculatorConfigured()}
         widgetsData={widgetsData}
-        filtros={{
-          q: qRaw,
-          incluirEliminados,
-        }}
+        incluirEliminados={incluirEliminados}
       />
     </div>
   );
