@@ -186,7 +186,7 @@ export function ContratoLocacionFormDialog({
   const readOnly = rescindido;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange} modal={false}>
       <DialogContent className="max-h-[min(92vh,880px)] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{editing ? "Editar contrato" : "Nuevo contrato de locación"}</DialogTitle>
@@ -211,6 +211,16 @@ export function ContratoLocacionFormDialog({
               </Alert>
             ) : null}
 
+            {!readOnly && !editing && propiedades.length === 0 ? (
+              <Alert>
+                <AlertTitle>Sin propiedades disponibles</AlertTitle>
+                <AlertDescription>
+                  No hay inmuebles en cartel (estado &quot;Alquiler&quot;). En Propiedades, poné el estado en
+                  alquiler para los que quieras vincular a un contrato nuevo.
+                </AlertDescription>
+              </Alert>
+            ) : null}
+
             <FormField
               control={form.control}
               name="propiedad_id"
@@ -218,7 +228,7 @@ export function ContratoLocacionFormDialog({
                 <FormItem>
                   <FormLabel>Propiedad</FormLabel>
                   <Select
-                    disabled={readOnly || !!editing}
+                    disabled={readOnly || !!editing || propiedades.length === 0}
                     onValueChange={field.onChange}
                     value={field.value || undefined}
                   >
@@ -227,7 +237,7 @@ export function ContratoLocacionFormDialog({
                         <SelectValue placeholder="Seleccioná propiedad" />
                       </SelectTrigger>
                     </FormControl>
-                    <SelectContent position="popper" className={DIALOG_SELECT_CONTENT_CLASS}>
+                    <SelectContent className={DIALOG_SELECT_CONTENT_CLASS}>
                       {propiedades.map((p) => (
                         <SelectItem key={p.id} value={p.id}>
                           {p.label}
@@ -252,7 +262,7 @@ export function ContratoLocacionFormDialog({
                         <SelectValue placeholder="Seleccioná inquilino" />
                       </SelectTrigger>
                     </FormControl>
-                    <SelectContent position="popper" className={DIALOG_SELECT_CONTENT_CLASS}>
+                    <SelectContent className={DIALOG_SELECT_CONTENT_CLASS}>
                       {clientes.map((c) => (
                         <SelectItem key={c.id} value={c.id}>
                           {c.label}
@@ -375,7 +385,7 @@ export function ContratoLocacionFormDialog({
                         <SelectValue />
                       </SelectTrigger>
                     </FormControl>
-                    <SelectContent position="popper" className={DIALOG_SELECT_CONTENT_CLASS}>
+                    <SelectContent className={DIALOG_SELECT_CONTENT_CLASS}>
                       <SelectItem value="ICL">ICL (índice de contratos de locación)</SelectItem>
                       <SelectItem value="IPC">IPC</SelectItem>
                       <SelectItem value="Acordado entre partes">Acordado entre partes</SelectItem>

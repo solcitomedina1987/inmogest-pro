@@ -144,11 +144,36 @@ export default async function DashboardContratosPage() {
     (contratosActivosRows ?? []).map((r) => r.cliente_id as string).filter(Boolean),
   );
 
-  const propiedadesForm: PropiedadContratoOption[] = (propRows ?? []).map((p) => ({
+  const propiedadesFormBase: PropiedadContratoOption[] = (propRows ?? []).map((p) => ({
     id: p.id as string,
     label: optLabel(p.nombre as string, (p.direccion as string) || null),
     propietario_id: p.propietario_id as string,
   }));
+
+  const enCartelIds = new Set(propiedadesFormBase.map((p) => p.id));
+  const idsFaltantes = [
+    ...new Set(
+      rows
+        .filter((r) => !r.rescindido_at && r.propiedad_id && !enCartelIds.has(r.propiedad_id))
+        .map((r) => r.propiedad_id),
+    ),
+  ];
+
+  let propiedadesForm = propiedadesFormBase;
+  if (idsFaltantes.length > 0) {
+    const { data: extraPropRows } = await supabase
+      .from("propiedades")
+      .select("id, nombre, direccion, propietario_id")
+      .in("id", idsFaltantes)
+      .eq("is_active", true);
+
+    const extras: PropiedadContratoOption[] = (extraPropRows ?? []).map((p) => ({
+      id: p.id as string,
+      label: optLabel(p.nombre as string, (p.direccion as string) || null),
+      propietario_id: p.propietario_id as string,
+    }));
+    propiedadesForm = [...propiedadesFormBase, ...extras];
+  }
 
   const personas = personasRows ?? [];
   const clientesForm: ClienteSelectOption[] = personas
