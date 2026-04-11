@@ -9,8 +9,6 @@ import { deriveContratoLocacionEstado } from "@/lib/contratos/derive-estado-cont
 import { generateContractDocument } from "@/lib/contratos/generate-contract-document";
 import { contratoLocacionFormSchema } from "@/lib/validations/contrato-locacion";
 
-export const runtime = "nodejs";
-
 export type ContratoLocacionActionResult =
   | { ok: true; id: string; pdfPublicUrl: string | null }
   | { ok: false; error: string };
