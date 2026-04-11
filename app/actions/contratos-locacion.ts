@@ -28,13 +28,13 @@ function estadoInicialDb(fechaFin: string): "VIGENTE" | "VENCIDO" {
 export async function crearContratoLocacion(input: unknown): Promise<ContratoLocacionActionResult> {
   const gate = await requireAdmin();
   if (!gate.ok) {
-    return { ok: false, error: gate.code === "no-auth" ? "Iniciá sesión." : "Sin permisos." };
+    return { ok: false, error: gate.code === "no-auth" ? "Inici? sesi?n." : "Sin permisos." };
   }
   const { supabase } = gate;
 
   const parsed = contratoLocacionFormSchema.safeParse(input);
   if (!parsed.success) {
-    const first = Object.values(parsed.error.flatten().fieldErrors).flat()[0] ?? "Datos inválidos";
+    const first = Object.values(parsed.error.flatten().fieldErrors).flat()[0] ?? "Datos inv?lidos";
     return { ok: false, error: first };
   }
   const v = parsed.data;
@@ -52,7 +52,7 @@ export async function crearContratoLocacion(input: unknown): Promise<ContratoLoc
   if (propiedadRow.estado !== ESTADO_PROPIEDAD_CARTEL_ALQUILER) {
     return {
       ok: false,
-      error: "La propiedad no está disponible para un nuevo contrato (debe estar en cartel / sin alquiler activo).",
+      error: "La propiedad no est? disponible para un nuevo contrato (debe estar en cartel / sin alquiler activo).",
     };
   }
   if (propiedadRow.propietario_id !== v.propietario_id) {
@@ -98,7 +98,7 @@ export async function crearContratoLocacion(input: unknown): Promise<ContratoLoc
     .single();
 
   if (cobErr || !cobRow) {
-    return { ok: false, error: cobErr?.message ?? "No se pudo crear el vínculo de cobranzas." };
+    return { ok: false, error: cobErr?.message ?? "No se pudo crear el v?nculo de cobranzas." };
   }
   const cobranzaId = cobRow.id as string;
 
@@ -128,6 +128,7 @@ export async function crearContratoLocacion(input: unknown): Promise<ContratoLoc
       fecha_inicio_contrato: v.fecha_inicio_contrato,
       fecha_fin_contrato: v.fecha_fin_contrato,
       valor_mensual: v.valor_mensual,
+      valor_deposito: v.valor_deposito > 0 ? v.valor_deposito : null,
       tipo_ajuste: v.tipo_ajuste,
       caracteristicas_propiedad: v.caracteristicas_propiedad ?? "",
       datos_garantes: v.datos_garantes ?? "",
@@ -152,6 +153,7 @@ export async function crearContratoLocacion(input: unknown): Promise<ContratoLoc
     fecha_inicio_contrato: v.fecha_inicio_contrato,
     fecha_fin_contrato: v.fecha_fin_contrato,
     valor_mensual: v.valor_mensual,
+    valor_deposito: v.valor_deposito > 0 ? v.valor_deposito : null,
     tipo_ajuste: v.tipo_ajuste,
     caracteristicas_propiedad: v.caracteristicas_propiedad ?? "",
     datos_garantes: v.datos_garantes ?? "",
@@ -171,7 +173,7 @@ export async function crearContratoLocacion(input: unknown): Promise<ContratoLoc
       upsert: true,
     });
     if (upErr) {
-      return { ok: false, error: `Contrato guardado pero falló el PDF: ${upErr.message}` };
+      return { ok: false, error: `Contrato guardado pero fall? el PDF: ${upErr.message}` };
     }
     const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
     pdfPublicUrl = pub.publicUrl;
@@ -204,7 +206,7 @@ export async function actualizarContratoLocacion(
 ): Promise<ContratoLocacionActionResult> {
   const gate = await requireAdmin();
   if (!gate.ok) {
-    return { ok: false, error: gate.code === "no-auth" ? "Iniciá sesión." : "Sin permisos." };
+    return { ok: false, error: gate.code === "no-auth" ? "Inici? sesi?n." : "Sin permisos." };
   }
   const { supabase } = gate;
 
@@ -225,7 +227,7 @@ export async function actualizarContratoLocacion(
 
   const parsed = contratoLocacionFormSchema.safeParse(input);
   if (!parsed.success) {
-    const first = Object.values(parsed.error.flatten().fieldErrors).flat()[0] ?? "Datos inválidos";
+    const first = Object.values(parsed.error.flatten().fieldErrors).flat()[0] ?? "Datos inv?lidos";
     return { ok: false, error: first };
   }
   const v = parsed.data;
@@ -260,6 +262,7 @@ export async function actualizarContratoLocacion(
       fecha_inicio_contrato: v.fecha_inicio_contrato,
       fecha_fin_contrato: v.fecha_fin_contrato,
       valor_mensual: v.valor_mensual,
+      valor_deposito: v.valor_deposito > 0 ? v.valor_deposito : null,
       tipo_ajuste: v.tipo_ajuste,
       caracteristicas_propiedad: v.caracteristicas_propiedad ?? "",
       datos_garantes: v.datos_garantes ?? "",
@@ -300,6 +303,7 @@ export async function actualizarContratoLocacion(
     fecha_inicio_contrato: v.fecha_inicio_contrato,
     fecha_fin_contrato: v.fecha_fin_contrato,
     valor_mensual: v.valor_mensual,
+    valor_deposito: v.valor_deposito > 0 ? v.valor_deposito : null,
     tipo_ajuste: v.tipo_ajuste,
     caracteristicas_propiedad: v.caracteristicas_propiedad ?? "",
     datos_garantes: v.datos_garantes ?? "",
@@ -319,7 +323,7 @@ export async function actualizarContratoLocacion(
       upsert: true,
     });
     if (upErr) {
-      return { ok: false, error: `Datos actualizados pero falló el PDF: ${upErr.message}` };
+      return { ok: false, error: `Datos actualizados pero fall? el PDF: ${upErr.message}` };
     }
     const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
     pdfPublicUrl = pub.publicUrl;
@@ -340,7 +344,7 @@ export async function actualizarContratoLocacion(
 export async function rescindirContratoLocacion(id: string): Promise<{ ok: true } | { ok: false; error: string }> {
   const gate = await requireAdmin();
   if (!gate.ok) {
-    return { ok: false, error: gate.code === "no-auth" ? "Iniciá sesión." : "Sin permisos." };
+    return { ok: false, error: gate.code === "no-auth" ? "Inici? sesi?n." : "Sin permisos." };
   }
   const { supabase } = gate;
 
@@ -354,7 +358,7 @@ export async function rescindirContratoLocacion(id: string): Promise<{ ok: true 
     return { ok: false, error: "Contrato no encontrado." };
   }
   if (row.rescindido_at) {
-    return { ok: false, error: "El contrato ya está rescindido." };
+    return { ok: false, error: "El contrato ya est? rescindido." };
   }
 
   const now = new Date().toISOString();

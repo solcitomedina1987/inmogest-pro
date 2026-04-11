@@ -7,14 +7,17 @@ declare module "@react-pdf/renderer" {
     size?: string;
     style?: Record<string, unknown>;
     children?: React.ReactNode;
+    wrap?: boolean;
   }) => ReactElement;
   export const Text: (props: {
     style?: Record<string, unknown>;
     children?: React.ReactNode;
+    wrap?: boolean;
   }) => ReactElement;
   export const View: (props: {
     style?: Record<string, unknown>;
     children?: React.ReactNode;
+    fixed?: boolean;
   }) => ReactElement;
   export const StyleSheet: {
     create: <T extends Record<string, Record<string, unknown>>>(styles: T) => T;

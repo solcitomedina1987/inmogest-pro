@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { buildContratoLocacionPdfData } from "@/lib/contratos/contract-pdf-data";
+import { formatFechaContrato } from "@/lib/contratos/contract-pdf-data";
 import { deriveContratoLocacionEstado } from "@/lib/contratos/derive-estado-contrato";
 import { publicStorageObjectUrl } from "@/lib/supabase/public-storage-url";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 
 const BUCKET = "contratos-pdf";
+
+const precioFmt = new Intl.NumberFormat("es-AR", {
+  style: "currency",
+  currency: "ARS",
+  maximumFractionDigits: 2,
+});
 
 function unwrapFk<T>(v: T | T[] | null | undefined): T | null {
   if (v == null) return null;
@@ -40,6 +46,7 @@ export default async function ContratoDetallePage({ params }: PageProps) {
       fecha_inicio_contrato,
       fecha_fin_contrato,
       valor_mensual,
+      valor_deposito,
       tipo_ajuste,
       caracteristicas_propiedad,
       datos_garantes,
@@ -75,20 +82,22 @@ export default async function ContratoDetallePage({ params }: PageProps) {
     estado: r.estado as string | null,
   });
 
-  const pdfData = buildContratoLocacionPdfData({
-    fecha_firma: r.fecha_firma as string,
-    fecha_inicio_contrato: r.fecha_inicio_contrato as string,
-    fecha_fin_contrato: r.fecha_fin_contrato as string,
-    valor_mensual: Number(r.valor_mensual),
-    tipo_ajuste: (r.tipo_ajuste as string) ?? "",
-    caracteristicas_propiedad: (r.caracteristicas_propiedad as string) ?? "",
-    datos_garantes: (r.datos_garantes as string) ?? "",
-    inquilino_nombre: (inquilino?.nombre_completo as string) ?? "",
-    inquilino_dni: inquilino?.dni ?? "",
-    propietario_nombre: (propietario?.nombre_completo as string) ?? "",
-    propietario_dni: propietario?.dni ?? "",
-    propiedad_direccion: (prop?.direccion as string) ?? "",
-  });
+  const valorMensual = Number(r.valor_mensual);
+  const depRaw = r.valor_deposito;
+  const depNum =
+    depRaw != null && depRaw !== "" && !Number.isNaN(Number(depRaw)) ? Number(depRaw) : null;
+  const depositoEfectivo =
+    depNum != null && depNum > 0 ? depNum : valorMensual;
+
+  const direccion = (prop?.direccion as string)?.trim() || "—";
+  const locador =
+    propietario?.nombre_completo?.trim() != null
+      ? `${propietario.nombre_completo}, DNI: ${propietario.dni ?? "—"}`
+      : "—";
+  const locatario =
+    inquilino?.nombre_completo?.trim() != null
+      ? `${inquilino.nombre_completo}, DNI: ${inquilino.dni ?? "—"}`
+      : "—";
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
@@ -127,19 +136,29 @@ export default async function ContratoDetallePage({ params }: PageProps) {
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
           <p>
-            <span className="text-muted-foreground">Dirección:</span> {pdfData.propiedadDireccion}
+            <span className="text-muted-foreground">Dirección:</span> {direccion}
           </p>
           <p>
-            <span className="text-muted-foreground">Locador:</span> {pdfData.propietarioLine}
+            <span className="text-muted-foreground">Locador:</span> {locador}
           </p>
           <p>
-            <span className="text-muted-foreground">Locatario:</span> {pdfData.inquilinoLine}
+            <span className="text-muted-foreground">Locatario:</span> {locatario}
           </p>
           <p>
-            <span className="text-muted-foreground">Vigencia:</span> {pdfData.fechaInicioFmt} — {pdfData.fechaFinFmt}
+            <span className="text-muted-foreground">Vigencia:</span>{" "}
+            {formatFechaContrato(r.fecha_inicio_contrato as string)} —{" "}
+            {formatFechaContrato(r.fecha_fin_contrato as string)}
           </p>
           <p>
-            <span className="text-muted-foreground">Canon:</span> {pdfData.valorMensualFmt} ({pdfData.tipoAjuste})
+            <span className="text-muted-foreground">Canon:</span> {precioFmt.format(valorMensual)} (
+            {(r.tipo_ajuste as string) ?? "—"})
+          </p>
+          <p>
+            <span className="text-muted-foreground">Depósito (cláusula novena):</span>{" "}
+            {precioFmt.format(depositoEfectivo)}
+            {depNum == null || depNum <= 0 ? (
+              <span className="text-muted-foreground"> (equivale al canon mensual)</span>
+            ) : null}
           </p>
         </CardContent>
       </Card>

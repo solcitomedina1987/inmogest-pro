@@ -34,6 +34,7 @@ export default async function ContratoImprimirPage({ params }: PageProps) {
       fecha_inicio_contrato,
       fecha_fin_contrato,
       valor_mensual,
+      valor_deposito,
       tipo_ajuste,
       caracteristicas_propiedad,
       datos_garantes,
@@ -59,6 +60,8 @@ export default async function ContratoImprimirPage({ params }: PageProps) {
     fecha_inicio_contrato: r.fecha_inicio_contrato as string,
     fecha_fin_contrato: r.fecha_fin_contrato as string,
     valor_mensual: Number(r.valor_mensual),
+    valor_deposito:
+      r.valor_deposito != null && r.valor_deposito !== "" ? Number(r.valor_deposito) : null,
     tipo_ajuste: (r.tipo_ajuste as string) ?? "",
     caracteristicas_propiedad: (r.caracteristicas_propiedad as string) ?? "",
     datos_garantes: (r.datos_garantes as string) ?? "",

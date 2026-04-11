@@ -58,6 +58,7 @@ const defaults: ContratoLocacionFormValues = {
   fecha_inicio_contrato: "",
   fecha_fin_contrato: "",
   valor_mensual: 0,
+  valor_deposito: 0,
   tipo_ajuste: "ICL",
   caracteristicas_propiedad: "",
   datos_garantes: "",
@@ -82,6 +83,8 @@ function rowToValues(row: ContratoLocacionListRow): ContratoLocacionFormValues {
     fecha_inicio_contrato: row.fecha_inicio_contrato,
     fecha_fin_contrato: row.fecha_fin_contrato,
     valor_mensual: Number(row.valor_mensual),
+    valor_deposito:
+      row.valor_deposito != null && Number(row.valor_deposito) > 0 ? Number(row.valor_deposito) : 0,
     tipo_ajuste: row.tipo_ajuste,
     caracteristicas_propiedad: row.caracteristicas_propiedad ?? "",
     datos_garantes: row.datos_garantes ?? "",
@@ -302,6 +305,34 @@ export function ContratoLocacionFormDialog({
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="valor_deposito"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Depósito en garantía</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min={0}
+                      disabled={readOnly}
+                      placeholder="Vacío o 0 = un mes de alquiler"
+                      {...field}
+                      onChange={(e) =>
+                        field.onChange(e.target.value === "" ? 0 : Number(e.target.value))
+                      }
+                      value={field.value === 0 ? "" : field.value}
+                    />
+                  </FormControl>
+                  <p className="text-muted-foreground text-xs">
+                    Monto que figura en la cláusula novena. Si lo dejás en blanco, se usa el valor mensual.
+                  </p>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField

@@ -7,6 +7,8 @@ export type ContratoLocacionListRow = {
   fecha_inicio_contrato: string;
   fecha_fin_contrato: string;
   valor_mensual: number;
+  /** Depósito en garantía; null = en PDF se usa valor_mensual. */
+  valor_deposito: number | null;
   tipo_ajuste: string;
   caracteristicas_propiedad: string;
   datos_garantes: string;
