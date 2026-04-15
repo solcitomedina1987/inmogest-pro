@@ -185,11 +185,23 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
 
   function solicitarImpresionRecibo(pago: PagoRow) {
     const monto = pago.monto_pagado != null ? Number(pago.monto_pagado) : Number(pago.monto_esperado);
+    const prop = contrato.propiedad;
+    const direccionPropiedad = prop
+      ? [prop.direccion?.trim(), prop.nombre?.trim()].filter(Boolean).join(" · ") || "—"
+      : "—";
+    const fechaEmision = pago.fecha_pago_realizado
+      ? new Date(`${pago.fecha_pago_realizado}T12:00:00`)
+      : new Date();
+    const correlativo = pago.id.replace(/-/g, "").slice(0, 8).toUpperCase();
     setReciboProps({
       nombreCliente: nombreInquilino,
       montoPagado: monto,
       mesPeriodo: pago.mes_periodo,
-      fechaEmision: new Date(),
+      direccionPropiedad,
+      fechaEmision,
+      concepto: pago.observaciones?.trim() || "Pago de alquiler mensual",
+      numeroRecibo: `REC-${correlativo}`,
+      nombreLocador: contrato.locador?.nombre_completo?.trim() || undefined,
     });
     setImprimirPendiente(true);
   }

@@ -71,6 +71,7 @@
   --color-ring: var(--ring);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-recibo-serif: var(--font-lora-recibo);
 }
 
 body {
@@ -81,8 +82,8 @@ body {
 /* Impresión: papel claro, sin sombras decorativas; el sidebar se oculta con print:hidden en DashboardShell */
 @media print {
   @page {
-    size: A4;
-    margin: 10mm;
+    size: A5 portrait;
+    margin: 8mm;
   }
 
   html,
@@ -126,64 +127,62 @@ body {
     clip: auto !important;
     white-space: normal !important;
     background: #fff !important;
-    color: #000 !important;
-    font-family: "Inter", "Roboto", ui-sans-serif, system-ui, sans-serif !important;
-    font-size: 11pt !important;
-    line-height: 1.4 !important;
+    color: #292524 !important;
+    font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif !important;
+    font-size: 10pt !important;
+    line-height: 1.45 !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
+  html.print-receipt-only .recibo-hoja {
+    max-height: none;
+    gap: 0 !important;
+  }
+
   html.print-receipt-only .recibo-copia {
+    page-break-after: always;
+    break-after: page;
     page-break-inside: avoid;
     break-inside: avoid;
   }
 
-  html.print-receipt-only .recibo-hoja {
-    max-height: none;
+  html.print-receipt-only .recibo-copia:last-child {
+    page-break-after: auto;
+    break-after: auto;
   }
 
-  html.print-receipt-only .recibo-cuerpo {
-    margin-bottom: 0.65rem !important;
+  html.print-receipt-only .recibo-zona-corte {
+    display: none !important;
   }
 
   html.print-receipt-only .recibo-firmas {
-    margin-top: 0.35rem !important;
-    padding-top: 0.25rem !important;
-  }
-
-  html.print-receipt-only .recibo-firmas > div + div {
-    margin-top: 0.65rem !important;
-  }
-
-  /* +50% espacio entre copias; línea centrada en la zona (flex en .recibo-zona-corte) */
-  html.print-receipt-only .recibo-zona-corte {
-    min-height: 5.25rem !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: center !important;
-    align-items: stretch !important;
-  }
-
-  html.print-receipt-only .recibo-corte {
-    margin: 0 !important;
-    padding-top: 0.3rem !important;
-    padding-bottom: 0.3rem !important;
+    margin-top: 0.5rem !important;
+    padding-top: 0.35rem !important;
   }
 
   html.print-receipt-only .recibo-titulo {
-    margin-bottom: 0.5rem !important;
+    margin-bottom: 0.4rem !important;
   }
 
   html.print-receipt-only .recibo-copia-header {
-    margin-bottom: 0.35rem !important;
+    margin-bottom: 0.5rem !important;
+    padding-bottom: 0.45rem !important;
   }
 
   html.print-receipt-only .recibo-logo {
-    height: 2.5rem !important;
-    max-width: 140px !important;
+    height: 2.65rem !important;
+    max-width: 150px !important;
+  }
+
+  html.print-receipt-only .recibo-marco {
+    border-width: 1px !important;
+    padding: 0.55rem 0.65rem !important;
+  }
+
+  html.print-receipt-only .recibo-monto-letras {
+    font-size: 9.5pt !important;
+    line-height: 1.35 !important;
   }
 }
 
@@ -202,5 +201,5 @@ body {
 }
 
 .recibo-alquiler-print {
-  font-family: "Inter", "Roboto", ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 }

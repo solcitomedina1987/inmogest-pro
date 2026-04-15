@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Lora } from "next/font/google";
 import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/constants/branding";
 import "./globals.css";
 
@@ -11,6 +11,13 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+/** Serif para títulos de recibos e impresos formales (boho / minimal). */
+const lora = Lora({
+  variable: "--font-lora-recibo",
+  subsets: ["latin"],
+  display: "swap",
 });
 
 const siteUrl =
@@ -47,7 +54,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <body className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} ${lora.variable} font-sans antialiased`}
+      >
         {children}
       </body>
     </html>
