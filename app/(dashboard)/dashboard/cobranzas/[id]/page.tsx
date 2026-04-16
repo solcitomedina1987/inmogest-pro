@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { parseDetallePagoDb } from "@/lib/cobranzas/detalle-pago";
 import type { ContratoCobranzaRow, PagoRow } from "@/lib/cobranzas/types";
 import { ensurePagosMensualesExistentes } from "@/lib/cobranzas/sync-pagos-mensuales";
 import { ContratoDetalleClient } from "@/components/cobranzas/contrato-detalle-client";
@@ -27,8 +28,15 @@ function normalizeContratoRow(row: Record<string, unknown>): ContratoCobranzaRow
     ultima_actualizacion: (row.ultima_actualizacion as string) ?? null,
     is_active: Boolean(row.is_active),
     deleted_at: (row.deleted_at as string | null | undefined) ?? null,
-    propiedad: unwrapFk(row.propiedad as { nombre: string } | { nombre: string }[] | null),
-    inquilino: unwrapFk(row.inquilino as { nombre_completo: string } | { nombre_completo: string }[] | null),
+    propiedad: unwrapFk(
+      row.propiedad as { nombre: string; direccion?: string | null } | { nombre: string; direccion?: string | null }[] | null,
+    ),
+    inquilino: unwrapFk(
+      row.inquilino as
+        | { nombre_completo: string; dni?: number | null }
+        | { nombre_completo: string; dni?: number | null }[]
+        | null,
+    ),
     locador: unwrapFk(row.locador as { nombre_completo: string } | { nombre_completo: string }[] | null),
   };
 }
@@ -84,8 +92,8 @@ export default async function CobranzasContratoDetallePage({ params }: PageProps
       ultima_actualizacion,
       is_active,
       deleted_at,
-      propiedad:propiedades ( nombre ),
-      inquilino:clientes!contratos_cobranza_cliente_id_fkey ( nombre_completo ),
+      propiedad:propiedades ( nombre, direccion ),
+      inquilino:clientes!contratos_cobranza_cliente_id_fkey ( nombre_completo, dni ),
       locador:clientes!contratos_cobranza_locador_id_fkey ( nombre_completo )
     `,
     )
@@ -123,7 +131,22 @@ export default async function CobranzasContratoDetallePage({ params }: PageProps
     );
   }
 
-  const pagos = (pagosRaw ?? []) as PagoRow[];
+  const pagos: PagoRow[] = (pagosRaw ?? []).map((raw) => {
+    const x = raw as Record<string, unknown>;
+    return {
+      id: x.id as string,
+      contrato_id: x.contrato_id as string,
+      mes_periodo: x.mes_periodo as string,
+      monto_esperado: Number(x.monto_esperado),
+      monto_pagado: x.monto_pagado != null ? Number(x.monto_pagado) : null,
+      fecha_pago_realizado: (x.fecha_pago_realizado as string | null) ?? null,
+      estado: x.estado as PagoRow["estado"],
+      forma_pago: (x.forma_pago as string | null) ?? null,
+      observaciones: (x.observaciones as string | null) ?? null,
+      detalle_pago: parseDetallePagoDb(x.detalle_pago),
+      created_at: x.created_at as string | undefined,
+    };
+  });
 
   return <ContratoDetalleClient contrato={contrato} pagos={pagos} />;
 }

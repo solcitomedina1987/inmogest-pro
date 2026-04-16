@@ -1,62 +1,120 @@
-import {
-  fechaEmisionReciboLiteral,
-  formatoMontoReciboPesos,
-  mesPeriodoALiteral,
-} from "@/lib/cobranzas/recibo-fecha";
+import { fechaEmisionReciboLiteral } from "@/lib/cobranzas/recibo-fecha";
+import type { LineaRecibo } from "@/lib/cobranzas/detalle-pago";
+import { montoPesosArgentinosALetras } from "@/lib/cobranzas/monto-en-letras";
 
 export type ReciboAlquilerProps = {
+  /** Texto del número de recibo (ej. N° ABC123). */
+  numeroRecibo: string;
   nombreCliente: string;
-  montoPagado: number;
-  mesPeriodo: string;
-  /** Fecha del texto “En la ciudad de San Luis, a los…” (por defecto hoy). */
+  dniCliente: string;
+  direccionInmueble: string;
+  lineas: LineaRecibo[];
+  total: number;
   fechaEmision?: Date;
 };
 
+const precioTabla = new Intl.NumberFormat("es-AR", {
+  style: "currency",
+  currency: "ARS",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
 function ReciboCopia({
+  numeroRecibo,
   nombreCliente,
-  montoTexto,
-  mesAlquilerLiteral,
+  dniCliente,
+  direccionInmueble,
+  lineas,
+  total,
+  totalLetras,
   dia,
   mesEmision,
   anio,
-}: {
-  nombreCliente: string;
-  montoTexto: string;
-  mesAlquilerLiteral: string;
+}: ReciboAlquilerProps & {
+  totalLetras: string;
   dia: number;
   mesEmision: string;
   anio: number;
 }) {
   return (
-    <div className="recibo-copia flex flex-col">
-      <header className="recibo-copia-header mb-4 flex items-start justify-end">
-        {/* eslint-disable-next-line @next/next/no-img-element -- impresión fiable con URL pública */}
+    <div className="recibo-copia flex flex-col text-black">
+      <header className="recibo-copia-header mb-5 flex justify-center">
+        {/* eslint-disable-next-line @next/next/no-img-element -- impresión fiable con asset público */}
         <img
           src="/img/logo.PNG"
-          alt=""
-          className="recibo-logo h-11 w-auto max-w-[160px] object-contain object-right"
-          width={160}
-          height={48}
+          alt="Consultora Medina &amp; Asociados"
+          className="recibo-logo h-14 w-auto max-w-[200px] object-contain"
+          width={200}
+          height={56}
         />
       </header>
 
-      <h1 className="recibo-titulo mb-5 text-center text-base font-bold leading-snug text-black">
-        Recibo de Alquiler (no válido como factura)
+      <h1 className="recibo-titulo mb-1 text-center text-lg font-bold leading-tight">
+        Recibo {numeroRecibo}
       </h1>
-
-      <p className="recibo-cuerpo mb-10 text-justify text-sm leading-relaxed text-black">
-        En la ciudad de San Luis, a los {dia} días del mes de {mesEmision} del año {anio}, recibí de{" "}
-        {nombreCliente}, la suma de ${montoTexto}, por el pago de Alquiler del mes de {mesAlquilerLiteral}.
+      <p className="recibo-subtitulo mb-6 text-center text-xs font-normal text-neutral-700">
+        no válido como factura
       </p>
 
-      <div className="recibo-firmas mt-auto space-y-8 pt-4">
-        <div>
-          <div className="recibo-linea-firma border-t border-black" />
-          <p className="mt-1 text-center text-xs text-black">Firma y Aclaración</p>
+      <section className="recibo-datos-pagador mb-5 space-y-1.5 text-sm leading-snug">
+        <p>
+          <span className="font-semibold">Pagador:</span> {nombreCliente}
+        </p>
+        <p>
+          <span className="font-semibold">DNI:</span> {dniCliente}
+        </p>
+        <p>
+          <span className="font-semibold">Domicilio del inmueble:</span> {direccionInmueble}
+        </p>
+        <p className="text-muted-foreground text-xs">
+          San Luis, {dia} de {mesEmision} de {anio}
+        </p>
+      </section>
+
+      <div className="recibo-tabla-wrap mb-4 overflow-hidden rounded border border-neutral-800">
+        <table className="recibo-tabla w-full border-collapse text-sm">
+          <thead>
+            <tr className="bg-neutral-100">
+              <th className="border-b border-neutral-800 px-2 py-2 text-left font-semibold">Concepto</th>
+              <th className="border-b border-neutral-800 px-2 py-2 text-right font-semibold">Monto</th>
+              <th className="border-b border-neutral-800 px-2 py-2 text-left font-semibold">Observaciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {lineas.map((row, i) => (
+              <tr key={i} className="border-b border-neutral-300 last:border-b-0">
+                <td className="px-2 py-2 align-top">{row.concepto}</td>
+                <td className="px-2 py-2 text-right tabular-nums align-top">
+                  {precioTabla.format(row.monto)}
+                </td>
+                <td className="text-muted-foreground px-2 py-2 align-top text-xs">
+                  {row.observaciones ?? "—"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="recibo-total mb-10 space-y-1 border-t-2 border-neutral-800 pt-3 text-sm">
+        <p className="flex justify-between font-bold">
+          <span>Total</span>
+          <span className="tabular-nums">{precioTabla.format(total)}</span>
+        </p>
+        <p className="text-xs leading-relaxed text-neutral-800">
+          <span className="font-semibold">Son pesos:</span> {totalLetras}.
+        </p>
+      </div>
+
+      <div className="recibo-margen-firma flex-shrink-0" aria-hidden />
+
+      <div className="recibo-firma-dual mt-auto flex w-full gap-8 border-t border-transparent pt-2 text-xs">
+        <div className="min-w-0 flex-1">
+          <div className="recibo-linea-firma border-t border-black pt-1 text-center">Firma y Aclaración</div>
         </div>
-        <div>
-          <div className="recibo-linea-firma border-t border-black" />
-          <p className="mt-1 text-center text-xs text-black">Sello de la Inmobiliaria</p>
+        <div className="min-w-0 flex-1">
+          <div className="recibo-linea-firma border-t border-black pt-1 text-center">Sello Inmobiliaria</div>
         </div>
       </div>
     </div>
@@ -64,18 +122,31 @@ function ReciboCopia({
 }
 
 /**
- * Contenido del recibo para impresión: dos copias idénticas en A4.
- * En pantalla debe permanecer fuera de vista; al imprimir, usar clase `print-receipt-only` en `html`.
+ * Dos copias del recibo en una hoja, con zona de corte amplia para imprimir y cortar.
  */
 export function ReciboAlquiler({
+  numeroRecibo,
   nombreCliente,
-  montoPagado,
-  mesPeriodo,
+  dniCliente,
+  direccionInmueble,
+  lineas,
+  total,
   fechaEmision = new Date(),
 }: ReciboAlquilerProps) {
   const { dia, mes: mesEmision, anio } = fechaEmisionReciboLiteral(fechaEmision);
-  const montoTexto = formatoMontoReciboPesos(montoPagado);
-  const mesAlquilerLiteral = mesPeriodoALiteral(mesPeriodo);
+  const totalLetras = montoPesosArgentinosALetras(total);
+  const copiaProps = {
+    numeroRecibo,
+    nombreCliente,
+    dniCliente,
+    direccionInmueble,
+    lineas,
+    total,
+    totalLetras,
+    dia,
+    mesEmision,
+    anio,
+  };
 
   return (
     <div
@@ -83,33 +154,19 @@ export function ReciboAlquiler({
       className="recibo-alquiler-print text-black antialiased"
       aria-hidden
     >
-      <div className="recibo-hoja flex flex-col">
-        <ReciboCopia
-          nombreCliente={nombreCliente}
-          montoTexto={montoTexto}
-          mesAlquilerLiteral={mesAlquilerLiteral}
-          dia={dia}
-          mesEmision={mesEmision}
-          anio={anio}
-        />
+      <div className="recibo-hoja flex flex-col gap-0">
+        <ReciboCopia {...copiaProps} />
 
         <div
-          className="recibo-zona-corte flex min-h-[6.75rem] w-full flex-shrink-0 flex-col items-stretch justify-center"
+          className="recibo-zona-corte flex w-full flex-shrink-0 flex-col items-stretch justify-center"
           aria-hidden
         >
-          <div className="recibo-corte w-full border-t-2 border-dotted border-neutral-600 py-2 text-center text-xs font-medium text-neutral-700">
-            Corte aquí - Duplicado para Inmobiliaria
+          <div className="recibo-corte w-full border-t-2 border-dotted border-neutral-500 py-4 text-center text-xs font-medium text-neutral-600">
+            Corte aquí — duplicado para la inmobiliaria / inquilino
           </div>
         </div>
 
-        <ReciboCopia
-          nombreCliente={nombreCliente}
-          montoTexto={montoTexto}
-          mesAlquilerLiteral={mesAlquilerLiteral}
-          dia={dia}
-          mesEmision={mesEmision}
-          anio={anio}
-        />
+        <ReciboCopia {...copiaProps} />
       </div>
     </div>
   );

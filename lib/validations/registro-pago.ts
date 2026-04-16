@@ -1,25 +1,57 @@
 import { z } from "zod";
+import { CONCEPTOS_PAGO_KEYS } from "@/lib/cobranzas/conceptos-pago";
 
-export const registroPagoSchema = z.object({
-  contrato_id: z.string().uuid(),
-  /** Período contable YYYY-MM: determina a qué mes aplica el cobro (independiente de la fecha real). */
-  mes_periodo: z.string().regex(/^\d{4}-\d{2}$/, "Período inválido (YYYY-MM)"),
-  /** Fecha real en que se efectuó el pago (YYYY-MM-DD). */
-  fecha_pago: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida"),
-  forma_pago: z.enum(["Efectivo", "Transferencia", "Depósito", "Otro"]),
-  monto_pagado: z.coerce.number().min(0, "El monto no puede ser negativo"),
+const conceptoExtraSchema = z.object({
+  concepto: z.enum(CONCEPTOS_PAGO_KEYS),
+  monto: z.coerce.number().min(0, "El monto no puede ser negativo"),
   observaciones: z.string().optional(),
 });
+
+export const registroPagoSchema = z
+  .object({
+    contrato_id: z.string().uuid(),
+    mes_periodo: z.string().regex(/^\d{4}-\d{2}$/, "Período inválido (YYYY-MM)"),
+    fecha_pago: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida"),
+    forma_pago: z.enum(["Efectivo", "Transferencia", "Depósito", "Otro"]),
+    /** Monto imputado a alquiler del período. */
+    monto_alquiler: z.coerce.number().min(0, "El alquiler no puede ser negativo"),
+    conceptos_extras: z.array(conceptoExtraSchema).default([]),
+    observaciones: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    const sumaExtras = data.conceptos_extras.reduce((a, x) => a + Number(x.monto || 0), 0);
+    const total = data.monto_alquiler + sumaExtras;
+    if (total <= 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "El total a cobrar debe ser mayor a cero.",
+        path: ["monto_alquiler"],
+      });
+    }
+  });
 
 export type RegistroPagoValues = z.infer<typeof registroPagoSchema>;
 
-export const editarPagoSchema = z.object({
-  pago_id: z.string().uuid(),
-  contrato_id: z.string().uuid(),
-  fecha_pago: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida"),
-  forma_pago: z.enum(["Efectivo", "Transferencia", "Depósito", "Otro"]),
-  monto_pagado: z.coerce.number().min(0, "El monto no puede ser negativo"),
-  observaciones: z.string().optional(),
-});
+export const editarPagoSchema = z
+  .object({
+    pago_id: z.string().uuid(),
+    contrato_id: z.string().uuid(),
+    fecha_pago: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida"),
+    forma_pago: z.enum(["Efectivo", "Transferencia", "Depósito", "Otro"]),
+    monto_alquiler: z.coerce.number().min(0, "El alquiler no puede ser negativo"),
+    conceptos_extras: z.array(conceptoExtraSchema).default([]),
+    observaciones: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    const sumaExtras = data.conceptos_extras.reduce((a, x) => a + Number(x.monto || 0), 0);
+    const total = data.monto_alquiler + sumaExtras;
+    if (total <= 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "El total a cobrar debe ser mayor a cero.",
+        path: ["monto_alquiler"],
+      });
+    }
+  });
 
 export type EditarPagoValues = z.infer<typeof editarPagoSchema>;

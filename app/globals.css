@@ -143,22 +143,13 @@ body {
     max-height: none;
   }
 
-  html.print-receipt-only .recibo-cuerpo {
-    margin-bottom: 0.65rem !important;
+  html.print-receipt-only .recibo-margen-firma {
+    min-height: 5rem !important;
   }
 
-  html.print-receipt-only .recibo-firmas {
-    margin-top: 0.35rem !important;
-    padding-top: 0.25rem !important;
-  }
-
-  html.print-receipt-only .recibo-firmas > div + div {
-    margin-top: 0.65rem !important;
-  }
-
-  /* +50% espacio entre copias; línea centrada en la zona (flex en .recibo-zona-corte) */
+  /* Espacio amplio entre las dos copias para cortar cómodamente */
   html.print-receipt-only .recibo-zona-corte {
-    min-height: 5.25rem !important;
+    min-height: 10rem !important;
     margin: 0 !important;
     padding: 0 !important;
     display: flex !important;
@@ -169,21 +160,30 @@ body {
 
   html.print-receipt-only .recibo-corte {
     margin: 0 !important;
-    padding-top: 0.3rem !important;
-    padding-bottom: 0.3rem !important;
+    padding-top: 0.75rem !important;
+    padding-bottom: 0.75rem !important;
   }
 
   html.print-receipt-only .recibo-titulo {
-    margin-bottom: 0.5rem !important;
+    margin-bottom: 0.25rem !important;
+  }
+
+  html.print-receipt-only .recibo-subtitulo {
+    margin-bottom: 0.75rem !important;
   }
 
   html.print-receipt-only .recibo-copia-header {
-    margin-bottom: 0.35rem !important;
+    margin-bottom: 0.5rem !important;
   }
 
   html.print-receipt-only .recibo-logo {
-    height: 2.5rem !important;
-    max-width: 140px !important;
+    height: 2.75rem !important;
+    max-width: 180px !important;
+  }
+
+  html.print-receipt-only .recibo-tabla th,
+  html.print-receipt-only .recibo-tabla td {
+    font-size: 10pt !important;
   }
 }
 

@@ -6,6 +6,7 @@ import { mesPeriodoActual } from "@/lib/cobranzas/estado-contrato";
 import { mesesPeriodoEntreFechasContrato } from "@/lib/cobranzas/meses-contrato";
 import { ESTADO_PROPIEDAD_CARTEL_ALQUILER } from "@/lib/constants/propiedades";
 import { contratoCobranzaSchema } from "@/lib/validations/contrato-cobranza";
+import { construirDetallePagoV1, totalDesdeDetalle } from "@/lib/cobranzas/detalle-pago";
 import { registroPagoSchema, editarPagoSchema } from "@/lib/validations/registro-pago";
 import { updateContratoCobranzaSchema } from "@/lib/validations/update-contrato-cobranza";
 import { crearEventosContrato, googleCalendarConfigurado } from "@/lib/google/calendar";
@@ -185,16 +186,23 @@ export async function registrarPagoContrato(input: unknown): Promise<CobranzaAct
 
   const monto_esperado =
     existente?.monto_esperado != null ? Number(existente.monto_esperado) : montoMensual;
-  const estado = v.monto_pagado >= monto_esperado ? "Pagado" : "Pendiente";
+
+  const detalle_pago = construirDetallePagoV1({
+    monto_alquiler: v.monto_alquiler,
+    extras: v.conceptos_extras,
+  });
+  const monto_pagado = totalDesdeDetalle(detalle_pago);
+  const estado = monto_pagado >= monto_esperado ? "Pagado" : "Pendiente";
 
   const payload = {
     contrato_id: v.contrato_id,
     mes_periodo,
     monto_esperado,
-    monto_pagado: v.monto_pagado,
+    monto_pagado,
     fecha_pago_realizado: v.fecha_pago,
     forma_pago: v.forma_pago,
     observaciones: v.observaciones?.trim() || null,
+    detalle_pago,
     estado,
   };
 
@@ -236,15 +244,21 @@ export async function editarPago(input: unknown): Promise<CobranzaActionResult> 
   if (pErr || !pago) return { ok: false, error: "Pago no encontrado." };
 
   const monto_esperado = Number(pago.monto_esperado);
-  const estado = v.monto_pagado >= monto_esperado ? "Pagado" : "Pendiente";
+  const detalle_pago = construirDetallePagoV1({
+    monto_alquiler: v.monto_alquiler,
+    extras: v.conceptos_extras,
+  });
+  const monto_pagado = totalDesdeDetalle(detalle_pago);
+  const estado = monto_pagado >= monto_esperado ? "Pagado" : "Pendiente";
 
   const { error: upErr } = await supabase
     .from("pagos")
     .update({
-      monto_pagado: v.monto_pagado,
+      monto_pagado,
       fecha_pago_realizado: v.fecha_pago,
       forma_pago: v.forma_pago,
       observaciones: v.observaciones?.trim() || null,
+      detalle_pago,
       estado,
     })
     .eq("id", v.pago_id);
@@ -277,6 +291,7 @@ export async function anularPago(
       fecha_pago_realizado: null,
       forma_pago: null,
       observaciones: null,
+      detalle_pago: null,
     })
     .eq("id", pagoId);
 

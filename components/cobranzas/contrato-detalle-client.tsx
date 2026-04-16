@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { anularPago, eliminarContratoCobranza } from "@/app/actions/cobranzas";
+import { lineasReciboDesdePago } from "@/lib/cobranzas/detalle-pago";
 import type { ContratoCobranzaRow, PagoRow } from "@/lib/cobranzas/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -95,6 +96,7 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
   const contratoEliminado = contrato.deleted_at != null;
   const [pagoOpen, setPagoOpen] = useState(false);
   const [mesPeriodoPago, setMesPeriodoPago] = useState<string | null>(null);
+  const [montoCuotaPago, setMontoCuotaPago] = useState(() => Number(contrato.monto_mensual));
   const [editarOpen, setEditarOpen] = useState(false);
   const [editarPagoOpen, setEditarPagoOpen] = useState(false);
   const [pagoEditar, setPagoEditar] = useState<PagoRow | null>(null);
@@ -185,10 +187,24 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
 
   function solicitarImpresionRecibo(pago: PagoRow) {
     const monto = pago.monto_pagado != null ? Number(pago.monto_pagado) : Number(pago.monto_esperado);
+    const lineas = lineasReciboDesdePago({
+      monto_pagado: monto,
+      mes_periodo: pago.mes_periodo,
+      detalle: pago.detalle_pago ?? null,
+      observacionesGenerales: pago.observaciones ?? null,
+    });
+    const idCompact = pago.id.replace(/-/g, "").slice(0, 10).toUpperCase();
+    const dni = contrato.inquilino?.dni;
     setReciboProps({
+      numeroRecibo: `N° ${idCompact}`,
       nombreCliente: nombreInquilino,
-      montoPagado: monto,
-      mesPeriodo: pago.mes_periodo,
+      dniCliente: dni != null && String(dni).trim() !== "" ? String(dni) : "—",
+      direccionInmueble:
+        contrato.propiedad?.direccion?.trim() ||
+        contrato.propiedad?.nombre?.trim() ||
+        "—",
+      lineas,
+      total: monto,
       fechaEmision: new Date(),
     });
     setImprimirPendiente(true);
@@ -275,11 +291,14 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
         <RegistrarPagoDialog
           open={pagoOpen}
           onOpenChange={(o) => {
-            if (!o) setMesPeriodoPago(null);
+            if (!o) {
+              setMesPeriodoPago(null);
+              setMontoCuotaPago(Number(contrato.monto_mensual));
+            }
             setPagoOpen(o);
           }}
           contratoId={contrato.id}
-          montoSugerido={Number(contrato.monto_mensual)}
+          montoSugerido={montoCuotaPago}
           disabled={!contrato.is_active}
           mesPeriodoPredefinido={mesPeriodoPago}
         />
@@ -396,7 +415,9 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
             <Button
               type="button"
               onClick={() => {
-                setMesPeriodoPago(null);
+                const sig = pagos.find((p) => p.estado === "Pendiente" || p.estado === "Atrasado");
+                setMesPeriodoPago(sig?.mes_periodo ?? null);
+                setMontoCuotaPago(sig != null ? Number(sig.monto_esperado) : Number(contrato.monto_mensual));
                 setPagoOpen(true);
               }}
               disabled={!contrato.is_active || contratoEliminado}
@@ -709,6 +730,7 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
                                         className="h-7 px-2 text-xs font-bold text-emerald-700 border-emerald-400 hover:bg-emerald-50 hover:text-emerald-900 hover:border-emerald-600"
                                         onClick={() => {
                                           setMesPeriodoPago(p.mes_periodo);
+                                          setMontoCuotaPago(Number(p.monto_esperado));
                                           setPagoOpen(true);
                                         }}
                                         aria-label="Registrar pago"
