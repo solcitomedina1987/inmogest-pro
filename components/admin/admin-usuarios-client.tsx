@@ -2,9 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, UserPlus } from "lucide-react";
+import { Pencil, UserCheck, UserMinus, UserPlus } from "lucide-react";
 import { toast } from "sonner";
-import { crearUsuarioDesdeAdmin, updatePerfilUsuario } from "@/app/actions/admin-usuarios";
+import { crearUsuarioDesdeAdmin, toggleUsuarioActivo, updatePerfilUsuario } from "@/app/actions/admin-usuarios";
 import { PERFIL_ROLES_EDITABLES } from "@/lib/roles";
 import { roleLabel } from "@/lib/role-label";
 import type { PerfilListRow } from "@/components/admin/types";
@@ -112,6 +112,23 @@ export function AdminUsuariosClient({ initial, currentUserId }: Props) {
       toast.success("Usuario actualizado.");
       setEditOpen(false);
       setEditRow(null);
+      router.refresh();
+    });
+  }
+
+  function alternarActivo(row: PerfilListRow) {
+    if (row.id === currentUserId && row.is_active) {
+      toast.error("No podés desactivar tu propia cuenta.");
+      return;
+    }
+    const next = !row.is_active;
+    startTransition(async () => {
+      const res = await toggleUsuarioActivo({ id: row.id, is_active: next });
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+      toast.success(next ? "Usuario activado." : "Usuario inactivado.");
       router.refresh();
     });
   }
@@ -323,7 +340,7 @@ export function AdminUsuariosClient({ initial, currentUserId }: Props) {
                   <TableHead>Rol</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead>Creado</TableHead>
-                  <TableHead className="w-[100px] text-right">Acciones</TableHead>
+                  <TableHead className="w-[140px] text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -347,6 +364,21 @@ export function AdminUsuariosClient({ initial, currentUserId }: Props) {
                       {formatCreado(r.created_at)}
                     </TableCell>
                     <TableCell className="text-right">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => alternarActivo(r)}
+                        disabled={pending || (r.id === currentUserId && r.is_active)}
+                        aria-label={r.is_active ? "Inactivar usuario" : "Activar usuario"}
+                        title={r.is_active ? "Inactivar" : "Activar"}
+                      >
+                        {r.is_active ? (
+                          <UserMinus className="size-4 text-amber-700" aria-hidden />
+                        ) : (
+                          <UserCheck className="size-4 text-emerald-700" aria-hidden />
+                        )}
+                      </Button>
                       <Button type="button" variant="ghost" size="icon" onClick={() => abrirEditar(r)}>
                         <Pencil className="size-4" aria-hidden />
                         <span className="sr-only">Editar</span>

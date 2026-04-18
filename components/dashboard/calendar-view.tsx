@@ -1010,7 +1010,7 @@ export function CalendarView({ refreshToken }: { refreshToken?: number } = {}) {
   const today = useRef(new Date()).current;
   const [refDate, setRefDate] = useState(() => new Date(today));
   const [view, setView] = useState<ViewMode>("month");
-  const [displayMode, setDisplayMode] = useState<DisplayMode>("calendario");
+  const [displayMode, setDisplayMode] = useState<DisplayMode>("agenda");
   const [agendaRango, setAgendaRango] = useState<AgendaRango>("prox90");
   const [events, setEvents] = useState<EventoCalendario[]>([]);
   const [agendaEvents, setAgendaEvents] = useState<EventoCalendario[]>([]);

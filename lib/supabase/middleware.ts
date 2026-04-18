@@ -39,11 +39,12 @@ export async function updateSession(request: NextRequest) {
     path === "/registro" ||
     path === "/forgot-password" ||
     path === "/update-password";
+  const isAuthCallback = path === "/auth/callback";
 
   type PerfilMini = { rol: string; is_active: boolean | null } | null;
   let perfil: PerfilMini = null;
 
-  if (user && (isDashboard || isPortal || isPropietarios)) {
+  if (user) {
     const { data } = await supabase
       .from("perfiles")
       .select("rol, is_active")
@@ -51,7 +52,7 @@ export async function updateSession(request: NextRequest) {
       .maybeSingle();
     perfil = data as PerfilMini;
 
-    if (perfil?.is_active === false) {
+    if (!isAuthPage && !isAuthCallback && perfil?.is_active === false) {
       await supabase.auth.signOut();
       const url = request.nextUrl.clone();
       url.pathname = "/login";
@@ -70,15 +71,6 @@ export async function updateSession(request: NextRequest) {
 
   /* Usuarios logueados en páginas de auth → redirigir según rol. */
   if (user && (isAuthPage || isDashboard) && path !== "/update-password" && !isPortal && !isPropietarios) {
-    if (!perfil) {
-      const { data } = await supabase
-        .from("perfiles")
-        .select("rol, is_active")
-        .eq("id", user.id)
-        .maybeSingle();
-      perfil = data as PerfilMini;
-    }
-
     if (perfil?.is_active === false) {
       await supabase.auth.signOut();
       const url = request.nextUrl.clone();
@@ -116,14 +108,6 @@ export async function updateSession(request: NextRequest) {
 
   /* Portal inquilino: solo rol cliente */
   if (user && isPortal) {
-    if (!perfil) {
-      const { data } = await supabase
-        .from("perfiles")
-        .select("rol, is_active")
-        .eq("id", user.id)
-        .maybeSingle();
-      perfil = data as PerfilMini;
-    }
     const rol = perfil?.rol ?? "cliente";
     if (rol !== "cliente") {
       const url = request.nextUrl.clone();
@@ -135,14 +119,6 @@ export async function updateSession(request: NextRequest) {
 
   /* Portal propietarios: solo rol propietario */
   if (user && isPropietarios) {
-    if (!perfil) {
-      const { data } = await supabase
-        .from("perfiles")
-        .select("rol, is_active")
-        .eq("id", user.id)
-        .maybeSingle();
-      perfil = data as PerfilMini;
-    }
     const rol = perfil?.rol ?? "cliente";
     if (rol !== "propietario") {
       const url = request.nextUrl.clone();

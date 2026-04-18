@@ -106,6 +106,48 @@ export async function updatePerfilUsuario(input: unknown): Promise<AdminUsuarioA
   return { ok: true as const };
 }
 
+const toggleActivoSchema = z.object({
+  id: uuid,
+  is_active: z.boolean(),
+});
+
+/** Alterna solo `is_active` / `deleted_at` (sin tocar email ni Auth). */
+export async function toggleUsuarioActivo(input: unknown): Promise<AdminUsuarioActionResult> {
+  const gate = await requireAdmin();
+  if (!gate.ok) {
+    return { ok: false, error: gate.code === "no-auth" ? "Iniciá sesión." : "Sin permisos." };
+  }
+  const parsed = toggleActivoSchema.safeParse(input);
+  if (!parsed.success) {
+    const first = Object.values(parsed.error.flatten().fieldErrors).flat()[0] ?? "Datos inválidos";
+    return { ok: false, error: first };
+  }
+  const { id, is_active } = parsed.data;
+
+  if (id === gate.user.id && !is_active) {
+    return { ok: false, error: "No podés desactivar tu propia cuenta." };
+  }
+
+  const deleted_at = is_active ? null : new Date().toISOString();
+
+  const { error } = await gate.supabase
+    .from("perfiles")
+    .update({
+      is_active,
+      deleted_at,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+
+  revalidatePath("/dashboard/admin-usuarios");
+  revalidatePath("/dashboard");
+  return { ok: true as const };
+}
+
 const nuevoUsuarioSchema = z.object({
   nombre: z.string().trim().min(2, "Nombre obligatorio").max(200),
   email: z.string().trim().email("Email inválido"),

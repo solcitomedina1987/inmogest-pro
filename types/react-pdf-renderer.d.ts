@@ -2,22 +2,29 @@
 declare module "@react-pdf/renderer" {
   import type { ReactElement } from "react";
 
+  type PdfStyle = Record<string, unknown> | Record<string, unknown>[];
+
   export const Document: (props: { children?: React.ReactNode }) => ReactElement;
   export const Page: (props: {
     size?: string;
-    style?: Record<string, unknown>;
+    style?: PdfStyle;
     children?: React.ReactNode;
     wrap?: boolean;
   }) => ReactElement;
   export const Text: (props: {
-    style?: Record<string, unknown>;
+    style?: PdfStyle;
     children?: React.ReactNode;
     wrap?: boolean;
   }) => ReactElement;
   export const View: (props: {
-    style?: Record<string, unknown>;
+    style?: PdfStyle;
     children?: React.ReactNode;
     fixed?: boolean;
+    wrap?: boolean;
+  }) => ReactElement;
+  export const Image: (props: {
+    src: string;
+    style?: PdfStyle;
   }) => ReactElement;
   export const StyleSheet: {
     create: <T extends Record<string, Record<string, unknown>>>(styles: T) => T;

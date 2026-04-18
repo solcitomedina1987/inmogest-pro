@@ -21,7 +21,10 @@ const baseNav = [
   { href: "/dashboard/proveedores", label: "Proveedores" },
 ] as const;
 
-const adminNavItem = { href: "/dashboard/admin-usuarios", label: "Usuarios" } as const;
+const adminNavItems = [
+  { href: "/dashboard/informes", label: "Informes" },
+  { href: "/dashboard/admin-usuarios", label: "Usuarios" },
+] as const;
 
 type Props = {
   children: React.ReactNode;
@@ -82,21 +85,23 @@ export function DashboardShell({ children, isAdmin = false, isCliente = false }:
             {item.label}
           </Link>
         ))}
-        {isAdmin ? (
-          <Link
-            key={adminNavItem.href}
-            href={adminNavItem.href}
-            prefetch
-            onClick={(e) => handleNavClick(e, adminNavItem.href, after)}
-            className={cn(
-              "text-foreground rounded-md px-3 py-2 text-sm transition-colors hover:bg-muted",
-              !mobile && isDashboardSameSection(pathname, adminNavItem.href) && "bg-muted font-medium",
-              mobile && isDashboardSameSection(pathname, adminNavItem.href) && "bg-muted font-medium",
-            )}
-          >
-            {adminNavItem.label}
-          </Link>
-        ) : null}
+        {isAdmin
+          ? adminNavItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                prefetch
+                onClick={(e) => handleNavClick(e, item.href, after)}
+                className={cn(
+                  "text-foreground rounded-md px-3 py-2 text-sm transition-colors hover:bg-muted",
+                  !mobile && isDashboardSameSection(pathname, item.href) && "bg-muted font-medium",
+                  mobile && isDashboardSameSection(pathname, item.href) && "bg-muted font-medium",
+                )}
+              >
+                {item.label}
+              </Link>
+            ))
+          : null}
       </nav>
     );
   }
