@@ -7,6 +7,10 @@ import { requireAdmin } from "@/lib/supabase/require-admin";
 
 export type InformeActionResult = { ok: true; id: string } | { ok: false; error: string };
 
+function round2(n: number) {
+  return Math.round(n * 100) / 100;
+}
+
 const generarSchema = z.object({
   propietario_cliente_id: z.string().uuid(),
   mes_periodo: z.string().regex(/^\d{4}-\d{2}$/),
@@ -32,14 +36,15 @@ export async function generarInformeRendicion(input: unknown): Promise<InformeAc
   }
 
   const payload = comp.payload;
+  const brutoCobrado = round2(payload.total_alquileres_cobrados + payload.subtotal_otros_conceptos);
   const { data: ins, error } = await supabase
     .from("informes_rendicion")
     .insert({
       propietario_cliente_id: parsed.data.propietario_cliente_id,
       mes_periodo: parsed.data.mes_periodo,
       comision_porcentaje: parsed.data.comision_porcentaje,
-      monto_total: payload.subtotal_ingresos,
-      neto_rendir: payload.neto_a_rendir,
+      monto_total: brutoCobrado,
+      neto_rendir: payload.total_neto_a_rendir,
       payload,
     })
     .select("id")

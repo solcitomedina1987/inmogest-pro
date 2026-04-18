@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/supabase/require-admin";
 import { buildInformeRendicionPdfBuffer } from "@/lib/informes/build-informe-pdf-buffer";
-import type { InformeRendicionPayloadV1 } from "@/lib/informes/rendicion-types";
+import { parseInformeRendicionPayload } from "@/lib/informes/parse-informe-payload";
 
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const auth = await requireAdmin();
@@ -20,9 +20,9 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     return NextResponse.json({ error: "Informe no encontrado." }, { status: 404 });
   }
 
-  const payload = row.payload as InformeRendicionPayloadV1;
-  if (payload.v !== 1) {
-    return NextResponse.json({ error: "Formato no soportado." }, { status: 400 });
+  const payload = parseInformeRendicionPayload(row.payload);
+  if (!payload) {
+    return NextResponse.json({ error: "Formato de informe no válido." }, { status: 400 });
   }
 
   try {

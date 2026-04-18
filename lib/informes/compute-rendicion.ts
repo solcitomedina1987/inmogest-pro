@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { etiquetaConceptoConEmoji } from "@/lib/cobranzas/conceptos-pago";
 import { parseDetallePagoDb } from "@/lib/cobranzas/detalle-pago";
-import type { InformeRendicionPayloadV1 } from "@/lib/informes/rendicion-types";
+import type { InformeRendicionPayloadV2 } from "@/lib/informes/rendicion-types";
 
 type PagoRow = {
   id: string;
@@ -28,6 +28,30 @@ function etiquetaPropiedad(p: { direccion?: string | null; nombre?: string | nul
   return p.nombre?.trim() || "—";
 }
 
+function roundMoney(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+function emptyPayload(
+  propietarioNombre: string,
+  mes_periodo: string,
+  comision_porcentaje: number,
+): InformeRendicionPayloadV2 {
+  return {
+    v: 2,
+    propietario_nombre: propietarioNombre,
+    mes_periodo,
+    comision_porcentaje,
+    alquileres: [],
+    otros_conceptos: [],
+    total_alquileres_cobrados: 0,
+    comision_monto: 0,
+    neto_alquileres: 0,
+    subtotal_otros_conceptos: 0,
+    total_neto_a_rendir: 0,
+  };
+}
+
 export async function computeInformeRendicion(
   supabase: SupabaseClient,
   input: {
@@ -35,7 +59,7 @@ export async function computeInformeRendicion(
     mes_periodo: string;
     comision_porcentaje: number;
   },
-): Promise<{ ok: true; payload: InformeRendicionPayloadV1 } | { ok: false; error: string }> {
+): Promise<{ ok: true; payload: InformeRendicionPayloadV2 } | { ok: false; error: string }> {
   const { propietario_cliente_id, mes_periodo, comision_porcentaje } = input;
 
   const { data: propRow, error: pErr } = await supabase
@@ -66,19 +90,7 @@ export async function computeInformeRendicion(
 
   const propIds = (props ?? []).map((r) => (r as { id: string }).id);
   if (propIds.length === 0) {
-    const empty: InformeRendicionPayloadV1 = {
-      v: 1,
-      propietario_nombre: propietarioNombre,
-      mes_periodo,
-      comision_porcentaje,
-      alquileres: [],
-      otros_conceptos: [],
-      subtotal_ingresos: 0,
-      total_alquileres: 0,
-      comision_monto: 0,
-      neto_a_rendir: 0,
-    };
-    return { ok: true, payload: empty };
+    return { ok: true, payload: emptyPayload(propietarioNombre, mes_periodo, comision_porcentaje) };
   }
 
   const { data: contratosRaw, error: cErr } = await supabase
@@ -96,19 +108,7 @@ export async function computeInformeRendicion(
   const contratos = (contratosRaw ?? []) as ContratoMini[];
   const contratoIds = contratos.map((c) => c.id);
   if (contratoIds.length === 0) {
-    const empty: InformeRendicionPayloadV1 = {
-      v: 1,
-      propietario_nombre: propietarioNombre,
-      mes_periodo,
-      comision_porcentaje,
-      alquileres: [],
-      otros_conceptos: [],
-      subtotal_ingresos: 0,
-      total_alquileres: 0,
-      comision_monto: 0,
-      neto_a_rendir: 0,
-    };
-    return { ok: true, payload: empty };
+    return { ok: true, payload: emptyPayload(propietarioNombre, mes_periodo, comision_porcentaje) };
   }
 
   const propiedadByContrato = new Map<string, { id: string; direccion: string | null; nombre: string }>();
@@ -130,23 +130,28 @@ export async function computeInformeRendicion(
     return { ok: false, error: pgErr.message };
   }
 
-  const alquilerPorPropiedad = new Map<string, number>();
-  const otros: InformeRendicionPayloadV1["otros_conceptos"] = [];
-  let subtotal = 0;
-  let totalAlquileres = 0;
+  const alquileres: InformeRendicionPayloadV2["alquileres"] = [];
+  const otros: InformeRendicionPayloadV2["otros_conceptos"] = [];
 
   for (const raw of pagosRaw ?? []) {
     const p = raw as PagoRow;
     const montoPagado = p.monto_pagado != null ? Number(p.monto_pagado) : 0;
-    subtotal += montoPagado;
-
     const prop = propiedadByContrato.get(p.contrato_id);
     const propId = prop?.id ?? "sin-propiedad";
+    const etiqueta = prop ? etiquetaPropiedad(prop) : "—";
 
     const detalle = parseDetallePagoDb(p.detalle_pago);
-    const alq = detalle ? detalle.monto_alquiler : montoPagado;
-    totalAlquileres += alq;
-    alquilerPorPropiedad.set(propId, (alquilerPorPropiedad.get(propId) ?? 0) + alq);
+    /** Ítem comisionable: solo monto explícito de alquiler; sin detalle, el total del recibo se considera alquiler. */
+    const montoAlquilerLinea = detalle != null ? detalle.monto_alquiler : montoPagado;
+
+    if (montoAlquilerLinea > 0) {
+      alquileres.push({
+        pago_id: p.id,
+        propiedad_id: propId,
+        etiqueta,
+        monto: roundMoney(montoAlquilerLinea),
+      });
+    }
 
     if (detalle) {
       for (const ex of detalle.extras) {
@@ -154,42 +159,43 @@ export async function computeInformeRendicion(
         otros.push({
           pago_id: p.id,
           concepto: etiquetaConceptoConEmoji(ex.concepto),
-          monto: ex.monto,
+          monto: roundMoney(Number(ex.monto)),
           observaciones: ex.observaciones,
         });
       }
     }
   }
 
-  const alquileres: InformeRendicionPayloadV1["alquileres"] = [];
-  for (const [propiedad_id, monto] of alquilerPorPropiedad) {
-    const pr = (props ?? []).find((x) => (x as { id: string }).id === propiedad_id) as
-      | { id: string; direccion: string | null; nombre: string }
-      | undefined;
-    alquileres.push({
-      propiedad_id,
-      etiqueta: pr ? etiquetaPropiedad(pr) : etiquetaPropiedad({ direccion: null, nombre: "—" }),
-      monto,
-    });
-  }
-  alquileres.sort((a, b) => a.etiqueta.localeCompare(b.etiqueta, "es"));
+  alquileres.sort((a, b) => {
+    const c = a.etiqueta.localeCompare(b.etiqueta, "es");
+    return c !== 0 ? c : a.pago_id.localeCompare(b.pago_id);
+  });
+  otros.sort((a, b) => {
+    const c = a.concepto.localeCompare(b.concepto, "es");
+    return c !== 0 ? c : a.pago_id.localeCompare(b.pago_id);
+  });
 
-  const comisionMonto = Math.round(totalAlquileres * (comision_porcentaje / 100) * 100) / 100;
-  const neto = Math.round((subtotal - comisionMonto) * 100) / 100;
+  const totalAlquileresCobrados = roundMoney(alquileres.reduce((s, r) => s + r.monto, 0));
+  const subtotalOtrosConceptos = roundMoney(otros.reduce((s, r) => s + r.monto, 0));
+
+  const comisionMonto = roundMoney(totalAlquileresCobrados * (comision_porcentaje / 100));
+  const netoAlquileres = roundMoney(totalAlquileresCobrados - comisionMonto);
+  const totalNetoARendir = roundMoney(netoAlquileres + subtotalOtrosConceptos);
 
   return {
     ok: true,
     payload: {
-      v: 1,
+      v: 2,
       propietario_nombre: propietarioNombre,
       mes_periodo,
       comision_porcentaje,
       alquileres,
       otros_conceptos: otros,
-      subtotal_ingresos: Math.round(subtotal * 100) / 100,
-      total_alquileres: Math.round(totalAlquileres * 100) / 100,
+      total_alquileres_cobrados: totalAlquileresCobrados,
       comision_monto: comisionMonto,
-      neto_a_rendir: neto,
+      neto_alquileres: netoAlquileres,
+      subtotal_otros_conceptos: subtotalOtrosConceptos,
+      total_neto_a_rendir: totalNetoARendir,
     },
   };
 }

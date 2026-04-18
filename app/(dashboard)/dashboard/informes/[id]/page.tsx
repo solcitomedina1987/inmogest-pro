@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { parseInformePayloadV1 } from "@/lib/informes/parse-informe-payload";
+import { parseInformeRendicionPayload } from "@/lib/informes/parse-informe-payload";
 import { InformeRendicionVista } from "@/components/informes/informe-rendicion-vista";
 import { InformeRendicionDetalleToolbar } from "@/components/informes/informe-rendicion-detalle-toolbar";
 
@@ -35,7 +35,7 @@ export default async function InformeRendicionDetallePage({ params }: Props) {
     notFound();
   }
 
-  const payload = parseInformePayloadV1(row.payload);
+  const payload = parseInformeRendicionPayload(row.payload);
   if (!payload) {
     notFound();
   }

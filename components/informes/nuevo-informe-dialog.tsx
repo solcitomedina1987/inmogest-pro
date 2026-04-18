@@ -91,7 +91,8 @@ export function NuevoInformeDialog({ open, onOpenChange, propietarios }: Props) 
           <DialogTitle>Nuevo informe de rendición</DialogTitle>
           <DialogDescription>
             Se toman los pagos <strong>Pagado</strong> del período (mes devengado) en contratos de cobranzas de las
-            propiedades del propietario. La comisión se calcula solo sobre el total de alquileres.
+            propiedades del propietario. La comisión se aplica solo sobre los montos de <strong>Alquiler</strong> de cada
+            recibo; luz, gas y demás rubros figuran aparte y se suman íntegros al neto a rendir.
           </DialogDescription>
         </DialogHeader>
 

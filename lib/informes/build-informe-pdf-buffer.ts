@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { pdf } from "@react-pdf/renderer";
 import { InformeRendicionPdfDocument } from "@/components/informes/informe-rendicion-pdf-document";
-import type { InformeRendicionPayloadV1 } from "@/lib/informes/rendicion-types";
+import type { InformeRendicionPayload } from "@/lib/informes/rendicion-types";
 import { BRAND_LOGO_SRC } from "@/lib/constants/branding";
 
 function readBrandLogoDataUri(): string | undefined {
@@ -26,7 +26,7 @@ export type BuildInformePdfOptions = {
 };
 
 export async function buildInformeRendicionPdfBuffer(
-  payload: InformeRendicionPayloadV1,
+  payload: InformeRendicionPayload,
   options?: BuildInformePdfOptions,
 ): Promise<Buffer> {
   const logoDataUri = readBrandLogoDataUri();
