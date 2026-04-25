@@ -14,7 +14,7 @@ export function InformeRendicionDetalleToolbar({ informeId }: Props) {
       <Button variant="outline" size="sm" asChild>
         <Link href="/dashboard/informes" className="gap-2">
           <ArrowLeft className="size-4" aria-hidden />
-          Volver al listado
+          Volver a rendiciones
         </Link>
       </Button>
       <Button variant="outline" size="sm" type="button" onClick={() => window.print()}>

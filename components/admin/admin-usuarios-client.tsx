@@ -314,12 +314,9 @@ export function AdminUsuariosClient({ initial, currentUserId }: Props) {
         </DialogContent>
       </Dialog>
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Usuarios</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Solo administradores. Gestión de perfiles y roles.</p>
-        </div>
-        <Button type="button" className="gap-2" onClick={abrirNuevo}>
+      <div className="flex max-w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-2xl font-semibold tracking-tight">Admin Usuarios</h1>
+        <Button type="button" className="shrink-0 gap-2" onClick={abrirNuevo}>
           <UserPlus className="size-4" aria-hidden />
           Nuevo usuario
         </Button>

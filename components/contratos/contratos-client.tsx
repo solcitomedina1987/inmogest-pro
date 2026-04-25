@@ -157,14 +157,9 @@ export function ContratosClient({ rows, propiedadesForm, clientesForm, propietar
 
   return (
     <div className="flex max-w-full min-w-0 flex-col gap-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Contratos de locación</h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Generación de PDF, vínculo con cobranzas y gestión de estados (vigente, vencido, rescindido).
-          </p>
-        </div>
-        <Button type="button" onClick={abrirNuevo}>
+      <div className="flex max-w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-2xl font-semibold tracking-tight">Contratos de locación</h1>
+        <Button type="button" className="shrink-0 gap-2" onClick={abrirNuevo}>
           Nuevo contrato
         </Button>
       </div>

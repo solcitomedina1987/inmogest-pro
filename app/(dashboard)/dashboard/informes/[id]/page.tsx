@@ -9,7 +9,7 @@ type Props = { params: Promise<{ id: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  return { title: `Informe ${id.slice(0, 8)}…` };
+  return { title: `Rendición ${id.slice(0, 8)}…` };
 }
 
 export default async function InformeRendicionDetallePage({ params }: Props) {

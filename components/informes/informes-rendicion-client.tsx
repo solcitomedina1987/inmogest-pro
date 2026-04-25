@@ -37,14 +37,10 @@ export function InformesRendicionClient({ rows, propietarios }: Props) {
 
   return (
     <div className="flex max-w-full min-w-0 flex-col gap-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Informes</h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Rendiciones de cobranzas a propietarios. Los importes quedan congelados en el historial.
-          </p>
-        </div>
-        <Button type="button" onClick={() => setNuevoOpen(true)}>
+      <div className="flex max-w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-2xl font-semibold tracking-tight">Rendiciones</h1>
+        <Button type="button" className="shrink-0 gap-2" onClick={() => setNuevoOpen(true)}>
+          <FileText className="size-4" aria-hidden />
           Nuevo informe
         </Button>
       </div>

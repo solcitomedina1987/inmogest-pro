@@ -5,7 +5,7 @@ import { AdminUsuariosClient } from "@/components/admin/admin-usuarios-client";
 import type { PerfilListRow } from "@/components/admin/types";
 
 export const metadata: Metadata = {
-  title: "Usuarios",
+  title: "Admin Usuarios",
 };
 
 function mapRow(r: Record<string, unknown>): PerfilListRow {

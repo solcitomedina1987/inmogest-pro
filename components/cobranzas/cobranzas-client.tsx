@@ -2,11 +2,13 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   Calculator,
   CircleDollarSign,
+  FileBarChart,
   FileText,
   Loader2,
   Pencil,
@@ -310,22 +312,21 @@ export function CobranzasClient({
   return (
     <TooltipProvider delayDuration={300}>
     <div className="flex max-w-full min-w-0 flex-col gap-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Alquileres</h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Contratos de alquiler y estado de cobro del mes <strong>{mes}</strong>. Los finalizados
-            siguen listados para consulta.
-          </p>
-        </div>
+      <div className="flex max-w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-2xl font-semibold tracking-tight">Alquileres</h1>
         <div className="flex flex-wrap gap-2">
+          <Button type="button" className="shrink-0 gap-2" asChild>
+            <Link href="/dashboard/informes" prefetch>
+              <FileBarChart className="size-4" aria-hidden />
+              Rendiciones
+            </Link>
+          </Button>
           <Tooltip>
             <TooltipTrigger asChild>
               <span>
                 <Button
                   type="button"
-                  variant="default"
-                  className="gap-2"
+                  className="shrink-0 gap-2"
                   disabled={contratosParaRegistrarPago.length === 0}
                   onClick={() => setRegistrarPagoOpen(true)}
                 >
@@ -340,7 +341,7 @@ export function CobranzasClient({
                 : "Registrar un pago eligiendo contrato y período."}
             </TooltipContent>
           </Tooltip>
-          <Button type="button" className="gap-2" onClick={() => setOpen(true)}>
+          <Button type="button" className="shrink-0 gap-2" onClick={() => setOpen(true)}>
             <FileText className="size-4" aria-hidden />
             Nuevo contrato
           </Button>

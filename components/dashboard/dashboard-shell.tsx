@@ -21,10 +21,7 @@ const baseNav = [
   { href: "/dashboard/proveedores", label: "Proveedores" },
 ] as const;
 
-const adminNavItems = [
-  { href: "/dashboard/informes", label: "Informes" },
-  { href: "/dashboard/admin-usuarios", label: "Usuarios" },
-] as const;
+const adminNavItems = [{ href: "/dashboard/admin-usuarios", label: "Admin Usuarios" }] as const;
 
 type Props = {
   children: React.ReactNode;

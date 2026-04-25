@@ -6,7 +6,7 @@ import { InformesRendicionClient } from "@/components/informes/informes-rendicio
 import type { PropietarioOption } from "@/components/informes/nuevo-informe-dialog";
 
 export const metadata: Metadata = {
-  title: "Informes",
+  title: "Rendiciones",
 };
 
 function unwrapFk<T>(v: T | T[] | null | undefined): T | null {
