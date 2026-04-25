@@ -106,6 +106,7 @@ export async function crearContratoLocacion(input: unknown): Promise<ContratoLoc
   if (meses.length > 0) {
     const pagosRows = meses.map((mes_periodo) => ({
       contrato_id: cobranzaId,
+      propiedad_id: v.propiedad_id,
       mes_periodo,
       monto_esperado: v.valor_mensual,
       estado: "Pendiente" as const,

@@ -133,9 +133,11 @@ export default async function CobranzasContratoDetallePage({ params }: PageProps
 
   const pagos: PagoRow[] = (pagosRaw ?? []).map((raw) => {
     const x = raw as Record<string, unknown>;
+    const propiedadIdCol = x.propiedad_id as string | null | undefined;
     return {
       id: x.id as string,
       contrato_id: x.contrato_id as string,
+      propiedad_id: propiedadIdCol ?? contrato.propiedad_id,
       mes_periodo: x.mes_periodo as string,
       monto_esperado: Number(x.monto_esperado),
       monto_pagado: x.monto_pagado != null ? Number(x.monto_pagado) : null,

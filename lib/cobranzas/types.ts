@@ -1,4 +1,4 @@
-import type { DetallePagoV1 } from "@/lib/cobranzas/detalle-pago";
+import type { DetallePagoParsed } from "@/lib/cobranzas/detalle-pago";
 
 export type EstadoPagoCobranza = "Pendiente" | "Pagado" | "Atrasado";
 
@@ -32,6 +32,7 @@ export type ContratoCobranzaRow = {
 export type PagoRow = {
   id: string;
   contrato_id: string;
+  propiedad_id?: string | null;
   mes_periodo: string;
   monto_esperado: number;
   monto_pagado: number | null;
@@ -40,6 +41,6 @@ export type PagoRow = {
   forma_pago?: string | null;
   observaciones?: string | null;
   /** Desglose multiconcepto (JSONB). */
-  detalle_pago?: DetallePagoV1 | null;
+  detalle_pago?: DetallePagoParsed | null;
   created_at?: string;
 };

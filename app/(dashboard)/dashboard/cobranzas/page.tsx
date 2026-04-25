@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { parseDetallePagoDb } from "@/lib/cobranzas/detalle-pago";
 import { mesPeriodoActual } from "@/lib/cobranzas/estado-contrato";
 import type { ContratoCobranzaRow, PagoRow } from "@/lib/cobranzas/types";
 import { CobranzasClient } from "@/components/cobranzas/cobranzas-client";
@@ -97,6 +98,7 @@ export default async function DashboardCobranzasPage({ searchParams }: PageProps
   const mes = mesPeriodoActual();
   const contratos = (contratosRaw ?? []).map((r) => normalizeContratoRow(r as Record<string, unknown>));
   const ids = contratos.map((c) => c.id);
+  const propiedadIdPorContrato = new Map(contratos.map((c) => [c.id, c.propiedad_id] as const));
 
   let pagosMes: PagoRow[] = [];
   if (ids.length > 0) {
@@ -114,7 +116,25 @@ export default async function DashboardCobranzasPage({ searchParams }: PageProps
         </div>
       );
     }
-    pagosMes = (pagosData ?? []) as PagoRow[];
+    pagosMes = (pagosData ?? []).map((raw) => {
+      const x = raw as Record<string, unknown>;
+      const contratoId = x.contrato_id as string;
+      const propiedadIdCol = x.propiedad_id as string | null | undefined;
+      return {
+        id: x.id as string,
+        contrato_id: contratoId,
+        propiedad_id: propiedadIdCol ?? propiedadIdPorContrato.get(contratoId),
+        mes_periodo: x.mes_periodo as string,
+        monto_esperado: Number(x.monto_esperado),
+        monto_pagado: x.monto_pagado != null ? Number(x.monto_pagado) : null,
+        fecha_pago_realizado: (x.fecha_pago_realizado as string | null) ?? null,
+        estado: x.estado as PagoRow["estado"],
+        forma_pago: (x.forma_pago as string | null) ?? null,
+        observaciones: (x.observaciones as string | null) ?? null,
+        detalle_pago: parseDetallePagoDb(x.detalle_pago),
+        created_at: x.created_at as string | undefined,
+      };
+    });
   }
 
   if (cErr) {

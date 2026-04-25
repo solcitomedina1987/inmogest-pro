@@ -32,7 +32,27 @@ function parseV2(p: Record<string, unknown>): InformeRendicionPayloadV2 | null {
   ) {
     return null;
   }
-  return p as unknown as InformeRendicionPayloadV2;
+  const deducciones_propietario = Array.isArray(p.deducciones_propietario)
+    ? (p.deducciones_propietario as InformeRendicionPayloadV2["deducciones_propietario"])
+    : [];
+  const informativos_conceptos = Array.isArray(p.informativos_conceptos)
+    ? (p.informativos_conceptos as InformeRendicionPayloadV2["informativos_conceptos"])
+    : [];
+  return {
+    v: 2,
+    propietario_nombre: p.propietario_nombre,
+    mes_periodo: p.mes_periodo,
+    comision_porcentaje: p.comision_porcentaje,
+    alquileres: p.alquileres as InformeRendicionPayloadV2["alquileres"],
+    otros_conceptos: p.otros_conceptos as InformeRendicionPayloadV2["otros_conceptos"],
+    deducciones_propietario,
+    informativos_conceptos,
+    total_alquileres_cobrados: p.total_alquileres_cobrados,
+    comision_monto: p.comision_monto,
+    neto_alquileres: p.neto_alquileres,
+    subtotal_otros_conceptos: p.subtotal_otros_conceptos,
+    total_neto_a_rendir: p.total_neto_a_rendir,
+  };
 }
 
 /** Acepta v1 (histórico) y v2 (segmentado comisionable / informativo). */

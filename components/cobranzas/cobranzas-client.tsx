@@ -3,9 +3,19 @@
 import { useMemo, useState, useTransition } from "react";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Calculator, FileText, Loader2, Pencil, ScrollText, Trash2 } from "lucide-react";
+import {
+  AlertTriangle,
+  Calculator,
+  CircleDollarSign,
+  FileText,
+  Loader2,
+  Pencil,
+  ScrollText,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 import { eliminarContratoCobranza } from "@/app/actions/cobranzas";
+import { contratoCobranzaVigente } from "@/lib/cobranzas/contrato-vigente";
 import type { ContratoCobranzaRow, PagoRow } from "@/lib/cobranzas/types";
 import {
   estadoCobranzaContrato,
@@ -38,6 +48,10 @@ import {
   type SelectOption,
 } from "@/components/cobranzas/contrato-form-dialog";
 import { ActualizacionEstimadaDialog } from "@/components/shared/actualizacion-estimada-dialog";
+import {
+  RegistrarPagoDialog,
+  type ContratoPagoSelectorOption,
+} from "@/components/cobranzas/registrar-pago-dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -175,6 +189,7 @@ export function CobranzasClient({
   const [estimadaMesPeriodo, setEstimadaMesPeriodo] = useState<string | null>(null);
   const [eliminarId, setEliminarId] = useState<string | null>(null);
   const [eliminando, startEliminar] = useTransition();
+  const [registrarPagoOpen, setRegistrarPagoOpen] = useState(false);
   const mes = mesPeriodoActual();
 
   const [direccionInput, setDireccionInput] = useState("");
@@ -256,6 +271,23 @@ export function CobranzasClient({
     return m;
   }, [pagosMesActual, mes]);
 
+  const contratosParaRegistrarPago = useMemo((): ContratoPagoSelectorOption[] => {
+    const list = contratos
+      .filter((c) => contratoCobranzaVigente(c))
+      .map((c) => {
+        const prop =
+          (c.propiedad?.direccion?.trim() || c.propiedad?.nombre?.trim() || "Propiedad").trim() || "Propiedad";
+        const inq = (c.inquilino?.nombre_completo ?? "—").trim() || "—";
+        return {
+          id: c.id,
+          label: `${prop} · ${inq}`,
+          monto_mensual: Number(c.monto_mensual),
+        };
+      });
+    list.sort((a, b) => a.label.localeCompare(b.label, "es"));
+    return list;
+  }, [contratos]);
+
   const contratosFiltrados = useMemo(() => {
     const d = direccionDebounced.trim().toLowerCase();
     const inq = inquilinoDebounced.trim().toLowerCase();
@@ -286,7 +318,28 @@ export function CobranzasClient({
             siguen listados para consulta.
           </p>
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex flex-wrap gap-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>
+                <Button
+                  type="button"
+                  variant="default"
+                  className="gap-2"
+                  disabled={contratosParaRegistrarPago.length === 0}
+                  onClick={() => setRegistrarPagoOpen(true)}
+                >
+                  <CircleDollarSign className="size-4" aria-hidden />
+                  Registrar pago
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              {contratosParaRegistrarPago.length === 0
+                ? "No hay contratos vigentes para asociar el cobro."
+                : "Registrar un pago eligiendo contrato y período."}
+            </TooltipContent>
+          </Tooltip>
           <Button type="button" className="gap-2" onClick={() => setOpen(true)}>
             <FileText className="size-4" aria-hidden />
             Nuevo contrato
@@ -525,6 +578,15 @@ export function CobranzasClient({
       />
 
       <ContratoFormDialog open={open} onOpenChange={setOpen} propiedades={propiedades} clientes={clientes} />
+
+      <RegistrarPagoDialog
+        open={registrarPagoOpen}
+        onOpenChange={setRegistrarPagoOpen}
+        contratoIdInicial={null}
+        contratosDisponibles={contratosParaRegistrarPago}
+        montoSugerido={contratosParaRegistrarPago[0]?.monto_mensual ?? 0}
+        disabled={contratosParaRegistrarPago.length === 0}
+      />
 
       {editarContrato ? (
         <EditarContratoDialog

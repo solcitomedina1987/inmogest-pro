@@ -6,7 +6,8 @@ import { mesPeriodoActual } from "@/lib/cobranzas/estado-contrato";
 import { mesesPeriodoEntreFechasContrato } from "@/lib/cobranzas/meses-contrato";
 import { ESTADO_PROPIEDAD_CARTEL_ALQUILER } from "@/lib/constants/propiedades";
 import { contratoCobranzaSchema } from "@/lib/validations/contrato-cobranza";
-import { construirDetallePagoV1, totalDesdeDetalle } from "@/lib/cobranzas/detalle-pago";
+import { contratoCobranzaVigente } from "@/lib/cobranzas/contrato-vigente";
+import { construirDetallePagoV2, totalRecaudadoInquilino } from "@/lib/cobranzas/detalle-pago";
 import { registroPagoSchema, editarPagoSchema } from "@/lib/validations/registro-pago";
 import { updateContratoCobranzaSchema } from "@/lib/validations/update-contrato-cobranza";
 import { crearEventosContrato, googleCalendarConfigurado } from "@/lib/google/calendar";
@@ -83,6 +84,7 @@ export async function createContratoCobranza(input: unknown): Promise<CobranzaAc
   if (meses.length > 0) {
     const pagosRows = meses.map((mes_periodo) => ({
       contrato_id: contratoId,
+      propiedad_id: v.propiedad_id,
       mes_periodo,
       monto_esperado: v.monto_mensual,
       estado: "Pendiente" as const,
@@ -167,7 +169,7 @@ export async function registrarPagoContrato(input: unknown): Promise<CobranzaAct
 
   const { data: contrato, error: cErr } = await supabase
     .from("contratos_cobranza")
-    .select("id, monto_mensual, is_active, deleted_at")
+    .select("id, monto_mensual, is_active, deleted_at, propiedad_id, fecha_vencimiento")
     .eq("id", v.contrato_id)
     .maybeSingle();
 
@@ -175,6 +177,17 @@ export async function registrarPagoContrato(input: unknown): Promise<CobranzaAct
     return { ok: false, error: "Contrato no encontrado, inactivo o eliminado." };
   }
 
+  if (
+    !contratoCobranzaVigente({
+      is_active: Boolean(contrato.is_active),
+      deleted_at: (contrato.deleted_at as string | null) ?? null,
+      fecha_vencimiento: contrato.fecha_vencimiento as string,
+    })
+  ) {
+    return { ok: false, error: "Solo se pueden registrar pagos en contratos vigentes (activos y no vencidos)." };
+  }
+
+  const propiedadId = contrato.propiedad_id as string;
   const montoMensual = Number(contrato.monto_mensual);
 
   const { data: existente } = await supabase
@@ -187,15 +200,16 @@ export async function registrarPagoContrato(input: unknown): Promise<CobranzaAct
   const monto_esperado =
     existente?.monto_esperado != null ? Number(existente.monto_esperado) : montoMensual;
 
-  const detalle_pago = construirDetallePagoV1({
+  const detalle_pago = construirDetallePagoV2({
     monto_alquiler: v.monto_alquiler,
     extras: v.conceptos_extras,
   });
-  const monto_pagado = totalDesdeDetalle(detalle_pago);
+  const monto_pagado = totalRecaudadoInquilino(detalle_pago, 0);
   const estado = monto_pagado >= monto_esperado ? "Pagado" : "Pendiente";
 
   const payload = {
     contrato_id: v.contrato_id,
+    propiedad_id: propiedadId,
     mes_periodo,
     monto_esperado,
     monto_pagado,
@@ -244,12 +258,18 @@ export async function editarPago(input: unknown): Promise<CobranzaActionResult> 
   if (pErr || !pago) return { ok: false, error: "Pago no encontrado." };
 
   const monto_esperado = Number(pago.monto_esperado);
-  const detalle_pago = construirDetallePagoV1({
+  const detalle_pago = construirDetallePagoV2({
     monto_alquiler: v.monto_alquiler,
     extras: v.conceptos_extras,
   });
-  const monto_pagado = totalDesdeDetalle(detalle_pago);
+  const monto_pagado = totalRecaudadoInquilino(detalle_pago, 0);
   const estado = monto_pagado >= monto_esperado ? "Pagado" : "Pendiente";
+
+  const { data: contratoMini } = await supabase
+    .from("contratos_cobranza")
+    .select("propiedad_id")
+    .eq("id", v.contrato_id)
+    .maybeSingle();
 
   const { error: upErr } = await supabase
     .from("pagos")
@@ -260,6 +280,7 @@ export async function editarPago(input: unknown): Promise<CobranzaActionResult> 
       observaciones: v.observaciones?.trim() || null,
       detalle_pago,
       estado,
+      propiedad_id: (contratoMini?.propiedad_id as string | undefined) ?? undefined,
     })
     .eq("id", v.pago_id);
 

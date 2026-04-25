@@ -8,11 +8,11 @@ import { useFieldArray, useForm, type Resolver } from "react-hook-form";
 import { registrarPagoContrato } from "@/app/actions/cobranzas";
 import { CONCEPTOS_PAGO_ORDENADOS } from "@/lib/cobranzas/conceptos-pago";
 import type { ConceptoPagoTipo } from "@/lib/cobranzas/conceptos-pago";
+import { mesPeriodoActual } from "@/lib/cobranzas/estado-contrato";
+import type { ImpactoPago } from "@/lib/cobranzas/detalle-pago";
+import { totalRecaudadoInquilino, construirDetallePagoV2 } from "@/lib/cobranzas/detalle-pago";
 import { FORMAS_PAGO } from "@/lib/constants/cobranzas";
-import {
-  registroPagoSchema,
-  type RegistroPagoValues,
-} from "@/lib/validations/registro-pago";
+import { registroPagoSchema, type RegistroPagoValues } from "@/lib/validations/registro-pago";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -51,6 +51,12 @@ const precioFmt = new Intl.NumberFormat("es-AR", {
   maximumFractionDigits: 2,
 });
 
+const IMPACTO_OPCIONES: { value: ImpactoPago; label: string }[] = [
+  { value: "propietario_suma", label: "Suma al dueño" },
+  { value: "propietario_resta", label: "Resta al dueño" },
+  { value: "inmobiliaria", label: "Informativo inmobiliaria" },
+];
+
 function hoyISO(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -76,8 +82,13 @@ function formatMesPeriodo(mes: string): string {
   return `${nombres[Number(m) - 1]} ${y}`;
 }
 
+export type ContratoPagoSelectorOption = { id: string; label: string; monto_mensual: number };
+
 type Props = {
-  contratoId: string;
+  /** Si viene fijado (detalle de contrato), no se muestra selector de contrato. */
+  contratoIdInicial: string | null;
+  /** Contratos vigentes para el listado de Alquileres (solo si `contratoIdInicial` es null). */
+  contratosDisponibles?: ContratoPagoSelectorOption[] | null;
   montoSugerido: number;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -85,14 +96,21 @@ type Props = {
   mesPeriodoPredefinido?: string | null;
 };
 
-const defaultExtra = (): { concepto: ConceptoPagoTipo; monto: number; observaciones: string } => ({
+const defaultExtra = (): {
+  concepto: ConceptoPagoTipo;
+  monto: number;
+  observaciones: string;
+  impacto: ImpactoPago;
+} => ({
   concepto: "luz",
   monto: 0,
   observaciones: "",
+  impacto: "propietario_suma",
 });
 
 export function RegistrarPagoDialog({
-  contratoId,
+  contratoIdInicial,
+  contratosDisponibles,
   montoSugerido,
   open,
   onOpenChange,
@@ -103,11 +121,13 @@ export function RegistrarPagoDialog({
   const [actionError, setActionError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
+  const requiereSelectorContrato = Boolean(contratosDisponibles?.length && contratoIdInicial == null);
+
   const form = useForm<RegistroPagoValues>({
     resolver: zodResolver(registroPagoSchema) as Resolver<RegistroPagoValues>,
     defaultValues: {
-      contrato_id: contratoId,
-      mes_periodo: mesPeriodoPredefinido ?? "",
+      contrato_id: contratoIdInicial ?? (contratosDisponibles?.[0]?.id ?? ""),
+      mes_periodo: mesPeriodoPredefinido ?? mesPeriodoActual(),
       fecha_pago: hoyISO(),
       forma_pago: "Transferencia",
       monto_alquiler: montoSugerido,
@@ -123,11 +143,19 @@ export function RegistrarPagoDialog({
 
   const montoAlquiler = form.watch("monto_alquiler");
   const extras = form.watch("conceptos_extras");
+  const contratoIdWatch = form.watch("contrato_id");
 
   const totalCobrar = useMemo(() => {
-    const alq = Number(montoAlquiler) || 0;
-    const sumEx = (extras ?? []).reduce((a, x) => a + (Number(x?.monto) || 0), 0);
-    return alq + sumEx;
+    const d = construirDetallePagoV2({
+      monto_alquiler: Number(montoAlquiler) || 0,
+      extras: (extras ?? []).map((x) => ({
+        concepto: x.concepto,
+        monto: Number(x.monto) || 0,
+        observaciones: x.observaciones,
+        impacto: x.impacto,
+      })),
+    });
+    return totalRecaudadoInquilino(d, 0);
   }, [montoAlquiler, extras]);
 
   useEffect(() => {
@@ -135,19 +163,30 @@ export function RegistrarPagoDialog({
   }, [disabled, open, onOpenChange]);
 
   useEffect(() => {
-    if (open) {
-      setActionError(null);
-      form.reset({
-        contrato_id: contratoId,
-        mes_periodo: mesPeriodoPredefinido ?? "",
-        fecha_pago: hoyISO(),
-        forma_pago: "Transferencia",
-        monto_alquiler: montoSugerido,
-        conceptos_extras: [],
-        observaciones: "",
-      });
+    if (!open) return;
+    setActionError(null);
+    const cid =
+      contratoIdInicial ??
+      (contratosDisponibles && contratosDisponibles.length > 0 ? contratosDisponibles[0].id : "");
+    const cinfo = contratosDisponibles?.find((x) => x.id === cid);
+    form.reset({
+      contrato_id: cid,
+      mes_periodo: mesPeriodoPredefinido ?? mesPeriodoActual(),
+      fecha_pago: hoyISO(),
+      forma_pago: "Transferencia",
+      monto_alquiler: contratoIdInicial ? montoSugerido : (cinfo?.monto_mensual ?? montoSugerido),
+      conceptos_extras: [],
+      observaciones: "",
+    });
+  }, [open, contratoIdInicial, montoSugerido, mesPeriodoPredefinido, form, contratosDisponibles]);
+
+  useEffect(() => {
+    if (!open || !requiereSelectorContrato || !contratoIdWatch) return;
+    const c = contratosDisponibles?.find((x) => x.id === contratoIdWatch);
+    if (c) {
+      form.setValue("monto_alquiler", c.monto_mensual);
     }
-  }, [open, contratoId, montoSugerido, mesPeriodoPredefinido, form]);
+  }, [open, contratoIdWatch, contratosDisponibles, form, requiereSelectorContrato]);
 
   function onSubmit(values: RegistroPagoValues) {
     if (disabled) return;
@@ -169,8 +208,8 @@ export function RegistrarPagoDialog({
         <DialogHeader>
           <DialogTitle>Registrar pago</DialogTitle>
           <DialogDescription>
-            El <strong>período contable</strong> queda fijo según la fila seleccionada. Sumá conceptos extra si
-            corresponde; el total se calcula en vivo.
+            Vinculado al contrato y período contable. Cada concepto extra define su impacto en la liquidación del
+            propietario.
             {disabled ? (
               <span className="mt-2 block text-destructive">
                 Este contrato está finalizado; no se pueden cargar pagos.
@@ -181,22 +220,65 @@ export function RegistrarPagoDialog({
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <input type="hidden" {...form.register("contrato_id")} />
-            <input type="hidden" {...form.register("mes_periodo")} />
+            {requiereSelectorContrato ? (
+              <FormField
+                control={form.control}
+                name="contrato_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Contrato / Propiedad</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={disabled}>
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Seleccionar contrato vigente…" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent className={DIALOG_SELECT_CONTENT_CLASS}>
+                        {(contratosDisponibles ?? []).map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            ) : (
+              <input type="hidden" {...form.register("contrato_id")} />
+            )}
 
             {mesPeriodoPredefinido ? (
-              <div className="rounded-md border border-stone-200 bg-stone-50 px-3 py-2.5">
-                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
-                  Período contable
-                </p>
-                <p className="mt-0.5 font-semibold tabular-nums">
-                  {formatMesPeriodo(mesPeriodoPredefinido)}
-                  <span className="text-muted-foreground ml-2 text-xs font-normal">
-                    ({mesPeriodoPredefinido}) — no editable
-                  </span>
-                </p>
-              </div>
-            ) : null}
+              <>
+                <input type="hidden" {...form.register("mes_periodo")} />
+                <div className="rounded-md border border-stone-200 bg-stone-50 px-3 py-2.5">
+                  <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+                    Período contable
+                  </p>
+                  <p className="mt-0.5 font-semibold tabular-nums">
+                    {formatMesPeriodo(mesPeriodoPredefinido)}
+                    <span className="text-muted-foreground ml-2 text-xs font-normal">
+                      ({mesPeriodoPredefinido}) — no editable
+                    </span>
+                  </p>
+                </div>
+              </>
+            ) : (
+              <FormField
+                control={form.control}
+                name="mes_periodo"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Período a rendir (YYYY-MM)</FormLabel>
+                    <FormControl>
+                      <Input type="month" disabled={disabled} value={field.value} onChange={(e) => field.onChange(e.target.value)} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             {actionError ? (
               <Alert variant="destructive">
@@ -250,7 +332,7 @@ export function RegistrarPagoDialog({
                 name="monto_alquiler"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Alquiler (mes en curso)</FormLabel>
+                    <FormLabel>Alquiler del período</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
@@ -356,10 +438,35 @@ export function RegistrarPagoDialog({
 
                       <FormField
                         control={form.control}
+                        name={`conceptos_extras.${index}.impacto`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs">Impacto en liquidación</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger className="w-full">
+                                  <SelectValue />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent className={DIALOG_SELECT_CONTENT_CLASS}>
+                                {IMPACTO_OPCIONES.map((o) => (
+                                  <SelectItem key={o.value} value={o.value}>
+                                    {o.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
                         name={`conceptos_extras.${index}.observaciones`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-xs">Observaciones</FormLabel>
+                            <FormLabel className="text-xs">Notas / observaciones</FormLabel>
                             <FormControl>
                               <Input placeholder="Ej. período 03/26" disabled={disabled} {...field} />
                             </FormControl>
@@ -374,7 +481,7 @@ export function RegistrarPagoDialog({
             </div>
 
             <div className="rounded-md border-2 border-primary/30 bg-primary/5 px-3 py-2.5">
-              <p className="text-sm font-semibold text-foreground">Total a cobrar</p>
+              <p className="text-sm font-semibold text-foreground">Total general cobrado (inquilino)</p>
               <p className="text-lg font-bold tabular-nums">{precioFmt.format(totalCobrar)}</p>
             </div>
 
@@ -385,7 +492,7 @@ export function RegistrarPagoDialog({
                 <FormItem>
                   <FormLabel>Notas generales</FormLabel>
                   <FormControl>
-                    <Textarea rows={2} placeholder="Opcional — constan en el recibo como nota del alquiler" {...field} />
+                    <Textarea rows={2} placeholder="Opcional — constan en el recibo" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -396,7 +503,7 @@ export function RegistrarPagoDialog({
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={pending || disabled}>
+              <Button type="submit" disabled={pending || disabled || (requiereSelectorContrato && !contratoIdWatch)}>
                 {pending ? (
                   <span className="inline-flex items-center gap-2">
                     <Loader2 className="size-4 animate-spin" aria-hidden />

@@ -102,48 +102,126 @@ export function InformeRendicionVista({ payload, fechaGeneracion, className }: P
             aria-label="Separación: comisión solo sobre alquileres"
           />
 
-          {/* Bloque B: informativo */}
-          <section className="overflow-hidden rounded-lg border-2 border-stone-300 bg-white shadow-sm">
-            <div className="border-b border-stone-200 bg-slate-50 px-4 py-3">
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <h2 className="text-base font-semibold text-stone-900">Detalle de Servicios y Otros Conceptos</h2>
-                <span className="rounded-full bg-slate-200 px-2.5 py-0.5 text-xs font-semibold text-slate-800">
-                  Informativo
-                </span>
+          {/* Bloque B: conceptos del recibo según impacto contable */}
+          <section className="space-y-6">
+            <div className="overflow-hidden rounded-lg border-2 border-stone-300 bg-white shadow-sm">
+              <div className="border-b border-stone-200 bg-emerald-50/50 px-4 py-3">
+                <h2 className="text-base font-semibold text-stone-900">Conceptos a favor del propietario</h2>
+                <p className="text-muted-foreground mt-1 text-xs">
+                  Suman a la liquidación al dueño (alquiler ya figura arriba; aquí: depósitos, mora, servicios a cargo del
+                  locador, etc.).
+                </p>
               </div>
-              <p className="text-muted-foreground mt-1 text-xs">
-                Luz, gas, agua, expensas y demás rubros del recibo. Sin descuentos ni comisión sobre este bloque.
-              </p>
-            </div>
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50">
-                <tr>
-                  <th className="px-3 py-2 text-left font-medium">Concepto</th>
-                  <th className="px-3 py-2 text-right font-medium">Monto</th>
-                  <th className="px-3 py-2 text-left font-medium">Observaciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {payload.otros_conceptos.length === 0 ? (
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50">
                   <tr>
-                    <td colSpan={3} className="text-muted-foreground px-3 py-4 text-center">
-                      Sin otros conceptos en el período.
-                    </td>
+                    <th className="px-3 py-2 text-left font-medium">Concepto</th>
+                    <th className="px-3 py-2 text-right font-medium">Monto</th>
+                    <th className="px-3 py-2 text-left font-medium">Observaciones</th>
                   </tr>
-                ) : (
-                  payload.otros_conceptos.map((o, i) => (
-                    <tr key={`${o.pago_id}-${i}`} className="border-t border-stone-200">
-                      <td className="px-3 py-2">{o.concepto}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{precioFmt.format(o.monto)}</td>
-                      <td className="text-muted-foreground px-3 py-2 text-xs">{o.observaciones ?? "—"}</td>
+                </thead>
+                <tbody>
+                  {payload.otros_conceptos.length === 0 ? (
+                    <tr>
+                      <td colSpan={3} className="text-muted-foreground px-3 py-4 text-center">
+                        Sin conceptos a favor en el período.
+                      </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-            <div className="border-t-2 border-stone-500 bg-slate-100/90 px-4 py-3 text-sm">
+                  ) : (
+                    payload.otros_conceptos.map((o, i) => (
+                      <tr key={`${o.pago_id}-${i}`} className="border-t border-stone-200">
+                        <td className="px-3 py-2">{o.concepto}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{precioFmt.format(o.monto)}</td>
+                        <td className="text-muted-foreground px-3 py-2 text-xs">{o.observaciones ?? "—"}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="overflow-hidden rounded-lg border-2 border-stone-300 bg-white shadow-sm">
+              <div className="border-b border-stone-200 bg-red-50/40 px-4 py-3">
+                <h2 className="text-base font-semibold text-stone-900">Deducciones al propietario</h2>
+                <p className="text-muted-foreground mt-1 text-xs">
+                  Gastos imputados al dueño (arreglos, materiales, honorarios técnicos, etc.); se restan del total a
+                  rendir.
+                </p>
+              </div>
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-medium">Concepto</th>
+                    <th className="px-3 py-2 text-right font-medium">Monto</th>
+                    <th className="px-3 py-2 text-left font-medium">Observaciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payload.deducciones_propietario.length === 0 ? (
+                    <tr>
+                      <td colSpan={3} className="text-muted-foreground px-3 py-4 text-center">
+                        Sin deducciones en el período.
+                      </td>
+                    </tr>
+                  ) : (
+                    payload.deducciones_propietario.map((o, i) => (
+                      <tr key={`${o.pago_id}-ded-${i}`} className="border-t border-stone-200">
+                        <td className="px-3 py-2">{o.concepto}</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-destructive">
+                          − {precioFmt.format(o.monto)}
+                        </td>
+                        <td className="text-muted-foreground px-3 py-2 text-xs">{o.observaciones ?? "—"}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="overflow-hidden rounded-lg border-2 border-dashed border-stone-300 bg-stone-50/60 shadow-sm">
+              <div className="border-b border-stone-200 px-4 py-3">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <h2 className="text-base font-semibold text-stone-900">Solo informativo — inmobiliaria</h2>
+                  <span className="rounded-full bg-stone-200 px-2.5 py-0.5 text-xs font-semibold text-stone-800">
+                    No liquida al dueño
+                  </span>
+                </div>
+                <p className="text-muted-foreground mt-1 text-xs">
+                  Comisión retenida por la inmobiliaria, escribanía retenida, u otros rubros que no entran en el neto a
+                  rendir.
+                </p>
+              </div>
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-medium">Concepto</th>
+                    <th className="px-3 py-2 text-right font-medium">Monto</th>
+                    <th className="px-3 py-2 text-left font-medium">Observaciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payload.informativos_conceptos.length === 0 ? (
+                    <tr>
+                      <td colSpan={3} className="text-muted-foreground px-3 py-4 text-center">
+                        Sin ítems informativos en el período.
+                      </td>
+                    </tr>
+                  ) : (
+                    payload.informativos_conceptos.map((o, i) => (
+                      <tr key={`${o.pago_id}-inf-${i}`} className="border-t border-stone-200">
+                        <td className="px-3 py-2">{o.concepto}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{precioFmt.format(o.monto)}</td>
+                        <td className="text-muted-foreground px-3 py-2 text-xs">{o.observaciones ?? "—"}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="overflow-hidden rounded-lg border-2 border-stone-500 bg-stone-100/90 px-4 py-3 text-sm shadow-inner">
               <div className="flex justify-between gap-4">
-                <span className="font-bold text-stone-900">Subtotal Otros Conceptos</span>
+                <span className="font-bold text-stone-900">Subtotal conceptos en liquidación (favor − deducciones)</span>
                 <span className="font-bold tabular-nums text-stone-900">
                   {precioFmt.format(payload.subtotal_otros_conceptos)}
                 </span>
@@ -167,7 +245,7 @@ export function InformeRendicionVista({ payload, fechaGeneracion, className }: P
                 </span>
               </div>
               <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-                <span className="font-bold text-stone-900">Subtotal Otros Conceptos:</span>
+                <span className="font-bold text-stone-900">Subtotal conceptos (liquidación dueño):</span>
                 <span className="font-bold tabular-nums text-stone-900">
                   {precioFmt.format(payload.subtotal_otros_conceptos)}
                 </span>

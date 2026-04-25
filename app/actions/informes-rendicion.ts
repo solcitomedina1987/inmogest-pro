@@ -36,7 +36,10 @@ export async function generarInformeRendicion(input: unknown): Promise<InformeAc
   }
 
   const payload = comp.payload;
-  const brutoCobrado = round2(payload.total_alquileres_cobrados + payload.subtotal_otros_conceptos);
+  const sumOtros = payload.otros_conceptos.reduce((s, r) => s + r.monto, 0);
+  const sumDed = payload.deducciones_propietario.reduce((s, r) => s + r.monto, 0);
+  const sumInf = payload.informativos_conceptos.reduce((s, r) => s + r.monto, 0);
+  const brutoCobrado = round2(payload.total_alquileres_cobrados + sumOtros + sumDed + sumInf);
   const { data: ins, error } = await supabase
     .from("informes_rendicion")
     .insert({

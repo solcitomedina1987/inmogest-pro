@@ -193,13 +193,13 @@ export function InformeRendicionPdfDocument({ payload, fechaGeneracion, logoData
             <View style={styles.sectionRule} />
 
             <View style={styles.blockOuter}>
-              <View style={[styles.blockHeader, { backgroundColor: "#f4f6f8" }]}>
-                <Text style={styles.blockTitle}>Detalle de Servicios y Otros Conceptos (informativo)</Text>
-                <Text style={styles.blockBadge}>Sin comisión ni descuentos sobre este bloque.</Text>
+              <View style={[styles.blockHeader, { backgroundColor: "#ecfdf5" }]}>
+                <Text style={styles.blockTitle}>Conceptos a favor del propietario</Text>
+                <Text style={styles.blockBadge}>Suman a la liquidación al dueño.</Text>
               </View>
               {payload.otros_conceptos.length === 0 ? (
                 <View style={styles.row}>
-                  <Text style={styles.muted}>Sin otros conceptos en el período.</Text>
+                  <Text style={styles.muted}>Sin conceptos a favor en el período.</Text>
                 </View>
               ) : (
                 <>
@@ -217,9 +217,63 @@ export function InformeRendicionPdfDocument({ payload, fechaGeneracion, logoData
                   ))}
                 </>
               )}
-              <View style={[styles.tableFoot, { backgroundColor: "#e8ecf0" }]}>
+            </View>
+
+            <View style={[styles.blockOuter, { marginTop: 10 }]}>
+              <View style={[styles.blockHeader, { backgroundColor: "#fef2f2" }]}>
+                <Text style={styles.blockTitle}>Deducciones al propietario</Text>
+                <Text style={styles.blockBadge}>Se restan del total a rendir.</Text>
+              </View>
+              {payload.deducciones_propietario.length === 0 ? (
+                <View style={styles.row}>
+                  <Text style={styles.muted}>Sin deducciones en el período.</Text>
+                </View>
+              ) : (
+                <>
+                  <View style={styles.row}>
+                    <Text style={[styles.cell1, { fontWeight: "bold" }]}>Concepto</Text>
+                    <Text style={[styles.cellN, { fontWeight: "bold" }]}>Monto</Text>
+                    <Text style={[styles.cellObs, { fontWeight: "bold" }]}>Obs.</Text>
+                  </View>
+                  {payload.deducciones_propietario.map((o, i) => (
+                    <View key={`${o.pago_id}-d-${i}`} style={styles.row} wrap={false}>
+                      <Text style={styles.cell1}>{o.concepto}</Text>
+                      <Text style={styles.cellN}>- {precio(o.monto)}</Text>
+                      <Text style={styles.cellObs}>{o.observaciones ?? "—"}</Text>
+                    </View>
+                  ))}
+                </>
+              )}
+            </View>
+
+            <View style={[styles.blockOuter, { marginTop: 10 }]}>
+              <View style={[styles.blockHeader, { backgroundColor: "#f5f5f4" }]}>
+                <Text style={styles.blockTitle}>Solo informativo — inmobiliaria</Text>
+                <Text style={styles.blockBadge}>No liquida al dueño.</Text>
+              </View>
+              {payload.informativos_conceptos.length === 0 ? (
+                <View style={styles.row}>
+                  <Text style={styles.muted}>Sin ítems informativos.</Text>
+                </View>
+              ) : (
+                <>
+                  <View style={styles.row}>
+                    <Text style={[styles.cell1, { fontWeight: "bold" }]}>Concepto</Text>
+                    <Text style={[styles.cellN, { fontWeight: "bold" }]}>Monto</Text>
+                    <Text style={[styles.cellObs, { fontWeight: "bold" }]}>Obs.</Text>
+                  </View>
+                  {payload.informativos_conceptos.map((o, i) => (
+                    <View key={`${o.pago_id}-i-${i}`} style={styles.row} wrap={false}>
+                      <Text style={styles.cell1}>{o.concepto}</Text>
+                      <Text style={styles.cellN}>{precio(o.monto)}</Text>
+                      <Text style={styles.cellObs}>{o.observaciones ?? "—"}</Text>
+                    </View>
+                  ))}
+                </>
+              )}
+              <View style={[styles.tableFoot, { backgroundColor: "#e8e6e3" }]}>
                 <View style={[styles.footLine, { marginBottom: 0 }]}>
-                  <Text style={styles.footBold}>Subtotal Otros Conceptos</Text>
+                  <Text style={styles.footBold}>Subtotal conceptos en liquidación (favor − deducciones)</Text>
                   <Text style={styles.footBoldNum}>{precio(payload.subtotal_otros_conceptos)}</Text>
                 </View>
               </View>
@@ -232,7 +286,7 @@ export function InformeRendicionPdfDocument({ payload, fechaGeneracion, logoData
                 <Text style={styles.footBoldNum}>{precio(payload.neto_alquileres)}</Text>
               </View>
               <View style={[styles.closureLine, { marginBottom: 0 }]}>
-                <Text style={styles.footBold}>Subtotal Otros Conceptos:</Text>
+                <Text style={styles.footBold}>Subtotal conceptos (liquidación dueño):</Text>
                 <Text style={styles.footBoldNum}>{precio(payload.subtotal_otros_conceptos)}</Text>
               </View>
               <View style={styles.closureRule} />

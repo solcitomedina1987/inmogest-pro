@@ -1,14 +1,13 @@
 import { fechaEmisionReciboLiteral } from "@/lib/cobranzas/recibo-fecha";
-import type { LineaRecibo } from "@/lib/cobranzas/detalle-pago";
+import type { SeccionRecibo } from "@/lib/cobranzas/detalle-pago";
 import { montoPesosArgentinosALetras } from "@/lib/cobranzas/monto-en-letras";
 
 export type ReciboAlquilerProps = {
-  /** Texto del número de recibo (ej. N° ABC123). */
   numeroRecibo: string;
   nombreCliente: string;
   dniCliente: string;
   direccionInmueble: string;
-  lineas: LineaRecibo[];
+  secciones: SeccionRecibo[];
   total: number;
   fechaEmision?: Date;
 };
@@ -25,7 +24,7 @@ function ReciboCopia({
   nombreCliente,
   dniCliente,
   direccionInmueble,
-  lineas,
+  secciones,
   total,
   totalLetras,
   dia,
@@ -72,34 +71,43 @@ function ReciboCopia({
         </p>
       </section>
 
-      <div className="recibo-tabla-wrap mb-4 overflow-hidden rounded border border-neutral-800">
-        <table className="recibo-tabla w-full border-collapse text-sm">
-          <thead>
-            <tr className="bg-neutral-100">
-              <th className="border-b border-neutral-800 px-2 py-2 text-left font-semibold">Concepto</th>
-              <th className="border-b border-neutral-800 px-2 py-2 text-right font-semibold">Monto</th>
-              <th className="border-b border-neutral-800 px-2 py-2 text-left font-semibold">Observaciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {lineas.map((row, i) => (
-              <tr key={i} className="border-b border-neutral-300 last:border-b-0">
-                <td className="px-2 py-2 align-top">{row.concepto}</td>
-                <td className="px-2 py-2 text-right tabular-nums align-top">
-                  {precioTabla.format(row.monto)}
-                </td>
-                <td className="text-muted-foreground px-2 py-2 align-top text-xs">
-                  {row.observaciones ?? "—"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="space-y-5">
+        {secciones.map((sec) => (
+          <div key={sec.titulo}>
+            <h2 className="mb-2 border-b border-neutral-600 pb-1 text-sm font-bold uppercase tracking-wide">
+              {sec.titulo}
+            </h2>
+            <div className="recibo-tabla-wrap overflow-hidden rounded border border-neutral-800">
+              <table className="recibo-tabla w-full border-collapse text-sm">
+                <thead>
+                  <tr className="bg-neutral-100">
+                    <th className="border-b border-neutral-800 px-2 py-2 text-left font-semibold">Concepto</th>
+                    <th className="border-b border-neutral-800 px-2 py-2 text-right font-semibold">Monto</th>
+                    <th className="border-b border-neutral-800 px-2 py-2 text-left font-semibold">Observaciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sec.lineas.map((row, i) => (
+                    <tr key={`${sec.titulo}-${i}`} className="border-b border-neutral-300 last:border-b-0">
+                      <td className="px-2 py-2 align-top">{row.concepto}</td>
+                      <td className="px-2 py-2 text-right tabular-nums align-top">
+                        {precioTabla.format(row.monto)}
+                      </td>
+                      <td className="text-muted-foreground px-2 py-2 align-top text-xs">
+                        {row.observaciones ?? "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ))}
       </div>
 
-      <div className="recibo-total mb-10 space-y-1 border-t-2 border-neutral-800 pt-3 text-sm">
+      <div className="recibo-total mb-10 mt-4 space-y-1 border-t-2 border-neutral-800 pt-3 text-sm">
         <p className="flex justify-between font-bold">
-          <span>Total</span>
+          <span>Total general cobrado</span>
           <span className="tabular-nums">{precioTabla.format(total)}</span>
         </p>
         <p className="text-xs leading-relaxed text-neutral-800">
@@ -129,7 +137,7 @@ export function ReciboAlquiler({
   nombreCliente,
   dniCliente,
   direccionInmueble,
-  lineas,
+  secciones,
   total,
   fechaEmision = new Date(),
 }: ReciboAlquilerProps) {
@@ -140,7 +148,7 @@ export function ReciboAlquiler({
     nombreCliente,
     dniCliente,
     direccionInmueble,
-    lineas,
+    secciones,
     total,
     totalLetras,
     dia,

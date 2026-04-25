@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { anularPago, eliminarContratoCobranza } from "@/app/actions/cobranzas";
-import { lineasReciboDesdePago } from "@/lib/cobranzas/detalle-pago";
+import { seccionesReciboDesdeDetalle } from "@/lib/cobranzas/detalle-pago";
 import type { ContratoCobranzaRow, PagoRow } from "@/lib/cobranzas/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -111,6 +111,7 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
   const [estimadaError, setEstimadaError] = useState<string | null>(null);
   const [estimadaMonto, setEstimadaMonto] = useState<number | null>(null);
   const [estimadaMesPeriodo, setEstimadaMesPeriodo] = useState<string | null>(null);
+  const [vistaCuotasHistorial, setVistaCuotasHistorial] = useState<"cuotas" | "historial">("cuotas");
 
   const nombreInquilino = contrato.inquilino?.nombre_completo?.trim() || "—";
 
@@ -161,6 +162,17 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
     };
   }, [pagos]);
 
+  const historialPagos = useMemo(() => {
+    return [...pagos]
+      .filter((p) => p.estado === "Pagado" && p.monto_pagado != null && Number(p.monto_pagado) > 0)
+      .sort((a, b) => {
+        const fa = a.fecha_pago_realizado ?? "";
+        const fb = b.fecha_pago_realizado ?? "";
+        if (fa !== fb) return fb.localeCompare(fa);
+        return b.mes_periodo.localeCompare(a.mes_periodo);
+      });
+  }, [pagos]);
+
   useEffect(() => {
     if (!imprimirPendiente || !reciboProps) return;
     let cancelled = false;
@@ -187,7 +199,7 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
 
   function solicitarImpresionRecibo(pago: PagoRow) {
     const monto = pago.monto_pagado != null ? Number(pago.monto_pagado) : Number(pago.monto_esperado);
-    const lineas = lineasReciboDesdePago({
+    const { secciones, total } = seccionesReciboDesdeDetalle({
       monto_pagado: monto,
       mes_periodo: pago.mes_periodo,
       detalle: pago.detalle_pago ?? null,
@@ -203,8 +215,8 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
         contrato.propiedad?.direccion?.trim() ||
         contrato.propiedad?.nombre?.trim() ||
         "—",
-      lineas,
-      total: monto,
+      secciones,
+      total,
       fechaEmision: new Date(),
     });
     setImprimirPendiente(true);
@@ -297,7 +309,7 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
             }
             setPagoOpen(o);
           }}
-          contratoId={contrato.id}
+          contratoIdInicial={contrato.id}
           montoSugerido={montoCuotaPago}
           disabled={!contrato.is_active}
           mesPeriodoPredefinido={mesPeriodoPago}
@@ -547,24 +559,142 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
           </CardContent>
         </Card>
 
-        {/* Tabla de cuotas */}
+        {/* Cuotas mensuales e historial de pagos */}
         <Card className="border shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-lg">Cuotas mensuales</CardTitle>
-            <CardDescription>
-              <span className="mr-3 inline-flex items-center gap-1 text-xs">
-                <span className="inline-block size-2 rounded-full bg-emerald-500" /> Pagado antes del día 10
-              </span>
-              <span className="inline-flex items-center gap-1 text-xs">
-                <span className="inline-block size-2 rounded-full bg-red-500" /> Pagado después del día 10
-              </span>
-            </CardDescription>
+          <CardHeader className="space-y-4">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0 space-y-1">
+                <CardTitle className="text-lg">Cuotas e historial</CardTitle>
+                <CardDescription>
+                  {vistaCuotasHistorial === "cuotas" ? (
+                    <>
+                      <span className="mr-3 inline-flex items-center gap-1 text-xs">
+                        <span className="inline-block size-2 rounded-full bg-emerald-500" /> Pagado antes del día 10
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-xs">
+                        <span className="inline-block size-2 rounded-full bg-red-500" /> Pagado después del día 10
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-xs">Pagos registrados como cobrados, del más reciente al más antiguo.</span>
+                  )}
+                </CardDescription>
+              </div>
+              <div className="flex shrink-0 rounded-lg border bg-muted/30 p-0.5 print:hidden">
+                <Button
+                  type="button"
+                  variant={vistaCuotasHistorial === "cuotas" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="rounded-md"
+                  onClick={() => setVistaCuotasHistorial("cuotas")}
+                >
+                  Cuotas mensuales
+                </Button>
+                <Button
+                  type="button"
+                  variant={vistaCuotasHistorial === "historial" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="rounded-md"
+                  onClick={() => setVistaCuotasHistorial("historial")}
+                >
+                  Historial de pagos
+                </Button>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             {pagos.length === 0 ? (
               <p className="text-muted-foreground py-6 text-center text-sm">
                 No hay cuotas en el sistema para este contrato. Revisá fechas de inicio y vencimiento.
               </p>
+            ) : vistaCuotasHistorial === "historial" ? (
+              historialPagos.length === 0 ? (
+                <p className="text-muted-foreground py-6 text-center text-sm">
+                  Aún no hay pagos registrados para este contrato.
+                </p>
+              ) : (
+                <div className="max-w-full overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Período</TableHead>
+                        <TableHead>Fecha pago</TableHead>
+                        <TableHead className="text-right">Monto cobrado</TableHead>
+                        <TableHead>Forma</TableHead>
+                        <TableHead className="max-w-[200px]">Observaciones</TableHead>
+                        <TableHead className="w-[120px] print:hidden" />
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {historialPagos.map((p) => {
+                        const color = puntualidadColor(p.mes_periodo, p.fecha_pago_realizado);
+                        return (
+                          <TableRow key={p.id}>
+                            <TableCell className="font-medium tabular-nums">{p.mes_periodo}</TableCell>
+                            <TableCell
+                              className={
+                                color === "green"
+                                  ? "tabular-nums font-medium text-emerald-700"
+                                  : color === "red"
+                                    ? "tabular-nums font-medium text-red-600"
+                                    : "tabular-nums"
+                              }
+                            >
+                              {p.fecha_pago_realizado
+                                ? fechaFmt.format(new Date(p.fecha_pago_realizado + "T12:00:00"))
+                                : "—"}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums font-medium">
+                              {precioFmt.format(Number(p.monto_pagado))}
+                            </TableCell>
+                            <TableCell className="max-w-[100px] truncate text-sm">{p.forma_pago ?? "—"}</TableCell>
+                            <TableCell className="text-muted-foreground max-w-[220px] truncate text-xs">
+                              {p.observaciones ?? "—"}
+                            </TableCell>
+                            <TableCell className="print:hidden">
+                              <div className="flex items-center justify-end gap-1">
+                                {contratoEliminado ? null : (
+                                  <>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="icon"
+                                          className="size-8 text-stone-500 hover:text-stone-800"
+                                          onClick={() => {
+                                            setPagoEditar(p);
+                                            setEditarPagoOpen(true);
+                                          }}
+                                          aria-label="Editar pago"
+                                        >
+                                          <SquarePen className="size-4" aria-hidden />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Editar pago</TooltipContent>
+                                    </Tooltip>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <span>
+                                          <ReciboPrintButton
+                                            onPrint={() => solicitarImpresionRecibo(p)}
+                                            iconOnly
+                                          />
+                                        </span>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Imprimir recibo</TooltipContent>
+                                    </Tooltip>
+                                  </>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )
             ) : (
               <div className="max-w-full overflow-x-auto">
                 <Table>
@@ -753,7 +883,7 @@ export function ContratoDetalleClient({ contrato, pagos }: Props) {
                 </Table>
               </div>
             )}
-            {pagos.some((p) => p.observaciones) ? (
+            {vistaCuotasHistorial === "cuotas" && pagos.some((p) => p.observaciones) ? (
               <div className="text-muted-foreground mt-4 space-y-2 text-xs">
                 <p className="font-medium text-foreground">Observaciones</p>
                 {pagos

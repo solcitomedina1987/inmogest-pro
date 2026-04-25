@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { etiquetaConceptoConEmoji } from "@/lib/cobranzas/conceptos-pago";
+import { aDetalleV2 } from "@/lib/cobranzas/detalle-pago";
 import { parseDetallePagoDb } from "@/lib/cobranzas/detalle-pago";
 import type { InformeRendicionPayloadV2 } from "@/lib/informes/rendicion-types";
 
@@ -44,6 +45,8 @@ function emptyPayload(
     comision_porcentaje,
     alquileres: [],
     otros_conceptos: [],
+    deducciones_propietario: [],
+    informativos_conceptos: [],
     total_alquileres_cobrados: 0,
     comision_monto: 0,
     neto_alquileres: 0,
@@ -132,6 +135,8 @@ export async function computeInformeRendicion(
 
   const alquileres: InformeRendicionPayloadV2["alquileres"] = [];
   const otros: InformeRendicionPayloadV2["otros_conceptos"] = [];
+  const deducciones: InformeRendicionPayloadV2["deducciones_propietario"] = [];
+  const informativos: InformeRendicionPayloadV2["informativos_conceptos"] = [];
 
   for (const raw of pagosRaw ?? []) {
     const p = raw as PagoRow;
@@ -140,9 +145,9 @@ export async function computeInformeRendicion(
     const propId = prop?.id ?? "sin-propiedad";
     const etiqueta = prop ? etiquetaPropiedad(prop) : "—";
 
-    const detalle = parseDetallePagoDb(p.detalle_pago);
-    /** Ítem comisionable: solo monto explícito de alquiler; sin detalle, el total del recibo se considera alquiler. */
-    const montoAlquilerLinea = detalle != null ? detalle.monto_alquiler : montoPagado;
+    const detalleRaw = parseDetallePagoDb(p.detalle_pago);
+    const detalle = aDetalleV2(detalleRaw, montoPagado);
+    const montoAlquilerLinea = detalleRaw != null ? detalle.monto_alquiler : montoPagado;
 
     if (montoAlquilerLinea > 0) {
       alquileres.push({
@@ -153,16 +158,17 @@ export async function computeInformeRendicion(
       });
     }
 
-    if (detalle) {
-      for (const ex of detalle.extras) {
-        if (ex.monto <= 0) continue;
-        otros.push({
-          pago_id: p.id,
-          concepto: etiquetaConceptoConEmoji(ex.concepto),
-          monto: roundMoney(Number(ex.monto)),
-          observaciones: ex.observaciones,
-        });
-      }
+    for (const ex of detalle.extras) {
+      if (ex.monto <= 0) continue;
+      const row = {
+        pago_id: p.id,
+        concepto: etiquetaConceptoConEmoji(ex.concepto),
+        monto: roundMoney(Number(ex.monto)),
+        observaciones: ex.observaciones,
+      };
+      if (ex.impacto === "propietario_resta") deducciones.push(row);
+      else if (ex.impacto === "inmobiliaria") informativos.push(row);
+      else otros.push(row);
     }
   }
 
@@ -174,9 +180,19 @@ export async function computeInformeRendicion(
     const c = a.concepto.localeCompare(b.concepto, "es");
     return c !== 0 ? c : a.pago_id.localeCompare(b.pago_id);
   });
+  deducciones.sort((a, b) => {
+    const c = a.concepto.localeCompare(b.concepto, "es");
+    return c !== 0 ? c : a.pago_id.localeCompare(b.pago_id);
+  });
+  informativos.sort((a, b) => {
+    const c = a.concepto.localeCompare(b.concepto, "es");
+    return c !== 0 ? c : a.pago_id.localeCompare(b.pago_id);
+  });
 
   const totalAlquileresCobrados = roundMoney(alquileres.reduce((s, r) => s + r.monto, 0));
-  const subtotalOtrosConceptos = roundMoney(otros.reduce((s, r) => s + r.monto, 0));
+  const sumaOtros = otros.reduce((s, r) => s + r.monto, 0);
+  const sumaDed = deducciones.reduce((s, r) => s + r.monto, 0);
+  const subtotalOtrosConceptos = roundMoney(sumaOtros - sumaDed);
 
   const comisionMonto = roundMoney(totalAlquileresCobrados * (comision_porcentaje / 100));
   const netoAlquileres = roundMoney(totalAlquileresCobrados - comisionMonto);
@@ -191,6 +207,8 @@ export async function computeInformeRendicion(
       comision_porcentaje,
       alquileres,
       otros_conceptos: otros,
+      deducciones_propietario: deducciones,
+      informativos_conceptos: informativos,
       total_alquileres_cobrados: totalAlquileresCobrados,
       comision_monto: comisionMonto,
       neto_alquileres: netoAlquileres,

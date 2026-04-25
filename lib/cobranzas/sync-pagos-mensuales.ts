@@ -10,7 +10,7 @@ export async function ensurePagosMensualesExistentes(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const { data: contrato, error: cErr } = await supabase
     .from("contratos_cobranza")
-    .select("fecha_inicio, fecha_vencimiento, monto_mensual")
+    .select("fecha_inicio, fecha_vencimiento, monto_mensual, propiedad_id")
     .eq("id", contratoId)
     .maybeSingle();
 
@@ -39,8 +39,10 @@ export async function ensurePagosMensualesExistentes(
   }
 
   const monto = Number(contrato.monto_mensual);
+  const propiedadId = contrato.propiedad_id as string | undefined;
   const insertRows = faltantes.map((mes_periodo) => ({
     contrato_id: contratoId,
+    ...(propiedadId ? { propiedad_id: propiedadId } : {}),
     mes_periodo,
     monto_esperado: monto,
     estado: "Pendiente" as const,
