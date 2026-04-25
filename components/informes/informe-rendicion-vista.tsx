@@ -47,16 +47,7 @@ export function InformeRendicionVista({ payload, fechaGeneracion, className }: P
           {/* Bloque A: solo comisión aquí */}
           <section className="mt-8 overflow-hidden rounded-lg border-2 border-stone-300 bg-white shadow-sm">
             <div className="border-b border-stone-200 bg-amber-50/60 px-4 py-3">
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <h2 className="text-base font-semibold text-stone-900">Rendición de Alquileres</h2>
-                <span className="rounded-full bg-amber-200/90 px-2.5 py-0.5 text-xs font-semibold text-amber-950">
-                  Comisionable
-                </span>
-              </div>
-              <p className="text-muted-foreground mt-1 text-xs">
-                Ingresos registrados como <strong className="text-foreground">Alquiler</strong>. La comisión aplica
-                únicamente a este bloque.
-              </p>
+              <h2 className="text-base font-semibold text-stone-900">Rendición de Alquileres</h2>
             </div>
             <table className="w-full text-sm">
               <thead className="bg-muted/50">
@@ -170,29 +161,26 @@ export function InformeRendicionVista({ payload, fechaGeneracion, className }: P
             </h3>
             <div className="mt-4 space-y-3 text-sm">
               <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-                <span className="font-bold text-stone-900">Subtotal Neto de Alquileres</span>
+                <span className="font-bold text-stone-900">Subtotal Neto de Alquileres:</span>
                 <span className="font-bold tabular-nums text-stone-900">
                   {precioFmt.format(payload.neto_alquileres)}
                 </span>
               </div>
-              <p className="text-center text-lg font-light text-stone-500">+</p>
               <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-                <span className="font-bold text-stone-900">Subtotal Otros Conceptos</span>
+                <span className="font-bold text-stone-900">Subtotal Otros Conceptos:</span>
                 <span className="font-bold tabular-nums text-stone-900">
                   {precioFmt.format(payload.subtotal_otros_conceptos)}
                 </span>
               </div>
-              <div className="border-t-2 border-stone-800 pt-3" />
-              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-base">
-                <span className="font-bold tracking-tight text-stone-950">TOTAL NETO A RENDIR AL DUEÑO</span>
-                <span className="font-bold tabular-nums text-stone-950">
-                  {precioFmt.format(payload.total_neto_a_rendir)}
-                </span>
+              <div className="mt-4 rounded-md border border-stone-400 bg-stone-200/70 px-4 py-3 shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-base sm:text-lg">
+                  <span className="font-bold tracking-tight text-stone-950">TOTAL NETO A RENDIR AL DUEÑO:</span>
+                  <span className="font-bold tabular-nums text-stone-950">
+                    {precioFmt.format(payload.total_neto_a_rendir)}
+                  </span>
+                </div>
               </div>
             </div>
-            <p className="text-muted-foreground mt-4 text-center text-xs leading-relaxed">
-              Subtotal Neto de Alquileres + Subtotal Otros Conceptos = importe total a entregar al propietario.
-            </p>
           </section>
         </>
       ) : (

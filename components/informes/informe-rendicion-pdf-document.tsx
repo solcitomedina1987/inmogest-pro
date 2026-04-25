@@ -67,11 +67,20 @@ const styles = StyleSheet.create({
   },
   closureTitle: { fontSize: 8, fontWeight: "bold", textAlign: "center", letterSpacing: 1.2, color: "#333", marginBottom: 8 },
   closureLine: { flexDirection: "row", justifyContent: "space-between", marginBottom: 6 },
-  closurePlus: { textAlign: "center", fontSize: 11, color: "#666", marginVertical: 2 },
-  closureRule: { borderTopWidth: 1.5, borderTopColor: "#111", marginTop: 4, marginBottom: 6, paddingTop: 6 },
-  closureTotal: { flexDirection: "row", justifyContent: "space-between" },
-  closureTotalText: { fontWeight: "bold", fontSize: 10.5 },
-  closureHint: { fontSize: 7.5, color: "#555", textAlign: "center", marginTop: 6, lineHeight: 1.35 },
+  closureRule: { marginTop: 6, marginBottom: 0 },
+  closureTotal: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    backgroundColor: "#dcd9d4",
+    borderWidth: 1,
+    borderColor: "#555",
+    borderRadius: 2,
+  },
+  closureTotalText: { fontWeight: "bold", fontSize: 11.5 },
   muted: { color: "#555", fontSize: 8.5 },
   signArea: { marginTop: 28, paddingTop: 12, borderTopWidth: 0.5, borderTopColor: "#bbb" },
   signLabel: { fontSize: 8, color: "#444", textAlign: "center", marginBottom: 28 },
@@ -145,8 +154,7 @@ export function InformeRendicionPdfDocument({ payload, fechaGeneracion, logoData
           <>
             <View style={styles.blockOuter}>
               <View style={styles.blockHeader}>
-                <Text style={styles.blockTitle}>Rendición de Alquileres (comisionable)</Text>
-                <Text style={styles.blockBadge}>La comisión solo se descuenta sobre este bloque.</Text>
+                <Text style={styles.blockTitle}>Rendición de Alquileres</Text>
               </View>
               <View style={styles.row}>
                 <Text style={[styles.cell1, { fontWeight: "bold" }]}>Propiedad</Text>
@@ -220,22 +228,18 @@ export function InformeRendicionPdfDocument({ payload, fechaGeneracion, logoData
             <View style={styles.closureBox}>
               <Text style={styles.closureTitle}>LIQUIDACIÓN FINAL</Text>
               <View style={styles.closureLine}>
-                <Text style={styles.footBold}>Subtotal Neto de Alquileres</Text>
+                <Text style={styles.footBold}>Subtotal Neto de Alquileres:</Text>
                 <Text style={styles.footBoldNum}>{precio(payload.neto_alquileres)}</Text>
               </View>
-              <Text style={styles.closurePlus}>+</Text>
-              <View style={styles.closureLine}>
-                <Text style={styles.footBold}>Subtotal Otros Conceptos</Text>
+              <View style={[styles.closureLine, { marginBottom: 0 }]}>
+                <Text style={styles.footBold}>Subtotal Otros Conceptos:</Text>
                 <Text style={styles.footBoldNum}>{precio(payload.subtotal_otros_conceptos)}</Text>
               </View>
               <View style={styles.closureRule} />
               <View style={styles.closureTotal}>
-                <Text style={styles.closureTotalText}>TOTAL NETO A RENDIR AL DUEÑO</Text>
+                <Text style={styles.closureTotalText}>TOTAL NETO A RENDIR AL DUEÑO:</Text>
                 <Text style={styles.closureTotalText}>{precio(payload.total_neto_a_rendir)}</Text>
               </View>
-              <Text style={styles.closureHint}>
-                Subtotal Neto de Alquileres + Subtotal Otros Conceptos = importe total a entregar.
-              </Text>
             </View>
           </>
         ) : (
