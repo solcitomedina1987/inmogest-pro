@@ -62,7 +62,52 @@ export type InformeRendicionPayloadV2 = {
   total_neto_a_rendir: number;
 };
 
-export type InformeRendicionPayload = InformeRendicionPayloadV1 | InformeRendicionPayloadV2;
+/** Línea de desglose dentro de una unidad (contrato / recibo del período). */
+export type LineaRendicionUnidad = {
+  concepto: string;
+  monto: number;
+  observaciones: string | null;
+};
+
+/** Agrupación por contrato con totales cobrados al inquilino y neto al propietario por recibo. */
+export type UnidadRendicionV3 = {
+  contrato_id: string;
+  propiedad_id: string;
+  etiqueta: string;
+  pago_id: string;
+  lineas: LineaRendicionUnidad[];
+  subtotal_cobrado_inquilino: number;
+  neto_propietario_recibo: number;
+};
+
+/**
+ * Formato multipropiedad: desglose por unidad, inmobiliaria informativa, liquidación final en cuatro renglones.
+ */
+export type InformeRendicionPayloadV3 = {
+  v: 3;
+  propietario_nombre: string;
+  mes_periodo: string;
+  comision_porcentaje: number;
+  unidades: UnidadRendicionV3[];
+  suma_inmobiliaria_items: {
+    pago_id: string;
+    concepto: string;
+    monto: number;
+    observaciones: string | null;
+  }[];
+  /** Suma de montos listados en `suma_inmobiliaria_items` (solo referencia en esa sección). */
+  total_suma_inmobiliaria_conceptos: number;
+  /** Base de comisión: suma de montos de alquiler imputados en los recibos del período. */
+  total_alquileres_cobrados: number;
+  comision_monto: number;
+  /** Suma del neto por unidad/recibo (impactos por línea ya aplicados), antes de la comisión global. */
+  subtotal_a_rendir_propietario: number;
+  total_a_rendir_propietario: number;
+  /** Conceptos inmobiliaria del período + comisión inmobiliaria. */
+  total_inmobiliaria: number;
+};
+
+export type InformeRendicionPayload = InformeRendicionPayloadV1 | InformeRendicionPayloadV2 | InformeRendicionPayloadV3;
 
 export type InformeRendicionListRow = {
   id: string;

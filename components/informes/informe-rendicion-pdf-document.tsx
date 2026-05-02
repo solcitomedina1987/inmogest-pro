@@ -1,5 +1,6 @@
 import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import type { InformeRendicionPayload } from "@/lib/informes/rendicion-types";
+import { InformeRendicionPdfBodyV3 } from "@/components/informes/informe-rendicion-pdf-body-v3";
 
 const precio = (n: number) =>
   new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 2 }).format(n);
@@ -150,7 +151,9 @@ export function InformeRendicionPdfDocument({ payload, fechaGeneracion, logoData
           Período rendido: {payload.mes_periodo} — Comisión sobre alquileres: {payload.comision_porcentaje}%
         </Text>
 
-        {payload.v === 2 ? (
+        {payload.v === 3 ? (
+          <InformeRendicionPdfBodyV3 payload={payload} />
+        ) : payload.v === 2 ? (
           <>
             <View style={styles.blockOuter}>
               <View style={styles.blockHeader}>

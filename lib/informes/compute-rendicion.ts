@@ -1,8 +1,16 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { etiquetaConceptoConEmoji } from "@/lib/cobranzas/conceptos-pago";
-import { aDetalleV2 } from "@/lib/cobranzas/detalle-pago";
-import { parseDetallePagoDb } from "@/lib/cobranzas/detalle-pago";
-import type { InformeRendicionPayloadV2 } from "@/lib/informes/rendicion-types";
+import {
+  aDetalleV2,
+  parseDetallePagoDb,
+  totalCobrarInquilinoDesdeDetalleV2,
+  totalRendirPropietarioDesdeDetalleV2,
+} from "@/lib/cobranzas/detalle-pago";
+import type {
+  InformeRendicionPayloadV3,
+  LineaRendicionUnidad,
+  UnidadRendicionV3,
+} from "@/lib/informes/rendicion-types";
 
 type PagoRow = {
   id: string;
@@ -37,22 +45,41 @@ function emptyPayload(
   propietarioNombre: string,
   mes_periodo: string,
   comision_porcentaje: number,
-): InformeRendicionPayloadV2 {
+): InformeRendicionPayloadV3 {
   return {
-    v: 2,
+    v: 3,
     propietario_nombre: propietarioNombre,
     mes_periodo,
     comision_porcentaje,
-    alquileres: [],
-    otros_conceptos: [],
-    deducciones_propietario: [],
-    informativos_conceptos: [],
+    unidades: [],
+    suma_inmobiliaria_items: [],
+    total_suma_inmobiliaria_conceptos: 0,
     total_alquileres_cobrados: 0,
     comision_monto: 0,
-    neto_alquileres: 0,
-    subtotal_otros_conceptos: 0,
-    total_neto_a_rendir: 0,
+    subtotal_a_rendir_propietario: 0,
+    total_a_rendir_propietario: 0,
+    total_inmobiliaria: 0,
   };
+}
+
+function lineasDesdeDetalle(detalle: ReturnType<typeof aDetalleV2>): LineaRendicionUnidad[] {
+  const lineas: LineaRendicionUnidad[] = [
+    {
+      concepto: "Alquiler",
+      monto: roundMoney(Number(detalle.monto_alquiler) || 0),
+      observaciones: null,
+    },
+  ];
+  for (const ex of detalle.extras) {
+    const m = Number(ex.monto) || 0;
+    if (m <= 0) continue;
+    lineas.push({
+      concepto: etiquetaConceptoConEmoji(ex.concepto),
+      monto: roundMoney(m),
+      observaciones: ex.observaciones,
+    });
+  }
+  return lineas;
 }
 
 export async function computeInformeRendicion(
@@ -62,7 +89,7 @@ export async function computeInformeRendicion(
     mes_periodo: string;
     comision_porcentaje: number;
   },
-): Promise<{ ok: true; payload: InformeRendicionPayloadV2 } | { ok: false; error: string }> {
+): Promise<{ ok: true; payload: InformeRendicionPayloadV3 } | { ok: false; error: string }> {
   const { propietario_cliente_id, mes_periodo, comision_porcentaje } = input;
 
   const { data: propRow, error: pErr } = await supabase
@@ -133,10 +160,9 @@ export async function computeInformeRendicion(
     return { ok: false, error: pgErr.message };
   }
 
-  const alquileres: InformeRendicionPayloadV2["alquileres"] = [];
-  const otros: InformeRendicionPayloadV2["otros_conceptos"] = [];
-  const deducciones: InformeRendicionPayloadV2["deducciones_propietario"] = [];
-  const informativos: InformeRendicionPayloadV2["informativos_conceptos"] = [];
+  const unidades: UnidadRendicionV3[] = [];
+  const sumaInmobiliariaItems: InformeRendicionPayloadV3["suma_inmobiliaria_items"] = [];
+  let sumaAlquileres = 0;
 
   for (const raw of pagosRaw ?? []) {
     const p = raw as PagoRow;
@@ -147,74 +173,65 @@ export async function computeInformeRendicion(
 
     const detalleRaw = parseDetallePagoDb(p.detalle_pago);
     const detalle = aDetalleV2(detalleRaw, montoPagado);
-    const montoAlquilerLinea = detalleRaw != null ? detalle.monto_alquiler : montoPagado;
+    sumaAlquileres += roundMoney(Number(detalle.monto_alquiler) || 0);
 
-    if (montoAlquilerLinea > 0) {
-      alquileres.push({
-        pago_id: p.id,
-        propiedad_id: propId,
-        etiqueta,
-        monto: roundMoney(montoAlquilerLinea),
-      });
-    }
+    const lineas = lineasDesdeDetalle(detalle);
+    const subtotalCobrado = totalCobrarInquilinoDesdeDetalleV2(detalle);
+    const netoRecibo = totalRendirPropietarioDesdeDetalleV2(detalle);
+
+    unidades.push({
+      contrato_id: p.contrato_id,
+      propiedad_id: propId,
+      etiqueta,
+      pago_id: p.id,
+      lineas,
+      subtotal_cobrado_inquilino: subtotalCobrado,
+      neto_propietario_recibo: netoRecibo,
+    });
 
     for (const ex of detalle.extras) {
       if (ex.monto <= 0) continue;
-      const row = {
+      if (ex.impacto !== "inmobiliaria") continue;
+      sumaInmobiliariaItems.push({
         pago_id: p.id,
         concepto: etiquetaConceptoConEmoji(ex.concepto),
         monto: roundMoney(Number(ex.monto)),
         observaciones: ex.observaciones,
-      };
-      if (ex.impacto === "propietario_resta") deducciones.push(row);
-      else if (ex.impacto === "inmobiliaria") informativos.push(row);
-      else otros.push(row);
+      });
     }
   }
 
-  alquileres.sort((a, b) => {
+  unidades.sort((a, b) => {
     const c = a.etiqueta.localeCompare(b.etiqueta, "es");
-    return c !== 0 ? c : a.pago_id.localeCompare(b.pago_id);
+    return c !== 0 ? c : a.contrato_id.localeCompare(b.contrato_id);
   });
-  otros.sort((a, b) => {
-    const c = a.concepto.localeCompare(b.concepto, "es");
-    return c !== 0 ? c : a.pago_id.localeCompare(b.pago_id);
-  });
-  deducciones.sort((a, b) => {
-    const c = a.concepto.localeCompare(b.concepto, "es");
-    return c !== 0 ? c : a.pago_id.localeCompare(b.pago_id);
-  });
-  informativos.sort((a, b) => {
+  sumaInmobiliariaItems.sort((a, b) => {
     const c = a.concepto.localeCompare(b.concepto, "es");
     return c !== 0 ? c : a.pago_id.localeCompare(b.pago_id);
   });
 
-  const totalAlquileresCobrados = roundMoney(alquileres.reduce((s, r) => s + r.monto, 0));
-  const sumaOtros = otros.reduce((s, r) => s + r.monto, 0);
-  const sumaDed = deducciones.reduce((s, r) => s + r.monto, 0);
-  const sumaInf = informativos.reduce((s, r) => s + r.monto, 0);
-  const subtotalOtrosConceptos = roundMoney(sumaOtros - sumaDed - sumaInf);
-
+  const totalAlquileresCobrados = roundMoney(sumaAlquileres);
   const comisionMonto = roundMoney(totalAlquileresCobrados * (comision_porcentaje / 100));
-  const netoAlquileres = roundMoney(totalAlquileresCobrados - comisionMonto);
-  const totalNetoARendir = roundMoney(netoAlquileres + subtotalOtrosConceptos);
+  const subtotalARendir = roundMoney(unidades.reduce((s, u) => s + u.neto_propietario_recibo, 0));
+  const totalARendir = roundMoney(subtotalARendir - comisionMonto);
+  const totalSumaInmobConceptos = roundMoney(sumaInmobiliariaItems.reduce((s, r) => s + r.monto, 0));
+  const totalInmobiliaria = roundMoney(totalSumaInmobConceptos + comisionMonto);
 
   return {
     ok: true,
     payload: {
-      v: 2,
+      v: 3,
       propietario_nombre: propietarioNombre,
       mes_periodo,
       comision_porcentaje,
-      alquileres,
-      otros_conceptos: otros,
-      deducciones_propietario: deducciones,
-      informativos_conceptos: informativos,
+      unidades,
+      suma_inmobiliaria_items: sumaInmobiliariaItems,
+      total_suma_inmobiliaria_conceptos: totalSumaInmobConceptos,
       total_alquileres_cobrados: totalAlquileresCobrados,
       comision_monto: comisionMonto,
-      neto_alquileres: netoAlquileres,
-      subtotal_otros_conceptos: subtotalOtrosConceptos,
-      total_neto_a_rendir: totalNetoARendir,
+      subtotal_a_rendir_propietario: subtotalARendir,
+      total_a_rendir_propietario: totalARendir,
+      total_inmobiliaria: totalInmobiliaria,
     },
   };
 }

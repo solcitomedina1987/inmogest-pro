@@ -36,10 +36,10 @@ export async function generarInformeRendicion(input: unknown): Promise<InformeAc
   }
 
   const payload = comp.payload;
-  const sumOtros = payload.otros_conceptos.reduce((s, r) => s + r.monto, 0);
-  const sumDed = payload.deducciones_propietario.reduce((s, r) => s + r.monto, 0);
-  const sumInf = payload.informativos_conceptos.reduce((s, r) => s + r.monto, 0);
-  const brutoCobrado = round2(payload.total_alquileres_cobrados + sumOtros + sumDed + sumInf);
+  const brutoCobrado = round2(
+    payload.unidades.reduce((s, u) => s + u.subtotal_cobrado_inquilino, 0) + payload.total_suma_inmobiliaria_conceptos,
+  );
+  const netoRendir = payload.total_a_rendir_propietario;
   const { data: ins, error } = await supabase
     .from("informes_rendicion")
     .insert({
@@ -47,7 +47,7 @@ export async function generarInformeRendicion(input: unknown): Promise<InformeAc
       mes_periodo: parsed.data.mes_periodo,
       comision_porcentaje: parsed.data.comision_porcentaje,
       monto_total: brutoCobrado,
-      neto_rendir: payload.total_neto_a_rendir,
+      neto_rendir: netoRendir,
       payload,
     })
     .select("id")
