@@ -192,7 +192,8 @@ export async function computeInformeRendicion(
   const totalAlquileresCobrados = roundMoney(alquileres.reduce((s, r) => s + r.monto, 0));
   const sumaOtros = otros.reduce((s, r) => s + r.monto, 0);
   const sumaDed = deducciones.reduce((s, r) => s + r.monto, 0);
-  const subtotalOtrosConceptos = roundMoney(sumaOtros - sumaDed);
+  const sumaInf = informativos.reduce((s, r) => s + r.monto, 0);
+  const subtotalOtrosConceptos = roundMoney(sumaOtros - sumaDed - sumaInf);
 
   const comisionMonto = roundMoney(totalAlquileresCobrados * (comision_porcentaje / 100));
   const netoAlquileres = roundMoney(totalAlquileresCobrados - comisionMonto);

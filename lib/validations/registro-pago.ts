@@ -24,16 +24,14 @@ export const registroPagoSchema = z
   })
   .superRefine((data, ctx) => {
     const alq = Number(data.monto_alquiler) || 0;
-    let suma = alq;
+    let totalCobrar = alq;
     for (const x of data.conceptos_extras) {
-      const m = Number(x.monto) || 0;
-      if (x.impacto === "propietario_resta") suma -= m;
-      else suma += m;
+      totalCobrar += Number(x.monto) || 0;
     }
-    if (suma <= 0) {
+    if (totalCobrar <= 0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "El total a cobrar (haberes − deducciones + otros) debe ser mayor a cero.",
+        message: "El total a cobrar al inquilino (alquiler + todos los conceptos) debe ser mayor a cero.",
         path: ["monto_alquiler"],
       });
     }
@@ -53,16 +51,14 @@ export const editarPagoSchema = z
   })
   .superRefine((data, ctx) => {
     const alq = Number(data.monto_alquiler) || 0;
-    let suma = alq;
+    let totalCobrar = alq;
     for (const x of data.conceptos_extras) {
-      const m = Number(x.monto) || 0;
-      if (x.impacto === "propietario_resta") suma -= m;
-      else suma += m;
+      totalCobrar += Number(x.monto) || 0;
     }
-    if (suma <= 0) {
+    if (totalCobrar <= 0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "El total a cobrar debe ser mayor a cero.",
+        message: "El total a cobrar al inquilino debe ser mayor a cero.",
         path: ["monto_alquiler"],
       });
     }

@@ -28,6 +28,10 @@ export type DetallePagoV2 = {
   v: 2;
   monto_alquiler: number;
   extras: DetallePagoExtraV2[];
+  /** Congelado al guardar: suma(alquiler + todos los extras con monto > 0). */
+  total_cobrado_inquilino?: number;
+  /** Congelado al guardar: suma al propietario − resta al propietario − suma inmobiliaria. */
+  total_rendir_propietario?: number;
 };
 
 export type DetallePagoParsed = DetallePagoV1 | DetallePagoV2;
@@ -46,7 +50,7 @@ export function esImpactoPago(s: string): s is ImpactoPago {
   return (IMPACTO_PAGO_VALUES as readonly string[]).includes(s);
 }
 
-/** Impacto por defecto al migrar desde v1: honorarios/escribanía no liquidan al dueño. */
+/** Impacto por defecto al migrar desde v1: honorarios/escribanía como suma a inmobiliaria. */
 export function impactoDefaultDesdeConcepto(concepto: ConceptoPagoTipo): ImpactoPago {
   if (concepto === "honorarios_inmobiliarios" || concepto === "escribania") {
     return "inmobiliaria";
@@ -58,17 +62,50 @@ export function totalDesdeDetalle(d: DetallePagoV1): number {
   return d.monto_alquiler + d.extras.reduce((a, e) => a + Number(e.monto || 0), 0);
 }
 
-/** Total que abona el inquilino en el recibo: alquiler + sumas + inmobiliaria − restas al propietario. */
+/** Parte de alquiler + extras clasificados por impacto (montos ≥ 0). */
+export function montosImpactoDesdeDetalleV2(d: DetallePagoV2): {
+  sumaPropietario: number;
+  restaPropietario: number;
+  sumaInmobiliaria: number;
+} {
+  let sumaPropietario = Number(d.monto_alquiler) || 0;
+  let restaPropietario = 0;
+  let sumaInmobiliaria = 0;
+  for (const e of d.extras) {
+    const m = Number(e.monto) || 0;
+    if (m <= 0) continue;
+    if (e.impacto === "propietario_resta") restaPropietario += m;
+    else if (e.impacto === "inmobiliaria") sumaInmobiliaria += m;
+    else sumaPropietario += m;
+  }
+  return {
+    sumaPropietario: round2(sumaPropietario),
+    restaPropietario: round2(restaPropietario),
+    sumaInmobiliaria: round2(sumaInmobiliaria),
+  };
+}
+
+/** Total que abona el inquilino: suma de montos de los tres rubros (incluye alquiler en “suma propietario”). */
+export function totalCobrarInquilinoDesdeDetalleV2(d: DetallePagoV2): number {
+  const { sumaPropietario, restaPropietario, sumaInmobiliaria } = montosImpactoDesdeDetalleV2(d);
+  return round2(sumaPropietario + restaPropietario + sumaInmobiliaria);
+}
+
+/** Efectivo neto a liquidar al propietario por este recibo (sin comisión inmobiliaria global del informe). */
+export function totalRendirPropietarioDesdeDetalleV2(d: DetallePagoV2): number {
+  const { sumaPropietario, restaPropietario, sumaInmobiliaria } = montosImpactoDesdeDetalleV2(d);
+  return round2(sumaPropietario - restaPropietario - sumaInmobiliaria);
+}
+
+/** Total que abona el inquilino (recibo). Usa totales persistidos en v2 si existen. */
 export function totalRecaudadoInquilino(d: DetallePagoParsed | null, montoSinDetalle: number): number {
   if (!d) return round2(montoSinDetalle);
   if (d.v === 1) return round2(totalDesdeDetalle(d));
-  let t = Number(d.monto_alquiler) || 0;
-  for (const e of d.extras) {
-    const m = Number(e.monto) || 0;
-    if (e.impacto === "propietario_resta") t -= m;
-    else t += m;
+  const v2 = d;
+  if (typeof v2.total_cobrado_inquilino === "number" && !Number.isNaN(v2.total_cobrado_inquilino)) {
+    return round2(v2.total_cobrado_inquilino);
   }
-  return round2(t);
+  return totalCobrarInquilinoDesdeDetalleV2(v2);
 }
 
 export function construirDetallePagoV1(input: {
@@ -97,17 +134,20 @@ export function construirDetallePagoV2(input: {
     impacto: ImpactoPago;
   }>;
 }): DetallePagoV2 {
+  const monto_alquiler = Number(input.monto_alquiler);
+  const extras = input.extras
+    .filter((e) => Number(e.monto) > 0)
+    .map((e) => ({
+      concepto: e.concepto,
+      monto: Number(e.monto),
+      observaciones: e.observaciones?.trim() ? e.observaciones.trim() : null,
+      impacto: e.impacto,
+    }));
+  const base: DetallePagoV2 = { v: 2, monto_alquiler, extras };
   return {
-    v: 2,
-    monto_alquiler: Number(input.monto_alquiler),
-    extras: input.extras
-      .filter((e) => Number(e.monto) > 0)
-      .map((e) => ({
-        concepto: e.concepto,
-        monto: Number(e.monto),
-        observaciones: e.observaciones?.trim() ? e.observaciones.trim() : null,
-        impacto: e.impacto,
-      })),
+    ...base,
+    total_cobrado_inquilino: totalCobrarInquilinoDesdeDetalleV2(base),
+    total_rendir_propietario: totalRendirPropietarioDesdeDetalleV2(base),
   };
 }
 
@@ -138,7 +178,12 @@ export function parseDetallePagoDb(raw: unknown): DetallePagoParsed | null {
         impacto,
       });
     }
-    return { v: 2, monto_alquiler: mAlq, extras };
+    const totC = o.total_cobrado_inquilino;
+    const totR = o.total_rendir_propietario;
+    const out: DetallePagoV2 = { v: 2, monto_alquiler: mAlq, extras };
+    if (typeof totC === "number" && !Number.isNaN(totC)) out.total_cobrado_inquilino = round2(totC);
+    if (typeof totR === "number" && !Number.isNaN(totR)) out.total_rendir_propietario = round2(totR);
+    return out;
   }
   if (o.v === 1) {
     const mAlq = Number(o.monto_alquiler);
@@ -170,21 +215,23 @@ export function aDetalleV2(d: DetallePagoParsed | null, montoPagoSinDetalle: num
     return { v: 2, monto_alquiler: round2(montoPagoSinDetalle), extras: [] };
   }
   if (d.v === 2) return d;
+  const extras = d.extras.map((e) => ({
+    concepto: e.concepto,
+    monto: e.monto,
+    observaciones: e.observaciones,
+    impacto: impactoDefaultDesdeConcepto(e.concepto),
+  }));
+  const base: DetallePagoV2 = { v: 2, monto_alquiler: d.monto_alquiler, extras };
   return {
-    v: 2,
-    monto_alquiler: d.monto_alquiler,
-    extras: d.extras.map((e) => ({
-      concepto: e.concepto,
-      monto: e.monto,
-      observaciones: e.observaciones,
-      impacto: impactoDefaultDesdeConcepto(e.concepto),
-    })),
+    ...base,
+    total_cobrado_inquilino: totalCobrarInquilinoDesdeDetalleV2(base),
+    total_rendir_propietario: totalRendirPropietarioDesdeDetalleV2(base),
   };
 }
 
 /**
- * Líneas planas para compatibilidad (recibo antiguo).
- * Preferir `seccionesReciboDesdeDetalle` para UI con Haberes / Deducciones.
+ * Líneas planas para compatibilidad.
+ * Preferir `seccionesReciboDesdeDetalle` (recibo inquilino: un solo detalle, total = suma de ítems).
  */
 export function lineasReciboDesdePago(input: {
   monto_pagado: number;
@@ -221,9 +268,8 @@ export function lineasReciboDesdePago(input: {
     return lines;
   }
   for (const e of d.extras) {
-    const sign = e.impacto === "propietario_resta" ? "− " : "";
     lines.push({
-      concepto: `${sign}${etiquetaConceptoConEmoji(e.concepto)}`,
+      concepto: etiquetaConceptoConEmoji(e.concepto),
       monto: e.monto,
       observaciones: e.observaciones,
     });
@@ -245,21 +291,19 @@ export function seccionesReciboDesdeDetalle(input: {
 
   if (!input.detalle) {
     return {
-      secciones: [{ titulo: "Haberes", lineas: [{ concepto: "Alquiler", monto: input.monto_pagado, observaciones: obsAlq }] }],
+      secciones: [
+        { titulo: "Detalle de cobro", lineas: [{ concepto: "Alquiler", monto: input.monto_pagado, observaciones: obsAlq }] },
+      ],
       total,
     };
   }
 
   const d = input.detalle;
-  const haberes: LineaRecibo[] = [
-    { concepto: "Alquiler", monto: d.monto_alquiler, observaciones: obsAlq },
-  ];
-  const deducciones: LineaRecibo[] = [];
-  const inmob: LineaRecibo[] = [];
+  const lineas: LineaRecibo[] = [{ concepto: "Alquiler", monto: d.monto_alquiler, observaciones: obsAlq }];
 
   if (d.v === 1) {
     for (const e of d.extras) {
-      haberes.push({
+      lineas.push({
         concepto: etiquetaConceptoConEmoji(e.concepto),
         monto: e.monto,
         observaciones: e.observaciones,
@@ -267,21 +311,16 @@ export function seccionesReciboDesdeDetalle(input: {
     }
   } else {
     for (const e of d.extras) {
-      const line: LineaRecibo = {
+      lineas.push({
         concepto: etiquetaConceptoConEmoji(e.concepto),
         monto: e.monto,
         observaciones: e.observaciones,
-      };
-      if (e.impacto === "propietario_resta") deducciones.push(line);
-      else if (e.impacto === "inmobiliaria") inmob.push(line);
-      else haberes.push(line);
+      });
     }
   }
 
-  const secciones: SeccionRecibo[] = [];
-  if (haberes.length) secciones.push({ titulo: "Haberes", lineas: haberes });
-  if (deducciones.length) secciones.push({ titulo: "Deducciones", lineas: deducciones });
-  if (inmob.length) secciones.push({ titulo: "Conceptos inmobiliaria", lineas: inmob });
-
-  return { secciones, total };
+  return {
+    secciones: [{ titulo: "Detalle de cobro", lineas }],
+    total,
+  };
 }

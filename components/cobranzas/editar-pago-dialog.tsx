@@ -9,7 +9,7 @@ import { editarPago } from "@/app/actions/cobranzas";
 import { CONCEPTOS_PAGO_ORDENADOS } from "@/lib/cobranzas/conceptos-pago";
 import type { ConceptoPagoTipo } from "@/lib/cobranzas/conceptos-pago";
 import type { ImpactoPago } from "@/lib/cobranzas/detalle-pago";
-import { aDetalleV2, construirDetallePagoV2, totalRecaudadoInquilino } from "@/lib/cobranzas/detalle-pago";
+import { aDetalleV2, construirDetallePagoV2, totalRecaudadoInquilino, totalRendirPropietarioDesdeDetalleV2 } from "@/lib/cobranzas/detalle-pago";
 import { FORMAS_PAGO } from "@/lib/constants/cobranzas";
 import { editarPagoSchema, type EditarPagoValues } from "@/lib/validations/registro-pago";
 import type { PagoRow } from "@/lib/cobranzas/types";
@@ -79,9 +79,9 @@ type Props = {
 };
 
 const IMPACTO_OPCIONES: { value: ImpactoPago; label: string }[] = [
-  { value: "propietario_suma", label: "Suma al dueño" },
-  { value: "propietario_resta", label: "Resta al dueño" },
-  { value: "inmobiliaria", label: "Informativo inmobiliaria" },
+  { value: "propietario_suma", label: "Suma al propietario" },
+  { value: "propietario_resta", label: "Resta al propietario" },
+  { value: "inmobiliaria", label: "Suma a inmobiliaria" },
 ];
 
 const defaultExtra = (): {
@@ -140,7 +140,7 @@ export function EditarPagoDialog({ pago, contratoId, open, onOpenChange }: Props
 
   const montoAlquiler = form.watch("monto_alquiler");
   const extras = form.watch("conceptos_extras");
-  const totalCobrar = useMemo(() => {
+  const totalesLiquidacion = useMemo(() => {
     const d = construirDetallePagoV2({
       monto_alquiler: Number(montoAlquiler) || 0,
       extras: (extras ?? []).map((x) => ({
@@ -150,7 +150,10 @@ export function EditarPagoDialog({ pago, contratoId, open, onOpenChange }: Props
         impacto: x.impacto,
       })),
     });
-    return totalRecaudadoInquilino(d, 0);
+    return {
+      totalCobrar: totalRecaudadoInquilino(d, 0),
+      totalRendir: totalRendirPropietarioDesdeDetalleV2(d),
+    };
   }, [montoAlquiler, extras]);
 
   useEffect(() => {
@@ -353,7 +356,7 @@ export function EditarPagoDialog({ pago, contratoId, open, onOpenChange }: Props
                         name={`conceptos_extras.${index}.impacto`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-xs">Impacto en liquidación</FormLabel>
+                            <FormLabel className="text-xs">Naturaleza del fondo</FormLabel>
                             <Select onValueChange={field.onChange} value={field.value}>
                               <FormControl>
                                 <SelectTrigger className="w-full">
@@ -392,9 +395,15 @@ export function EditarPagoDialog({ pago, contratoId, open, onOpenChange }: Props
               )}
             </div>
 
-            <div className="rounded-md border-2 border-primary/30 bg-primary/5 px-3 py-2.5">
-              <p className="text-sm font-semibold">Total general cobrado (inquilino)</p>
-              <p className="text-lg font-bold tabular-nums">{precioFmt.format(totalCobrar)}</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="rounded-md border-2 border-primary/30 bg-primary/5 px-3 py-2.5">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total a cobrar al inquilino</p>
+                <p className="text-lg font-bold tabular-nums">{precioFmt.format(totalesLiquidacion.totalCobrar)}</p>
+              </div>
+              <div className="rounded-md border border-stone-300 bg-stone-50 px-3 py-2.5">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total a rendir al propietario</p>
+                <p className="text-lg font-bold tabular-nums text-stone-900">{precioFmt.format(totalesLiquidacion.totalRendir)}</p>
+              </div>
             </div>
 
             <FormField

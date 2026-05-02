@@ -248,12 +248,12 @@ export function InformeRendicionPdfDocument({ payload, fechaGeneracion, logoData
 
             <View style={[styles.blockOuter, { marginTop: 10 }]}>
               <View style={[styles.blockHeader, { backgroundColor: "#f5f5f4" }]}>
-                <Text style={styles.blockTitle}>Solo informativo — inmobiliaria</Text>
-                <Text style={styles.blockBadge}>No liquida al dueño.</Text>
+                <Text style={styles.blockTitle}>Suma a inmobiliaria</Text>
+                <Text style={styles.blockBadge}>Retención del neto al propietario.</Text>
               </View>
               {payload.informativos_conceptos.length === 0 ? (
                 <View style={styles.row}>
-                  <Text style={styles.muted}>Sin ítems informativos.</Text>
+                  <Text style={styles.muted}>Sin retenciones inmobiliaria.</Text>
                 </View>
               ) : (
                 <>
@@ -265,7 +265,7 @@ export function InformeRendicionPdfDocument({ payload, fechaGeneracion, logoData
                   {payload.informativos_conceptos.map((o, i) => (
                     <View key={`${o.pago_id}-i-${i}`} style={styles.row} wrap={false}>
                       <Text style={styles.cell1}>{o.concepto}</Text>
-                      <Text style={styles.cellN}>{precio(o.monto)}</Text>
+                      <Text style={styles.cellN}>- {precio(o.monto)}</Text>
                       <Text style={styles.cellObs}>{o.observaciones ?? "—"}</Text>
                     </View>
                   ))}
@@ -273,7 +273,7 @@ export function InformeRendicionPdfDocument({ payload, fechaGeneracion, logoData
               )}
               <View style={[styles.tableFoot, { backgroundColor: "#e8e6e3" }]}>
                 <View style={[styles.footLine, { marginBottom: 0 }]}>
-                  <Text style={styles.footBold}>Subtotal conceptos en liquidación (favor − deducciones)</Text>
+                  <Text style={styles.footBold}>Subtotal conceptos (favor − deducciones − inmobiliaria)</Text>
                   <Text style={styles.footBoldNum}>{precio(payload.subtotal_otros_conceptos)}</Text>
                 </View>
               </View>
@@ -286,7 +286,7 @@ export function InformeRendicionPdfDocument({ payload, fechaGeneracion, logoData
                 <Text style={styles.footBoldNum}>{precio(payload.neto_alquileres)}</Text>
               </View>
               <View style={[styles.closureLine, { marginBottom: 0 }]}>
-                <Text style={styles.footBold}>Subtotal conceptos (liquidación dueño):</Text>
+                <Text style={styles.footBold}>Subtotal conceptos (liquidación dueño, favor − deducc. − inmob.):</Text>
                 <Text style={styles.footBoldNum}>{precio(payload.subtotal_otros_conceptos)}</Text>
               </View>
               <View style={styles.closureRule} />

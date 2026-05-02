@@ -10,7 +10,7 @@ import { CONCEPTOS_PAGO_ORDENADOS } from "@/lib/cobranzas/conceptos-pago";
 import type { ConceptoPagoTipo } from "@/lib/cobranzas/conceptos-pago";
 import { mesPeriodoActual } from "@/lib/cobranzas/estado-contrato";
 import type { ImpactoPago } from "@/lib/cobranzas/detalle-pago";
-import { totalRecaudadoInquilino, construirDetallePagoV2 } from "@/lib/cobranzas/detalle-pago";
+import { totalRecaudadoInquilino, construirDetallePagoV2, totalRendirPropietarioDesdeDetalleV2 } from "@/lib/cobranzas/detalle-pago";
 import { FORMAS_PAGO } from "@/lib/constants/cobranzas";
 import { registroPagoSchema, type RegistroPagoValues } from "@/lib/validations/registro-pago";
 import { Button } from "@/components/ui/button";
@@ -52,9 +52,9 @@ const precioFmt = new Intl.NumberFormat("es-AR", {
 });
 
 const IMPACTO_OPCIONES: { value: ImpactoPago; label: string }[] = [
-  { value: "propietario_suma", label: "Suma al dueño" },
-  { value: "propietario_resta", label: "Resta al dueño" },
-  { value: "inmobiliaria", label: "Informativo inmobiliaria" },
+  { value: "propietario_suma", label: "Suma al propietario" },
+  { value: "propietario_resta", label: "Resta al propietario" },
+  { value: "inmobiliaria", label: "Suma a inmobiliaria" },
 ];
 
 function hoyISO(): string {
@@ -145,7 +145,7 @@ export function RegistrarPagoDialog({
   const extras = form.watch("conceptos_extras");
   const contratoIdWatch = form.watch("contrato_id");
 
-  const totalCobrar = useMemo(() => {
+  const totalesLiquidacion = useMemo(() => {
     const d = construirDetallePagoV2({
       monto_alquiler: Number(montoAlquiler) || 0,
       extras: (extras ?? []).map((x) => ({
@@ -155,7 +155,10 @@ export function RegistrarPagoDialog({
         impacto: x.impacto,
       })),
     });
-    return totalRecaudadoInquilino(d, 0);
+    return {
+      totalCobrar: totalRecaudadoInquilino(d, 0),
+      totalRendir: totalRendirPropietarioDesdeDetalleV2(d),
+    };
   }, [montoAlquiler, extras]);
 
   useEffect(() => {
@@ -208,8 +211,8 @@ export function RegistrarPagoDialog({
         <DialogHeader>
           <DialogTitle>Registrar pago</DialogTitle>
           <DialogDescription>
-            Vinculado al contrato y período contable. Cada concepto extra define su impacto en la liquidación del
-            propietario.
+            El total a cobrar al inquilino suma alquiler y todos los conceptos; el total a rendir al propietario aplica
+            suma al dueño − resta al dueño − suma a inmobiliaria.
             {disabled ? (
               <span className="mt-2 block text-destructive">
                 Este contrato está finalizado; no se pueden cargar pagos.
@@ -441,7 +444,7 @@ export function RegistrarPagoDialog({
                         name={`conceptos_extras.${index}.impacto`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-xs">Impacto en liquidación</FormLabel>
+                            <FormLabel className="text-xs">Naturaleza del fondo</FormLabel>
                             <Select onValueChange={field.onChange} value={field.value}>
                               <FormControl>
                                 <SelectTrigger className="w-full">
@@ -480,9 +483,15 @@ export function RegistrarPagoDialog({
               )}
             </div>
 
-            <div className="rounded-md border-2 border-primary/30 bg-primary/5 px-3 py-2.5">
-              <p className="text-sm font-semibold text-foreground">Total general cobrado (inquilino)</p>
-              <p className="text-lg font-bold tabular-nums">{precioFmt.format(totalCobrar)}</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="rounded-md border-2 border-primary/30 bg-primary/5 px-3 py-2.5">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total a cobrar al inquilino</p>
+                <p className="text-lg font-bold tabular-nums">{precioFmt.format(totalesLiquidacion.totalCobrar)}</p>
+              </div>
+              <div className="rounded-md border border-stone-300 bg-stone-50 px-3 py-2.5">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total a rendir al propietario</p>
+                <p className="text-lg font-bold tabular-nums text-stone-900">{precioFmt.format(totalesLiquidacion.totalRendir)}</p>
+              </div>
             </div>
 
             <FormField

@@ -18,9 +18,10 @@ export type InformeRendicionPayloadV1 = {
 };
 
 /**
- * Snapshot actual: alquileres (base de comisión); `otros_conceptos` = suma al propietario;
- * `deducciones_propietario` = resta; `informativos_conceptos` = solo inmobiliaria (no neto).
- * Neto final = (alquileres − comisión) + subtotal_otros_conceptos (favor − deducciones).
+ * Snapshot actual: alquileres (base de comisión); `otros_conceptos` = suma al propietario (extras);
+ * `deducciones_propietario` = resta al propietario; `informativos_conceptos` = suma a inmobiliaria (retenciones).
+ * `subtotal_otros_conceptos` = favor − deducciones − inmobiliaria.
+ * Neto final = (alquileres − comisión) + subtotal_otros_conceptos.
  */
 export type InformeRendicionPayloadV2 = {
   v: 2;
@@ -47,7 +48,7 @@ export type InformeRendicionPayloadV2 = {
     monto: number;
     observaciones: string | null;
   }[];
-  /** Solo informativos (inmobiliaria); no suman al neto a rendir. */
+  /** Retenciones / honorarios a favor de la inmobiliaria (restan del neto a rendir al dueño). */
   informativos_conceptos: {
     pago_id: string;
     concepto: string;

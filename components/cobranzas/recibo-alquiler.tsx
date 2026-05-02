@@ -107,7 +107,7 @@ function ReciboCopia({
 
       <div className="recibo-total mb-10 mt-4 space-y-1 border-t-2 border-neutral-800 pt-3 text-sm">
         <p className="flex justify-between font-bold">
-          <span>Total general cobrado</span>
+          <span>Total a cobrar al inquilino</span>
           <span className="tabular-nums">{precioTabla.format(total)}</span>
         </p>
         <p className="text-xs leading-relaxed text-neutral-800">

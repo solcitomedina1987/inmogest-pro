@@ -181,14 +181,14 @@ export function InformeRendicionVista({ payload, fechaGeneracion, className }: P
             <div className="overflow-hidden rounded-lg border-2 border-dashed border-stone-300 bg-stone-50/60 shadow-sm">
               <div className="border-b border-stone-200 px-4 py-3">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <h2 className="text-base font-semibold text-stone-900">Solo informativo — inmobiliaria</h2>
+                  <h2 className="text-base font-semibold text-stone-900">Suma a inmobiliaria</h2>
                   <span className="rounded-full bg-stone-200 px-2.5 py-0.5 text-xs font-semibold text-stone-800">
-                    No liquida al dueño
+                    Retención del neto
                   </span>
                 </div>
                 <p className="text-muted-foreground mt-1 text-xs">
-                  Comisión retenida por la inmobiliaria, escribanía retenida, u otros rubros que no entran en el neto a
-                  rendir.
+                  Honorarios, comisión, sellados u otros rubros retenidos por la inmobiliaria: se restan del total a
+                  entregar al propietario (el inquilino los abonó en el recibo).
                 </p>
               </div>
               <table className="w-full text-sm">
@@ -203,14 +203,16 @@ export function InformeRendicionVista({ payload, fechaGeneracion, className }: P
                   {payload.informativos_conceptos.length === 0 ? (
                     <tr>
                       <td colSpan={3} className="text-muted-foreground px-3 py-4 text-center">
-                        Sin ítems informativos en el período.
+                        Sin retenciones inmobiliaria en el período.
                       </td>
                     </tr>
                   ) : (
                     payload.informativos_conceptos.map((o, i) => (
                       <tr key={`${o.pago_id}-inf-${i}`} className="border-t border-stone-200">
                         <td className="px-3 py-2">{o.concepto}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{precioFmt.format(o.monto)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-destructive">
+                          − {precioFmt.format(o.monto)}
+                        </td>
                         <td className="text-muted-foreground px-3 py-2 text-xs">{o.observaciones ?? "—"}</td>
                       </tr>
                     ))
@@ -221,7 +223,9 @@ export function InformeRendicionVista({ payload, fechaGeneracion, className }: P
 
             <div className="overflow-hidden rounded-lg border-2 border-stone-500 bg-stone-100/90 px-4 py-3 text-sm shadow-inner">
               <div className="flex justify-between gap-4">
-                <span className="font-bold text-stone-900">Subtotal conceptos en liquidación (favor − deducciones)</span>
+                <span className="font-bold text-stone-900">
+                  Subtotal conceptos (favor del dueño − deducciones − inmobiliaria)
+                </span>
                 <span className="font-bold tabular-nums text-stone-900">
                   {precioFmt.format(payload.subtotal_otros_conceptos)}
                 </span>
@@ -245,7 +249,9 @@ export function InformeRendicionVista({ payload, fechaGeneracion, className }: P
                 </span>
               </div>
               <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-                <span className="font-bold text-stone-900">Subtotal conceptos (liquidación dueño):</span>
+                <span className="font-bold text-stone-900">
+                  Subtotal conceptos (liquidación dueño: favor − deducciones − inmobiliaria)
+                </span>
                 <span className="font-bold tabular-nums text-stone-900">
                   {precioFmt.format(payload.subtotal_otros_conceptos)}
                 </span>
