@@ -84,9 +84,6 @@ const styles = StyleSheet.create({
   },
   closureTotalText: { fontWeight: "bold", fontSize: 11.5 },
   muted: { color: "#555", fontSize: 8.5 },
-  signArea: { marginTop: 28, paddingTop: 12, borderTopWidth: 0.5, borderTopColor: "#bbb" },
-  signLabel: { fontSize: 8, color: "#444", textAlign: "center", marginBottom: 28 },
-  signLine: { borderBottomWidth: 0.75, borderBottomColor: "#333", marginHorizontal: 72, marginBottom: 6 },
   totalLine: { flexDirection: "row", justifyContent: "space-between", marginBottom: 4 },
   totalBold: { fontWeight: "bold", fontSize: 10 },
 });
@@ -123,15 +120,6 @@ function CabeceraMarca({ logoDataUri }: { logoDataUri?: string | null }) {
       <Text style={styles.brand}>Consultora Medina &amp; Asociados</Text>
       <Text style={styles.subBrand}>Informe de rendición — documento generado electrónicamente</Text>
     </>
-  );
-}
-
-function BloqueFirma() {
-  return (
-    <View style={styles.signArea}>
-      <Text style={styles.signLabel}>Firma y aclaración del propietario / la propietaria</Text>
-      <View style={styles.signLine} />
-    </View>
   );
 }
 
@@ -359,7 +347,7 @@ export function InformeRendicionPdfDocument({ payload, fechaGeneracion, logoData
           </>
         )}
 
-        <BloqueFirma />
+        <View style={{ marginTop: 16 }} />
       </Page>
     </Document>
   );

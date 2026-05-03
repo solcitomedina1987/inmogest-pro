@@ -361,10 +361,7 @@ export function InformeRendicionVista({ payload, fechaGeneracion, className }: P
         </>
       )}
 
-      <footer className="mt-14 border-t border-stone-300 pt-10 print:mt-12 print:pt-8">
-        <p className="text-muted-foreground mb-16 text-center text-xs">Firma y aclaración del propietario / la propietaria</p>
-        <div className="mx-auto max-w-md border-b border-stone-400" />
-      </footer>
+      <div className="mt-10 print:mt-8" aria-hidden />
     </div>
   );
 }

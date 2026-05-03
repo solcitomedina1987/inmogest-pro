@@ -151,9 +151,9 @@ export function InformeRendicionBodyV4({ payload }: Props) {
         aria-label="Liquidación final"
       >
         <h3 className="text-center text-xs font-bold uppercase tracking-widest text-stone-600">Liquidación final</h3>
-        <div className="mt-5 space-y-3 text-sm">
+        <div className="mt-5 space-y-4 text-sm">
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-stone-300 pb-2">
-            <span className="min-w-0 flex-1 font-medium text-stone-800">Subtotal bruto (suma unidades)</span>
+            <span className="min-w-0 flex-1 font-medium text-stone-800">Subtotal propiedades</span>
             <span className="shrink-0 font-semibold tabular-nums text-stone-900 sm:text-right">
               {precioFmt.format(payload.total_subtotal_bruto_periodo)}
             </span>
@@ -170,34 +170,21 @@ export function InformeRendicionBodyV4({ payload }: Props) {
               − {precioFmt.format(payload.total_deducciones_periodo)}
             </span>
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-stone-300 pb-2 text-stone-800">
-            <span className="min-w-0 flex-1 font-semibold">Control (bruto − comisiones − deducciones)</span>
-            <span className="shrink-0 font-bold tabular-nums sm:text-right">
-              {precioFmt.format(payload.total_validacion_neto)}
-            </span>
-          </div>
           {!validacionOk ? (
             <p className="text-destructive text-xs font-medium">
-              Atención: diferencia de redondeo entre el control y el total neto. Revisá los importes en el sistema.
+              Atención: diferencia de redondeo entre el total liquidado y el detalle por unidad. Revisá los importes en el
+              sistema.
             </p>
-          ) : (
-            <p className="text-muted-foreground text-xs">
-              El control coincide con la suma de los subtotales neto por unidad (tolerancia de centavos).
-            </p>
-          )}
-          <div className="rounded-lg border-2 border-amber-600 bg-amber-50 px-4 py-4 shadow-inner">
+          ) : null}
+          <div className="rounded-lg border-2 border-amber-600 bg-amber-50 px-4 py-5 shadow-inner">
             <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-              <span className="min-w-0 flex-1 text-lg font-extrabold tracking-tight text-stone-950 sm:text-xl uppercase">
-                Total a rendir al propietario
+              <span className="min-w-0 flex-1 text-lg font-extrabold tracking-tight text-stone-950 sm:text-xl">
+                Total al propietario
               </span>
               <span className="shrink-0 text-2xl font-extrabold tabular-nums text-stone-950 sm:text-right sm:text-3xl">
                 {precioFmt.format(payload.total_a_rendir_propietario)}
               </span>
             </div>
-            <p className="text-muted-foreground mt-2 text-xs">
-              Equivale a la suma de los <strong className="text-stone-800">Subtotal neto unidad</strong> de la sección
-              Rendición de Alquileres.
-            </p>
           </div>
         </div>
       </section>

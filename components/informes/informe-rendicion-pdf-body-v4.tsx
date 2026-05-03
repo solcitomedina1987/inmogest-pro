@@ -76,8 +76,8 @@ const s = StyleSheet.create({
     borderRadius: 3,
   },
   closureDestacadoRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  closureDestacadoLabel: { fontSize: 11, fontWeight: "bold", maxWidth: "58%" },
-  closureDestacadoNum: { fontSize: 15, fontWeight: "bold", textAlign: "right" },
+  closureDestacadoLabel: { fontSize: 12, fontWeight: "bold", maxWidth: "62%" },
+  closureDestacadoNum: { fontSize: 16, fontWeight: "bold", textAlign: "right" },
   muted: { color: "#555", fontSize: 7.5 },
   rowPad: { paddingHorizontal: 8, paddingVertical: 8 },
   sectionRule: { marginTop: 10, marginBottom: 2, borderTopWidth: 2, borderTopColor: "#222" },
@@ -197,24 +197,20 @@ export function InformeRendicionPdfBodyV4({ payload }: Props) {
       <View style={s.closureBox}>
         <Text style={s.closureTitle}>LIQUIDACIÓN FINAL</Text>
         <View style={s.closureLine}>
-          <Text style={s.closureBold}>Subtotal bruto (suma unidades)</Text>
+          <Text style={s.closureBold}>Subtotal propiedades</Text>
           <Text style={s.closureNum}>{precio(payload.total_subtotal_bruto_periodo)}</Text>
         </View>
         <View style={s.closureLine}>
           <Text style={s.closureBold}>Comisiones (suma por unidad)</Text>
           <Text style={s.closureNum}>- {precio(payload.total_comisiones_periodo)}</Text>
         </View>
-        <View style={s.closureLine}>
+        <View style={[s.closureLine, { marginBottom: 8 }]}>
           <Text style={s.closureBold}>Deducciones (resta al propietario)</Text>
           <Text style={s.closureNum}>- {precio(payload.total_deducciones_periodo)}</Text>
         </View>
-        <View style={s.closureLine}>
-          <Text style={s.closureBold}>Control (bruto − comisiones − deducciones)</Text>
-          <Text style={s.closureNum}>{precio(payload.total_validacion_neto)}</Text>
-        </View>
         <View style={s.closureDestacado}>
           <View style={s.closureDestacadoRow}>
-            <Text style={s.closureDestacadoLabel}>TOTAL A RENDIR AL PROPIETARIO</Text>
+            <Text style={s.closureDestacadoLabel}>Total al propietario</Text>
             <Text style={s.closureDestacadoNum}>{precio(payload.total_a_rendir_propietario)}</Text>
           </View>
         </View>
