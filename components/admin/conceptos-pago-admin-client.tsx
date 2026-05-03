@@ -154,23 +154,18 @@ export function ConceptosPagoAdminClient({ initialRows }: Props) {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Conceptos de pago</h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Definen el impacto contable al registrar cobros. El slug opcional alinea con claves legacy en JSON.
-          </p>
-        </div>
-        <Button type="button" onClick={abrirNuevo} disabled={pending}>
-          Nuevo concepto
-        </Button>
-      </div>
-
+    <div className="w-full space-y-0">
       <Card>
-        <CardHeader>
-          <CardTitle>Listado</CardTitle>
-          <CardDescription>Impactos válidos: Suma/Resta al propietario o Inmobiliaria.</CardDescription>
+        <CardHeader className="flex flex-col gap-4 space-y-0 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-1.5">
+            <CardTitle>Conceptos de pago</CardTitle>
+            <CardDescription>
+              Impacto al registrar cobros (suma/resta al propietario o inmobiliaria). Slug opcional para claves legacy.
+            </CardDescription>
+          </div>
+          <Button type="button" className="shrink-0 sm:mt-0.5" onClick={abrirNuevo} disabled={pending}>
+            Nuevo concepto
+          </Button>
         </CardHeader>
         <CardContent className="overflow-x-auto">
           <Table>

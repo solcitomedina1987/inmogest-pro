@@ -19,9 +19,7 @@ export type EstadoPropiedadRow = { id: number; nombre: string; deleted_at: strin
 export type CatalogoActionResult<T = void> = { ok: true; data?: T } | { ok: false; error: string };
 
 function revalidateAdminGeneral() {
-  revalidatePath("/dashboard/admin-general/conceptos-pago");
-  revalidatePath("/dashboard/admin-general/tipos-propiedad");
-  revalidatePath("/dashboard/admin-general/estados-propiedad");
+  revalidatePath("/dashboard/admin-general");
   revalidatePath("/dashboard/propiedades");
   revalidatePath("/dashboard/cobranzas");
 }

@@ -126,21 +126,16 @@ export function NombreCatalogoAdminClient({
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-          <p className="text-muted-foreground mt-1 text-sm">{description}</p>
-        </div>
-        <Button type="button" onClick={() => setNuevoOpen(true)} disabled={pending}>
-          Nuevo
-        </Button>
-      </div>
-
+    <div className="w-full space-y-0">
       <Card>
-        <CardHeader>
-          <CardTitle>Listado</CardTitle>
-          <CardDescription>Filas con baja lógica siguen visibles para administración.</CardDescription>
+        <CardHeader className="flex flex-col gap-4 space-y-0 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-1.5">
+            <CardTitle>{title}</CardTitle>
+            <CardDescription>{description} Las filas dadas de baja siguen visibles para administración.</CardDescription>
+          </div>
+          <Button type="button" className="shrink-0 sm:mt-0.5" onClick={() => setNuevoOpen(true)} disabled={pending}>
+            Nuevo
+          </Button>
         </CardHeader>
         <CardContent className="overflow-x-auto">
           <Table>

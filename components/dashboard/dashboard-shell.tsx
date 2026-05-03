@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Loader2, Menu } from "lucide-react";
+import { Loader2, Menu, Settings } from "lucide-react";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { LogoutButton } from "@/components/dashboard/logout-button";
 import { isDashboardSameSection } from "@/components/dashboard/dashboard-nav-utils";
@@ -19,12 +19,6 @@ const baseNav = [
   { href: "/dashboard/clientes", label: "Clientes" },
   { href: "/dashboard/contratos", label: "Contratos" },
   { href: "/dashboard/proveedores", label: "Proveedores" },
-] as const;
-
-const adminGeneralNavItems = [
-  { href: "/dashboard/admin-general/conceptos-pago", label: "Conceptos de pago" },
-  { href: "/dashboard/admin-general/tipos-propiedad", label: "Tipos de propiedad" },
-  { href: "/dashboard/admin-general/estados-propiedad", label: "Estados de propiedad" },
 ] as const;
 
 const adminNavItems = [{ href: "/dashboard/admin-usuarios", label: "Admin Usuarios" }] as const;
@@ -89,25 +83,20 @@ export function DashboardShell({ children, isAdmin = false, isCliente = false }:
           </Link>
         ))}
         {isAdmin ? (
-          <div className="mt-2 space-y-0.5 border-t border-border pt-2">
-            <p className="text-muted-foreground px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider">
-              Admin general
-            </p>
-            {adminGeneralNavItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                prefetch
-                onClick={(e) => handleNavClick(e, item.href, after)}
-                className={cn(
-                  "text-foreground rounded-md px-3 py-2 text-sm transition-colors hover:bg-muted",
-                  !mobile && isDashboardSameSection(pathname, item.href) && "bg-muted font-medium",
-                  mobile && isDashboardSameSection(pathname, item.href) && "bg-muted font-medium",
-                )}
-              >
-                {item.label}
-              </Link>
-            ))}
+          <div className="mt-2 border-t border-border pt-2">
+            <Link
+              href="/dashboard/admin-general"
+              prefetch
+              onClick={(e) => handleNavClick(e, "/dashboard/admin-general", after)}
+              className={cn(
+                "text-foreground flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors hover:bg-muted",
+                !mobile && isDashboardSameSection(pathname, "/dashboard/admin-general") && "bg-muted font-medium",
+                mobile && isDashboardSameSection(pathname, "/dashboard/admin-general") && "bg-muted font-medium",
+              )}
+            >
+              <Settings className="size-4 shrink-0 opacity-80" aria-hidden />
+              ADMIN General
+            </Link>
           </div>
         ) : null}
         {isAdmin

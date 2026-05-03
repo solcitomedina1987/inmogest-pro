@@ -1,6 +1,25 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    return [
+      {
+        source: "/dashboard/admin-general/conceptos-pago",
+        destination: "/dashboard/admin-general",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/admin-general/tipos-propiedad",
+        destination: "/dashboard/admin-general",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/admin-general/estados-propiedad",
+        destination: "/dashboard/admin-general",
+        permanent: true,
+      },
+    ];
+  },
   images: {
     remotePatterns: [
       {
