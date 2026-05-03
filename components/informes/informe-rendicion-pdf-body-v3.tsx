@@ -1,4 +1,6 @@
-import { StyleSheet, Text, View } from "@react-pdf/renderer";
+import { Image, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { rendicionPdfIconDataUri } from "@/lib/cobranzas/concepto-rendicion-pdf-icon";
+import { conceptoRendicionKeyDesdeLinea } from "@/lib/cobranzas/concepto-rendicion-key";
 import type { InformeRendicionPayloadV3 } from "@/lib/informes/rendicion-types";
 
 const precio = (n: number) =>
@@ -22,8 +24,10 @@ const s = StyleSheet.create({
   blockSub: { fontSize: 7.5, color: "#555", marginTop: 2 },
   unidadWrap: { paddingHorizontal: 6, paddingVertical: 6, borderBottomWidth: 0.5, borderBottomColor: "#ddd" },
   unidadTitle: { fontSize: 9, fontWeight: "bold", marginBottom: 4 },
-  row: { flexDirection: "row", borderBottomWidth: 0.5, borderBottomColor: "#eee", paddingVertical: 3, paddingHorizontal: 4 },
-  cell1: { flex: 2.2, fontSize: 8.5 },
+  row: { flexDirection: "row", alignItems: "center", borderBottomWidth: 0.5, borderBottomColor: "#eee", paddingVertical: 3, paddingHorizontal: 4 },
+  iconCell: { width: 14, marginRight: 4, alignItems: "center", justifyContent: "center" },
+  iconImg: { width: 11, height: 11 },
+  cell1: { flex: 2, fontSize: 8.5 },
   cellN: { flex: 1, fontSize: 8.5, textAlign: "right" },
   cellObs: { flex: 1.5, fontSize: 7.5, color: "#444" },
   subUnidad: {
@@ -96,6 +100,10 @@ export function InformeRendicionPdfBodyV3({ payload }: Props) {
               <Text style={s.unidadTitle}>{u.etiqueta}</Text>
               {u.lineas.map((row, i) => (
                 <View key={`${u.pago_id}-l-${i}`} style={s.row} wrap={false}>
+                  <View style={s.iconCell}>
+                    {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image */}
+                    <Image src={rendicionPdfIconDataUri(conceptoRendicionKeyDesdeLinea(row))} style={s.iconImg} />
+                  </View>
                   <Text style={s.cell1}>{row.concepto}</Text>
                   <Text style={s.cellN}>{precio(row.monto)}</Text>
                   <Text style={s.cellObs}>{row.observaciones ?? "—"}</Text>
@@ -129,12 +137,25 @@ export function InformeRendicionPdfBodyV3({ payload }: Props) {
         ) : (
           <>
             <View style={s.row}>
+              <View style={s.iconCell} />
               <Text style={[s.cell1, { fontWeight: "bold" }]}>Concepto</Text>
               <Text style={[s.cellN, { fontWeight: "bold" }]}>Monto</Text>
               <Text style={[s.cellObs, { fontWeight: "bold" }]}>Obs.</Text>
             </View>
             {payload.suma_inmobiliaria_items.map((o, i) => (
               <View key={`${o.pago_id}-im-${i}`} style={s.row} wrap={false}>
+                <View style={s.iconCell}>
+                  {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image */}
+                  <Image
+                    src={rendicionPdfIconDataUri(
+                      conceptoRendicionKeyDesdeLinea({
+                        concepto: o.concepto,
+                        concepto_key: o.concepto_key ?? null,
+                      }),
+                    )}
+                    style={s.iconImg}
+                  />
+                </View>
                 <Text style={s.cell1}>{o.concepto}</Text>
                 <Text style={s.cellN}>{precio(o.monto)}</Text>
                 <Text style={s.cellObs}>{o.observaciones ?? "—"}</Text>
@@ -153,7 +174,10 @@ export function InformeRendicionPdfBodyV3({ payload }: Props) {
       <View style={s.closureBox}>
         <Text style={s.closureTitle}>LIQUIDACIÓN FINAL</Text>
         <View style={s.closureLine}>
-          <Text style={s.closureBold}>Subtotal a rendir al propietario</Text>
+          <View style={{ maxWidth: "65%" }}>
+            <Text style={s.closureBold}>Subtotal a rendir al propietario</Text>
+            <Text style={{ fontSize: 7.5, color: "#666", marginTop: 2 }}>(Suma de alquileres y extras del dueño)</Text>
+          </View>
           <Text style={s.closureBold}>{precio(payload.subtotal_a_rendir_propietario)}</Text>
         </View>
         <View style={s.closureLine}>
@@ -162,15 +186,10 @@ export function InformeRendicionPdfBodyV3({ payload }: Props) {
         </View>
         <View style={s.closureDestacado}>
           <View style={s.closureDestacadoRow}>
-            <Text style={s.closureDestacadoLabel}>Total a rendir al propietario</Text>
+            <Text style={s.closureDestacadoLabel}>TOTAL A RENDIR AL PROPIETARIO</Text>
             <Text style={s.closureDestacadoNum}>{precio(payload.total_a_rendir_propietario)}</Text>
           </View>
         </View>
-        <View style={[s.closureLine, { marginTop: 8, marginBottom: 0 }]}>
-          <Text style={s.closureBold}>Total Inmobiliaria</Text>
-          <Text style={s.closureBold}>{precio(payload.total_inmobiliaria)}</Text>
-        </View>
-        <Text style={[s.muted, { marginTop: 4 }]}>Incluye conceptos suma inmobiliaria + comisión.</Text>
       </View>
     </>
   );

@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { etiquetaConceptoConEmoji } from "@/lib/cobranzas/conceptos-pago";
+import { etiquetaConceptoSinEmoji } from "@/lib/cobranzas/conceptos-pago";
 import {
   aDetalleV2,
   parseDetallePagoDb,
@@ -58,13 +58,13 @@ function emptyPayload(
     comision_monto: 0,
     subtotal_a_rendir_propietario: 0,
     total_a_rendir_propietario: 0,
-    total_inmobiliaria: 0,
   };
 }
 
 function lineasDesdeDetalle(detalle: ReturnType<typeof aDetalleV2>): LineaRendicionUnidad[] {
   const lineas: LineaRendicionUnidad[] = [
     {
+      concepto_key: "alquiler",
       concepto: "Alquiler",
       monto: roundMoney(Number(detalle.monto_alquiler) || 0),
       observaciones: null,
@@ -74,7 +74,8 @@ function lineasDesdeDetalle(detalle: ReturnType<typeof aDetalleV2>): LineaRendic
     const m = Number(ex.monto) || 0;
     if (m <= 0) continue;
     lineas.push({
-      concepto: etiquetaConceptoConEmoji(ex.concepto),
+      concepto_key: ex.concepto,
+      concepto: etiquetaConceptoSinEmoji(ex.concepto),
       monto: roundMoney(m),
       observaciones: ex.observaciones,
     });
@@ -194,7 +195,8 @@ export async function computeInformeRendicion(
       if (ex.impacto !== "inmobiliaria") continue;
       sumaInmobiliariaItems.push({
         pago_id: p.id,
-        concepto: etiquetaConceptoConEmoji(ex.concepto),
+        concepto_key: ex.concepto,
+        concepto: etiquetaConceptoSinEmoji(ex.concepto),
         monto: roundMoney(Number(ex.monto)),
         observaciones: ex.observaciones,
       });
@@ -215,7 +217,6 @@ export async function computeInformeRendicion(
   const subtotalARendir = roundMoney(unidades.reduce((s, u) => s + u.neto_propietario_recibo, 0));
   const totalARendir = roundMoney(subtotalARendir - comisionMonto);
   const totalSumaInmobConceptos = roundMoney(sumaInmobiliariaItems.reduce((s, r) => s + r.monto, 0));
-  const totalInmobiliaria = roundMoney(totalSumaInmobConceptos + comisionMonto);
 
   return {
     ok: true,
@@ -231,7 +232,6 @@ export async function computeInformeRendicion(
       comision_monto: comisionMonto,
       subtotal_a_rendir_propietario: subtotalARendir,
       total_a_rendir_propietario: totalARendir,
-      total_inmobiliaria: totalInmobiliaria,
     },
   };
 }

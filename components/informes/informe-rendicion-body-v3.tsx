@@ -1,3 +1,4 @@
+import { ConceptoRendicionLucideIcon, conceptoRendicionKeyDesdeLinea } from "@/lib/cobranzas/concepto-rendicion-icons";
 import type { InformeRendicionPayloadV3 } from "@/lib/informes/rendicion-types";
 
 const precioFmt = new Intl.NumberFormat("es-AR", {
@@ -34,6 +35,7 @@ export function InformeRendicionBodyV3({ payload }: Props) {
                   <table className="w-full text-sm">
                     <thead className="bg-muted/40">
                       <tr>
+                        <th className="w-10 px-1 py-1.5" aria-hidden />
                         <th className="px-2 py-1.5 text-left font-medium">Concepto</th>
                         <th className="px-2 py-1.5 text-right font-medium">Monto</th>
                         <th className="px-2 py-1.5 text-left font-medium">Obs.</th>
@@ -42,6 +44,9 @@ export function InformeRendicionBodyV3({ payload }: Props) {
                     <tbody>
                       {u.lineas.map((row, i) => (
                         <tr key={`${u.pago_id}-${i}`} className="border-t border-stone-100">
+                          <td className="px-1 py-1.5 align-middle">
+                            <ConceptoRendicionLucideIcon conceptoKey={conceptoRendicionKeyDesdeLinea(row)} />
+                          </td>
                           <td className="px-2 py-1.5">{row.concepto}</td>
                           <td className="px-2 py-1.5 text-right tabular-nums">{precioFmt.format(row.monto)}</td>
                           <td className="text-muted-foreground px-2 py-1.5 text-xs">{row.observaciones ?? "—"}</td>
@@ -70,13 +75,14 @@ export function InformeRendicionBodyV3({ payload }: Props) {
         <div className="border-b border-stone-200 px-4 py-3">
           <h2 className="text-base font-semibold text-stone-900">Suma a Inmobiliaria</h2>
           <p className="text-muted-foreground mt-1 text-xs">
-            Detalle informativo de conceptos marcados como suma a inmobiliaria. La suma de esta tabla no modifica el
-            subtotal de alquileres; sirve de referencia junto con la comisión en el total inmobiliaria al pie.
+            Detalle informativo de conceptos marcados como suma a inmobiliaria. La suma de esta tabla es solo referencia
+            para la inmobiliaria.
           </p>
         </div>
         <table className="w-full text-sm">
           <thead className="bg-muted/50">
             <tr>
+              <th className="w-10 px-1 py-2" aria-hidden />
               <th className="px-3 py-2 text-left font-medium">Concepto</th>
               <th className="px-3 py-2 text-right font-medium">Monto</th>
               <th className="px-3 py-2 text-left font-medium">Observaciones</th>
@@ -85,13 +91,21 @@ export function InformeRendicionBodyV3({ payload }: Props) {
           <tbody>
             {payload.suma_inmobiliaria_items.length === 0 ? (
               <tr>
-                <td colSpan={3} className="text-muted-foreground px-3 py-4 text-center">
+                <td colSpan={4} className="text-muted-foreground px-3 py-4 text-center">
                   Sin conceptos inmobiliaria en el período.
                 </td>
               </tr>
             ) : (
               payload.suma_inmobiliaria_items.map((o, i) => (
                 <tr key={`${o.pago_id}-im-${i}`} className="border-t border-stone-200">
+                  <td className="px-1 py-2 align-middle">
+                    <ConceptoRendicionLucideIcon
+                      conceptoKey={conceptoRendicionKeyDesdeLinea({
+                        concepto: o.concepto,
+                        concepto_key: o.concepto_key ?? null,
+                      })}
+                    />
+                  </td>
                   <td className="px-3 py-2">{o.concepto}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{precioFmt.format(o.monto)}</td>
                   <td className="text-muted-foreground px-3 py-2 text-xs">{o.observaciones ?? "—"}</td>
@@ -115,8 +129,10 @@ export function InformeRendicionBodyV3({ payload }: Props) {
         <h3 className="text-center text-xs font-bold uppercase tracking-widest text-stone-600">Liquidación final</h3>
         <div className="mt-5 space-y-3 text-sm">
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-stone-300 pb-3">
-            <span className="font-semibold text-stone-800">Subtotal a rendir al propietario</span>
-            <span className="text-muted-foreground hidden text-xs sm:inline">(suma del neto por unidades)</span>
+            <span className="max-w-[min(100%,28rem)] font-semibold text-stone-800">
+              Subtotal a rendir al propietario{" "}
+              <span className="text-muted-foreground font-normal">(Suma de alquileres y extras del dueño)</span>
+            </span>
             <span className="font-bold tabular-nums text-stone-900">{precioFmt.format(payload.subtotal_a_rendir_propietario)}</span>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-destructive">
@@ -125,18 +141,13 @@ export function InformeRendicionBodyV3({ payload }: Props) {
           </div>
           <div className="rounded-lg border-2 border-amber-600 bg-amber-50 px-4 py-4 shadow-inner">
             <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-              <span className="text-lg font-extrabold tracking-tight text-stone-950 sm:text-xl">Total a rendir al propietario</span>
+              <span className="text-lg font-extrabold tracking-tight text-stone-950 sm:text-xl uppercase">
+                Total a rendir al propietario
+              </span>
               <span className="text-2xl font-extrabold tabular-nums text-stone-950 sm:text-3xl">
                 {precioFmt.format(payload.total_a_rendir_propietario)}
               </span>
             </div>
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-stone-300 pt-3 text-stone-700">
-            <span className="font-semibold">Total Inmobiliaria</span>
-            <span className="text-muted-foreground hidden max-w-md text-xs sm:inline">
-              (conceptos suma inmobiliaria + comisión)
-            </span>
-            <span className="font-bold tabular-nums text-stone-900">{precioFmt.format(payload.total_inmobiliaria)}</span>
           </div>
         </div>
       </section>

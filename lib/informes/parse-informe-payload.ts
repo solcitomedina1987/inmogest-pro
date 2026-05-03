@@ -14,11 +14,12 @@ function parseV3(p: Record<string, unknown>): InformeRendicionPayloadV3 | null {
     typeof p.total_alquileres_cobrados !== "number" ||
     typeof p.comision_monto !== "number" ||
     typeof p.subtotal_a_rendir_propietario !== "number" ||
-    typeof p.total_a_rendir_propietario !== "number" ||
-    typeof p.total_inmobiliaria !== "number"
+    typeof p.total_a_rendir_propietario !== "number"
   ) {
     return null;
   }
+  const totalInmob =
+    typeof p.total_inmobiliaria === "number" && !Number.isNaN(p.total_inmobiliaria) ? p.total_inmobiliaria : undefined;
   return {
     v: 3,
     propietario_nombre: p.propietario_nombre,
@@ -31,7 +32,7 @@ function parseV3(p: Record<string, unknown>): InformeRendicionPayloadV3 | null {
     comision_monto: p.comision_monto,
     subtotal_a_rendir_propietario: p.subtotal_a_rendir_propietario,
     total_a_rendir_propietario: p.total_a_rendir_propietario,
-    total_inmobiliaria: p.total_inmobiliaria,
+    ...(totalInmob !== undefined ? { total_inmobiliaria: totalInmob } : {}),
   };
 }
 

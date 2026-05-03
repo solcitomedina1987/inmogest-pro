@@ -1,3 +1,8 @@
+import type { ConceptoPagoTipo } from "@/lib/cobranzas/conceptos-pago";
+
+/** Clave de concepto para iconografía en informes (alquiler base + catálogo de extras). */
+export type ConceptoRendicionKey = "alquiler" | ConceptoPagoTipo;
+
 /** Snapshot histórico (lógica anterior: comisión descontada del subtotal global). */
 export type InformeRendicionPayloadV1 = {
   v: 1;
@@ -64,6 +69,8 @@ export type InformeRendicionPayloadV2 = {
 
 /** Línea de desglose dentro de una unidad (contrato / recibo del período). */
 export type LineaRendicionUnidad = {
+  /** Para iconos; informes viejos pueden no tenerlo (se infiere del texto). */
+  concepto_key?: ConceptoRendicionKey | null;
   concepto: string;
   monto: number;
   observaciones: string | null;
@@ -81,7 +88,7 @@ export type UnidadRendicionV3 = {
 };
 
 /**
- * Formato multipropiedad: desglose por unidad, inmobiliaria informativa, liquidación final en cuatro renglones.
+ * Formato multipropiedad: desglose por unidad, inmobiliaria informativa, liquidación final (resumen al propietario).
  */
 export type InformeRendicionPayloadV3 = {
   v: 3;
@@ -91,6 +98,7 @@ export type InformeRendicionPayloadV3 = {
   unidades: UnidadRendicionV3[];
   suma_inmobiliaria_items: {
     pago_id: string;
+    concepto_key?: ConceptoPagoTipo | null;
     concepto: string;
     monto: number;
     observaciones: string | null;
@@ -100,11 +108,11 @@ export type InformeRendicionPayloadV3 = {
   /** Base de comisión: suma de montos de alquiler imputados en los recibos del período. */
   total_alquileres_cobrados: number;
   comision_monto: number;
-  /** Suma del neto por unidad/recibo (impactos por línea ya aplicados), antes de la comisión global. */
+  /** Suma del neto por unidad/recibo (alquiler + suma al propietario − restas − inmobiliaria por línea), antes de la comisión global. */
   subtotal_a_rendir_propietario: number;
   total_a_rendir_propietario: number;
-  /** Conceptos inmobiliaria del período + comisión inmobiliaria. */
-  total_inmobiliaria: number;
+  /** @deprecated Informes antiguos; ya no se calcula ni se muestra en el pie. */
+  total_inmobiliaria?: number;
 };
 
 export type InformeRendicionPayload = InformeRendicionPayloadV1 | InformeRendicionPayloadV2 | InformeRendicionPayloadV3;

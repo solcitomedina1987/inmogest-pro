@@ -45,6 +45,12 @@ export function etiquetaConceptoConEmoji(key: ConceptoPagoTipo): string {
   return d ? `${d.emoji} ${d.label}` : key;
 }
 
+/** Etiqueta sin emoji (p. ej. informes con icono Lucide aparte). */
+export function etiquetaConceptoSinEmoji(key: ConceptoPagoTipo): string {
+  const d = DEFS.find((x) => x.key === key);
+  return d ? d.label : key;
+}
+
 export function esConceptoPagoTipo(s: string): s is ConceptoPagoTipo {
   return (CONCEPTOS_PAGO_KEYS as readonly string[]).includes(s);
 }

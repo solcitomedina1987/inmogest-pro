@@ -76,6 +76,7 @@ export function montosImpactoDesdeDetalleV2(d: DetallePagoV2): {
     if (m <= 0) continue;
     if (e.impacto === "propietario_resta") restaPropietario += m;
     else if (e.impacto === "inmobiliaria") sumaInmobiliaria += m;
+    else if (e.impacto === "propietario_suma") sumaPropietario += m;
     else sumaPropietario += m;
   }
   return {
