@@ -16,10 +16,6 @@ export function InformeRendicionBodyV3({ payload }: Props) {
         <div className="overflow-hidden rounded-lg border-2 border-stone-300 bg-white shadow-sm">
           <div className="border-b border-stone-200 bg-amber-50/60 px-4 py-3">
             <h2 className="text-base font-semibold text-stone-900">Rendición de Alquileres</h2>
-            <p className="text-muted-foreground mt-1 text-xs">
-              Por propiedad / contrato: todo lo cobrado al inquilino en el período y el neto imputable al propietario
-              por recibo.
-            </p>
           </div>
 
           {payload.unidades.length === 0 ? (
@@ -29,7 +25,7 @@ export function InformeRendicionBodyV3({ payload }: Props) {
               {payload.unidades.map((u) => (
                 <div key={u.pago_id} className="bg-white px-4 py-4">
                   <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-                    <h3 className="text-sm font-bold text-stone-900">{u.etiqueta}</h3>
+                    <h3 className="text-sm font-bold text-stone-900">Propiedad: {u.etiqueta}</h3>
                     <span className="text-muted-foreground text-xs tabular-nums">Recibo {u.pago_id.slice(0, 8)}…</span>
                   </div>
                   <table className="w-full text-sm">
@@ -55,15 +51,11 @@ export function InformeRendicionBodyV3({ payload }: Props) {
                     </tbody>
                   </table>
                   <div className="mt-2 flex flex-col gap-1 rounded-md border border-stone-200 bg-stone-50 px-3 py-2 text-sm sm:flex-row sm:items-center sm:justify-between">
-                    <span className="font-semibold text-stone-800">Subtotal cobrado al inquilino (unidad)</span>
-                    <span className="font-bold tabular-nums text-stone-900">{precioFmt.format(u.subtotal_cobrado_inquilino)}</span>
-                  </div>
-                  <p className="text-muted-foreground mt-1 text-xs">
-                    Neto propietario este recibo:{" "}
-                    <span className="font-semibold text-stone-800 tabular-nums">
-                      {precioFmt.format(u.neto_propietario_recibo)}
+                    <span className="font-semibold text-stone-800">Subtotal cobrado al inquilino</span>
+                    <span className="shrink-0 font-bold tabular-nums text-stone-900 sm:text-right">
+                      {precioFmt.format(u.subtotal_cobrado_inquilino)}
                     </span>
-                  </p>
+                  </div>
                 </div>
               ))}
             </div>
@@ -73,10 +65,9 @@ export function InformeRendicionBodyV3({ payload }: Props) {
 
       <section className="mt-10 overflow-hidden rounded-lg border-2 border-dashed border-stone-400 bg-slate-50/50 shadow-sm">
         <div className="border-b border-stone-200 px-4 py-3">
-          <h2 className="text-base font-semibold text-stone-900">Suma a Inmobiliaria</h2>
+          <h2 className="text-base font-semibold text-stone-900">Rendición a Inmobiliaria</h2>
           <p className="text-muted-foreground mt-1 text-xs">
-            Detalle informativo de conceptos marcados como suma a inmobiliaria. La suma de esta tabla es solo referencia
-            para la inmobiliaria.
+            Detalle informativo de conceptos marcados como suma a inmobiliaria.
           </p>
         </div>
         <table className="w-full text-sm">
@@ -116,8 +107,10 @@ export function InformeRendicionBodyV3({ payload }: Props) {
         </table>
         <div className="border-t border-stone-300 bg-slate-100/80 px-4 py-2 text-sm">
           <div className="flex justify-between gap-4 font-semibold text-stone-900">
-            <span>Suma conceptos inmobiliaria (tabla)</span>
-            <span className="tabular-nums">{precioFmt.format(payload.total_suma_inmobiliaria_conceptos)}</span>
+            <span>Suma conceptos inmobiliaria</span>
+            <span className="shrink-0 font-bold tabular-nums text-stone-900 sm:text-right">
+              {precioFmt.format(payload.total_suma_inmobiliaria_conceptos)}
+            </span>
           </div>
         </div>
       </section>
@@ -129,22 +122,21 @@ export function InformeRendicionBodyV3({ payload }: Props) {
         <h3 className="text-center text-xs font-bold uppercase tracking-widest text-stone-600">Liquidación final</h3>
         <div className="mt-5 space-y-3 text-sm">
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-stone-300 pb-3">
-            <span className="max-w-[min(100%,28rem)] font-semibold text-stone-800">
-              Subtotal a rendir al propietario{" "}
-              <span className="text-muted-foreground font-normal">(Suma de alquileres y extras del dueño)</span>
+            <span className="min-w-0 flex-1 font-semibold text-stone-800">Subtotal a rendir al propietario</span>
+            <span className="shrink-0 font-bold tabular-nums text-stone-900 sm:text-right">
+              {precioFmt.format(payload.subtotal_a_rendir_propietario)}
             </span>
-            <span className="font-bold tabular-nums text-stone-900">{precioFmt.format(payload.subtotal_a_rendir_propietario)}</span>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-destructive">
-            <span className="font-semibold">Comisión Inmobiliaria ({payload.comision_porcentaje}%)</span>
-            <span className="font-bold tabular-nums">− {precioFmt.format(payload.comision_monto)}</span>
+            <span className="min-w-0 flex-1 font-semibold">Comisión Inmobiliaria ({payload.comision_porcentaje}%)</span>
+            <span className="shrink-0 font-bold tabular-nums sm:text-right">− {precioFmt.format(payload.comision_monto)}</span>
           </div>
           <div className="rounded-lg border-2 border-amber-600 bg-amber-50 px-4 py-4 shadow-inner">
             <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-              <span className="text-lg font-extrabold tracking-tight text-stone-950 sm:text-xl uppercase">
+              <span className="min-w-0 flex-1 text-lg font-extrabold tracking-tight text-stone-950 sm:text-xl uppercase">
                 Total a rendir al propietario
               </span>
-              <span className="text-2xl font-extrabold tabular-nums text-stone-950 sm:text-3xl">
+              <span className="shrink-0 text-2xl font-extrabold tabular-nums text-stone-950 sm:text-right sm:text-3xl">
                 {precioFmt.format(payload.total_a_rendir_propietario)}
               </span>
             </div>
