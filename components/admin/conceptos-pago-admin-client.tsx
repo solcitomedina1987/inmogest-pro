@@ -41,6 +41,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { LucideIconByName } from "@/components/ui/lucide-icon-by-name";
+import { ConceptoIconPicker } from "@/components/admin/concepto-icon-picker";
 import { adminPanelCardClass, adminTableHeadClass } from "@/lib/admin/admin-panel-table";
 import { cn } from "@/lib/utils";
 
@@ -174,32 +175,34 @@ export function ConceptosPagoAdminClient({ initialRows }: Props) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className={cn(adminTableHeadClass, "pl-4 sm:pl-6")}>Nombre</TableHead>
-                <TableHead className={cn(adminTableHeadClass, "max-w-[220px]")}>Impacto</TableHead>
-                <TableHead className={cn(adminTableHeadClass, "w-14 text-center")}>Icono</TableHead>
-                <TableHead className={cn(adminTableHeadClass, "w-28")}>Estado</TableHead>
+                <TableHead
+                  className={cn(adminTableHeadClass, "w-[52px] min-w-[52px] max-w-[52px] px-1 text-center sm:pl-4")}
+                >
+                  Icono
+                </TableHead>
+                <TableHead className={cn(adminTableHeadClass, "min-w-0")}>Nombre</TableHead>
+                <TableHead className={cn(adminTableHeadClass, "max-w-[240px]")}>Impacto</TableHead>
                 <TableHead className={cn(adminTableHeadClass, "w-40 pr-4 text-right sm:pr-6")}>Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {initialRows.map((row) => (
-                <TableRow key={row.id}>
-                  <TableCell className="text-foreground pl-4 font-medium whitespace-normal sm:pl-6">{row.nombre}</TableCell>
-                  <TableCell className="text-muted-foreground max-w-[220px] text-sm whitespace-normal">{row.impacto}</TableCell>
-                  <TableCell className="text-center">
-                    <span
-                      className="inline-flex items-center justify-center rounded-md border border-border bg-muted/40 p-1.5"
-                      title={row.icono || "Circle"}
-                    >
-                      <LucideIconByName name={row.icono} className="text-foreground size-5" />
-                    </span>
+                <TableRow key={row.id} className={cn(row.deleted_at && "bg-muted/40")}>
+                  <TableCell className="w-[52px] min-w-[52px] max-w-[52px] px-1 text-center sm:pl-4">
+                    <div className="flex h-10 items-center justify-center">
+                      <LucideIconByName name={row.icono} className="text-muted-foreground size-5 shrink-0" />
+                    </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-foreground min-w-0 font-medium whitespace-normal">
+                    <span className="align-middle">{row.nombre}</span>
                     {row.deleted_at ? (
-                      <Badge variant="secondary">Baja</Badge>
-                    ) : (
-                      <Badge variant="outline">Activo</Badge>
-                    )}
+                      <Badge variant="secondary" className="ml-2 align-middle text-xs">
+                        Baja
+                      </Badge>
+                    ) : null}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground max-w-[240px] text-sm whitespace-normal">
+                    {row.impacto}
                   </TableCell>
                   <TableCell className="pr-4 text-right sm:pr-6">
                     <div className="flex justify-end gap-1">
@@ -250,10 +253,7 @@ export function ConceptosPagoAdminClient({ initialRows }: Props) {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="cp-icono">Icono (Lucide, nombre)</Label>
-              <Input id="cp-icono" value={nuIcono} onChange={(e) => setNuIcono(e.target.value)} placeholder="Circle" />
-            </div>
+            <ConceptoIconPicker idPrefix="cp-nuevo" value={nuIcono} onChange={setNuIcono} />
             <div className="space-y-2">
               <Label htmlFor="cp-slug">Slug opcional</Label>
               <Input id="cp-slug" value={nuSlug} onChange={(e) => setNuSlug(e.target.value)} placeholder="ej. luz" />
@@ -296,10 +296,7 @@ export function ConceptosPagoAdminClient({ initialRows }: Props) {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="cp-ed-icono">Icono</Label>
-              <Input id="cp-ed-icono" value={edIcono} onChange={(e) => setEdIcono(e.target.value)} />
-            </div>
+            <ConceptoIconPicker idPrefix="cp-ed" value={edIcono} onChange={setEdIcono} />
             <div className="space-y-2">
               <Label htmlFor="cp-ed-slug">Slug</Label>
               <Input id="cp-ed-slug" value={edSlug} onChange={(e) => setEdSlug(e.target.value)} />
