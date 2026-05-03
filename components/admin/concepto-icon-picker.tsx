@@ -1,6 +1,6 @@
 "use client";
 
-import { LucideIconByName, toLucideExportName } from "@/components/ui/lucide-icon-by-name";
+import { LucideIconByName, iconLookupCandidates } from "@/components/ui/lucide-icon-by-name";
 import { CONCEPTO_PAGO_LUCIDE_ICON_PRESETS } from "@/lib/admin/concepto-pago-icon-presets";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,8 +45,7 @@ export function ConceptoIconPicker({ idPrefix, value, onChange }: Props) {
         <p className="text-muted-foreground mb-2 text-xs font-medium">Iconos sugeridos</p>
         <div className="grid grid-cols-6 gap-1.5 sm:grid-cols-8">
           {CONCEPTO_PAGO_LUCIDE_ICON_PRESETS.map((name) => {
-            const normalized = toLucideExportName(value);
-            const selected = normalized === name;
+            const selected = iconLookupCandidates(value).includes(name);
             return (
               <button
                 key={name}

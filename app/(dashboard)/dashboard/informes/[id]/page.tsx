@@ -27,7 +27,7 @@ export default async function InformeRendicionDetallePage({ params }: Props) {
 
   const { data: row, error } = await supabase
     .from("informes_rendicion")
-    .select("id, payload, fecha_generacion")
+    .select("id, payload, fecha_generacion, deleted_at")
     .eq("id", id)
     .maybeSingle();
 
@@ -42,7 +42,10 @@ export default async function InformeRendicionDetallePage({ params }: Props) {
 
   return (
     <div>
-      <InformeRendicionDetalleToolbar informeId={row.id as string} />
+      <InformeRendicionDetalleToolbar
+        informeId={row.id as string}
+        deletedAt={(row.deleted_at as string | null | undefined) ?? null}
+      />
       <InformeRendicionVista payload={payload} fechaGeneracion={row.fecha_generacion as string} />
     </div>
   );

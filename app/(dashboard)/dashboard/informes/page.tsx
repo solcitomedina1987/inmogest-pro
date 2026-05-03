@@ -38,6 +38,7 @@ export default async function InformesRendicionPage() {
         monto_total,
         neto_rendir,
         fecha_generacion,
+        deleted_at,
         propietario:clientes!informes_rendicion_propietario_cliente_id_fkey ( nombre_completo )
       `,
       )
@@ -83,6 +84,7 @@ export default async function InformesRendicionPage() {
       monto_total: Number(r.monto_total),
       neto_rendir: Number(r.neto_rendir),
       fecha_generacion: r.fecha_generacion as string,
+      deleted_at: (r.deleted_at as string | null | undefined) ?? null,
     };
   });
 

@@ -188,4 +188,6 @@ export type InformeRendicionListRow = {
   monto_total: number;
   neto_rendir: number;
   fecha_generacion: string;
+  /** Baja lógica (papelera). Null = activo. */
+  deleted_at: string | null;
 };

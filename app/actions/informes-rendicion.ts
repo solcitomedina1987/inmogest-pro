@@ -49,6 +49,7 @@ export async function generarInformeRendicion(input: unknown): Promise<InformeAc
       monto_total: brutoCobrado,
       neto_rendir: netoRendir,
       payload,
+      deleted_at: null,
     })
     .select("id")
     .single();
@@ -60,3 +61,50 @@ export async function generarInformeRendicion(input: unknown): Promise<InformeAc
   revalidatePath("/dashboard/informes");
   return { ok: true, id: ins.id as string };
 }
+
+const idSchema = z.string().uuid();
+
+export type InformeArchiveResult = { ok: true } | { ok: false; error: string };
+
+/** Archiva el informe (baja lógica). */
+export async function archivarInformeRendicion(informeId: unknown): Promise<InformeArchiveResult> {
+  const gate = await requireAdmin();
+  if (!gate.ok) {
+    return { ok: false, error: gate.code === "no-auth" ? "Iniciá sesión." : "Sin permisos." };
+  }
+  const parsed = idSchema.safeParse(informeId);
+  if (!parsed.success) return { ok: false, error: "Identificador inválido." };
+
+  const { error } = await gate.supabase
+    .from("informes_rendicion")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", parsed.data)
+    .is("deleted_at", null);
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/dashboard/informes");
+  revalidatePath(`/dashboard/informes/${parsed.data}`);
+  return { ok: true };
+}
+
+/** Restaura un informe archivado. */
+export async function restaurarInformeRendicion(informeId: unknown): Promise<InformeArchiveResult> {
+  const gate = await requireAdmin();
+  if (!gate.ok) {
+    return { ok: false, error: gate.code === "no-auth" ? "Iniciá sesión." : "Sin permisos." };
+  }
+  const parsed = idSchema.safeParse(informeId);
+  if (!parsed.success) return { ok: false, error: "Identificador inválido." };
+
+  const { error } = await gate.supabase
+    .from("informes_rendicion")
+    .update({ deleted_at: null })
+    .eq("id", parsed.data)
+    .not("deleted_at", "is", null);
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/dashboard/informes");
+  revalidatePath(`/dashboard/informes/${parsed.data}`);
+  return { ok: true };
+}
+
