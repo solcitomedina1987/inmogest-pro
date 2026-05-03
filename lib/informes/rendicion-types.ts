@@ -115,7 +115,69 @@ export type InformeRendicionPayloadV3 = {
   total_inmobiliaria?: number;
 };
 
-export type InformeRendicionPayload = InformeRendicionPayloadV1 | InformeRendicionPayloadV2 | InformeRendicionPayloadV3;
+/** Unidad = un recibo pagado del período; comisión solo sobre alquiler de esa unidad. */
+export type UnidadRendicionV4 = {
+  contrato_id: string;
+  propiedad_id: string;
+  pago_id: string;
+  /** Dirección o nombre de la propiedad (sin prefijo). */
+  direccion_display: string;
+  inquilino_nombre: string;
+  /** Propiedad: [dirección] | Inquilino: [nombre] */
+  titulo_bloque: string;
+  /** Alquiler + suma al propietario + resta al propietario (sin rubros inmobiliaria). */
+  lineas: LineaRendicionUnidad[];
+  subtotal_cobrado_inquilino: number;
+  /** Alquiler + conceptos con impacto “Suma al Propietario”. */
+  subtotal_bruto: number;
+  monto_alquiler: number;
+  /** comision_% × solo alquiler de esta unidad. */
+  comision_inmobiliaria_unidad: number;
+  /** Suma de montos con impacto “Resta al Propietario”. */
+  deducciones: number;
+  subtotal_neto_unidad: number;
+};
+
+export type InmobiliariaUnidadV4 = {
+  pago_id: string;
+  contrato_id: string;
+  propiedad_id: string;
+  titulo_bloque: string;
+  items: {
+    concepto_key?: ConceptoPagoTipo | null;
+    concepto: string;
+    monto: number;
+    observaciones: string | null;
+  }[];
+  subtotal_unidad: number;
+};
+
+/**
+ * Liquidación por propiedad/unidad: comisión descontada solo del alquiler de cada recibo;
+ * inmobiliaria agrupada por unidad con subtotales.
+ */
+export type InformeRendicionPayloadV4 = {
+  v: 4;
+  propietario_nombre: string;
+  mes_periodo: string;
+  comision_porcentaje: number;
+  unidades: UnidadRendicionV4[];
+  inmobiliaria_por_unidad: InmobiliariaUnidadV4[];
+  total_suma_inmobiliaria_conceptos: number;
+  total_alquileres_cobrados: number;
+  total_comisiones_periodo: number;
+  total_deducciones_periodo: number;
+  total_subtotal_bruto_periodo: number;
+  total_a_rendir_propietario: number;
+  /** Debe coincidir con `total_a_rendir_propietario` (bruto − comisiones − deducciones). */
+  total_validacion_neto: number;
+};
+
+export type InformeRendicionPayload =
+  | InformeRendicionPayloadV1
+  | InformeRendicionPayloadV2
+  | InformeRendicionPayloadV3
+  | InformeRendicionPayloadV4;
 
 export type InformeRendicionListRow = {
   id: string;

@@ -3,7 +3,40 @@ import type {
   InformeRendicionPayloadV1,
   InformeRendicionPayloadV2,
   InformeRendicionPayloadV3,
+  InformeRendicionPayloadV4,
 } from "@/lib/informes/rendicion-types";
+
+function parseV4(p: Record<string, unknown>): InformeRendicionPayloadV4 | null {
+  if (typeof p.propietario_nombre !== "string" || typeof p.mes_periodo !== "string") return null;
+  if (typeof p.comision_porcentaje !== "number") return null;
+  if (!Array.isArray(p.unidades) || !Array.isArray(p.inmobiliaria_por_unidad)) return null;
+  if (
+    typeof p.total_suma_inmobiliaria_conceptos !== "number" ||
+    typeof p.total_alquileres_cobrados !== "number" ||
+    typeof p.total_comisiones_periodo !== "number" ||
+    typeof p.total_deducciones_periodo !== "number" ||
+    typeof p.total_subtotal_bruto_periodo !== "number" ||
+    typeof p.total_a_rendir_propietario !== "number" ||
+    typeof p.total_validacion_neto !== "number"
+  ) {
+    return null;
+  }
+  return {
+    v: 4,
+    propietario_nombre: p.propietario_nombre,
+    mes_periodo: p.mes_periodo,
+    comision_porcentaje: p.comision_porcentaje,
+    unidades: p.unidades as InformeRendicionPayloadV4["unidades"],
+    inmobiliaria_por_unidad: p.inmobiliaria_por_unidad as InformeRendicionPayloadV4["inmobiliaria_por_unidad"],
+    total_suma_inmobiliaria_conceptos: p.total_suma_inmobiliaria_conceptos,
+    total_alquileres_cobrados: p.total_alquileres_cobrados,
+    total_comisiones_periodo: p.total_comisiones_periodo,
+    total_deducciones_periodo: p.total_deducciones_periodo,
+    total_subtotal_bruto_periodo: p.total_subtotal_bruto_periodo,
+    total_a_rendir_propietario: p.total_a_rendir_propietario,
+    total_validacion_neto: p.total_validacion_neto,
+  };
+}
 
 function parseV3(p: Record<string, unknown>): InformeRendicionPayloadV3 | null {
   if (typeof p.propietario_nombre !== "string" || typeof p.mes_periodo !== "string") return null;
@@ -36,12 +69,13 @@ function parseV3(p: Record<string, unknown>): InformeRendicionPayloadV3 | null {
   };
 }
 
-/** Acepta v1 (histórico), v2 (segmentado anterior) y v3 (multipropiedad). */
+/** Acepta v1 (histórico), v2 (segmentado anterior), v3 (multipropiedad) y v4 (comisión por unidad). */
 export function parseInformeRendicionPayload(raw: unknown): InformeRendicionPayload | null {
   if (raw == null || typeof raw !== "object") return null;
   const p = raw as Record<string, unknown>;
   if (p.v === 1) return parseV1(p);
   if (p.v === 2) return parseV2(p);
+  if (p.v === 4) return parseV4(p);
   if (p.v === 3) return parseV3(p);
   return null;
 }

@@ -1,5 +1,6 @@
 import type { InformeRendicionPayload } from "@/lib/informes/rendicion-types";
 import { InformeRendicionBodyV3 } from "@/components/informes/informe-rendicion-body-v3";
+import { InformeRendicionBodyV4 } from "@/components/informes/informe-rendicion-body-v4";
 import { cn } from "@/lib/utils";
 
 const precioFmt = new Intl.NumberFormat("es-AR", {
@@ -43,7 +44,9 @@ export function InformeRendicionVista({ payload, fechaGeneracion, className }: P
         </p>
       </div>
 
-      {payload.v === 3 ? (
+      {payload.v === 4 ? (
+        <InformeRendicionBodyV4 payload={payload} />
+      ) : payload.v === 3 ? (
         <InformeRendicionBodyV3 payload={payload} />
       ) : payload.v === 2 ? (
         <>
