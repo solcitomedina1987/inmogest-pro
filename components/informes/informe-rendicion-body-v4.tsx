@@ -19,10 +19,6 @@ export function InformeRendicionBodyV4({ payload }: Props) {
         <div className="overflow-hidden rounded-lg border-2 border-stone-300 bg-white shadow-sm">
           <div className="border-b border-stone-200 bg-amber-50/60 px-4 py-3">
             <h2 className="text-base font-semibold text-stone-900">Rendición de Alquileres</h2>
-            <p className="text-muted-foreground mt-1 text-xs">
-              Comisión inmobiliaria aplicada solo sobre el concepto Alquiler de cada unidad. Subtotal neto = bruto
-              (alquiler + suma al propietario) − comisión − deducciones (resta al propietario).
-            </p>
           </div>
 
           {payload.unidades.length === 0 ? (

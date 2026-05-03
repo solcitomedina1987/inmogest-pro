@@ -91,9 +91,6 @@ export function InformeRendicionPdfBodyV4({ payload }: Props) {
       <View style={s.blockOuter}>
         <View style={s.blockHeader}>
           <Text style={s.blockTitle}>Rendición de Alquileres</Text>
-          <Text style={s.blockSub}>
-            Comisión solo sobre alquiler por unidad. Neto unidad = bruto − comisión − deducciones (resta al propietario).
-          </Text>
         </View>
         {payload.unidades.length === 0 ? (
           <View style={s.rowPad}>
