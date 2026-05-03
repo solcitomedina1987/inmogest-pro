@@ -18,6 +18,11 @@ const nextConfig: NextConfig = {
         destination: "/dashboard/admin-general",
         permanent: true,
       },
+      {
+        source: "/dashboard/admin-usuarios",
+        destination: "/dashboard/admin-general?tab=usuarios",
+        permanent: true,
+      },
     ];
   },
   images: {

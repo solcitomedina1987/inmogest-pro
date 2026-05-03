@@ -38,6 +38,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { adminPanelCardClass, adminTableHeadClass } from "@/lib/admin/admin-panel-table";
 
 type Props = {
   initial: PerfilListRow[];
@@ -163,7 +164,81 @@ export function AdminUsuariosClient({ initial, currentUserId }: Props) {
   }
 
   return (
-    <div className="flex max-w-full min-w-0 flex-col gap-8">
+    <div className="w-full space-y-0">
+      <Card className={adminPanelCardClass}>
+        <CardHeader className="flex flex-col gap-4 space-y-0 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-1.5">
+            <CardTitle>Usuarios</CardTitle>
+            <CardDescription>
+              {initial.length} usuario(s). Activá o inactivá cuentas, asigná roles y editá datos de perfil.
+            </CardDescription>
+          </div>
+          <Button type="button" className="shrink-0 gap-2 sm:mt-0.5" onClick={abrirNuevo}>
+            <UserPlus className="size-4" aria-hidden />
+            Nuevo usuario
+          </Button>
+        </CardHeader>
+        <CardContent className="overflow-x-auto px-0 sm:px-6">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className={cn(adminTableHeadClass, "pl-4 sm:pl-6")}>Nombre</TableHead>
+                <TableHead className={cn(adminTableHeadClass, "min-w-[180px]")}>Email</TableHead>
+                <TableHead className={cn(adminTableHeadClass, "w-28")}>Rol</TableHead>
+                <TableHead className={cn(adminTableHeadClass, "w-28")}>Estado</TableHead>
+                <TableHead className={cn(adminTableHeadClass, "min-w-[120px]")}>Creado</TableHead>
+                <TableHead className={cn(adminTableHeadClass, "w-[104px] pr-4 text-right sm:pr-6")}>Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {initial.map((r) => (
+                <TableRow key={r.id} className={cn(!r.is_active && "bg-muted/50")}>
+                  <TableCell className="text-foreground pl-4 font-medium whitespace-normal sm:pl-6">{r.nombre}</TableCell>
+                  <TableCell className="text-muted-foreground max-w-[220px] truncate text-sm sm:max-w-none sm:whitespace-normal">
+                    {r.email}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="secondary">{roleLabel(r.rol)}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    {r.is_active ? (
+                      <Badge variant="outline" className="border-emerald-600 text-emerald-800">
+                        Activo
+                      </Badge>
+                    ) : (
+                      <Badge variant="destructive">Inactivo</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground text-sm tabular-nums">{formatCreado(r.created_at)}</TableCell>
+                  <TableCell className="pr-4 text-right sm:pr-6">
+                    <div className="flex justify-end gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => alternarActivo(r)}
+                        disabled={pending || (r.id === currentUserId && r.is_active)}
+                        aria-label={r.is_active ? "Inactivar usuario" : "Activar usuario"}
+                        title={r.is_active ? "Inactivar" : "Activar"}
+                      >
+                        {r.is_active ? (
+                          <UserMinus className="size-4 text-amber-700" aria-hidden />
+                        ) : (
+                          <UserCheck className="size-4 text-emerald-700" aria-hidden />
+                        )}
+                      </Button>
+                      <Button type="button" variant="ghost" size="icon" onClick={() => abrirEditar(r)} aria-label="Editar">
+                        <Pencil className="size-4" aria-hidden />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -313,81 +388,6 @@ export function AdminUsuariosClient({ initial, currentUserId }: Props) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <div className="flex max-w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">Admin Usuarios</h1>
-        <Button type="button" className="shrink-0 gap-2" onClick={abrirNuevo}>
-          <UserPlus className="size-4" aria-hidden />
-          Nuevo usuario
-        </Button>
-      </div>
-
-      <Card className="border shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-lg">Listado</CardTitle>
-          <CardDescription>{initial.length} usuario(s).</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="max-w-full overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Rol</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Creado</TableHead>
-                  <TableHead className="w-[140px] text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {initial.map((r) => (
-                  <TableRow key={r.id} className={cn(!r.is_active && "bg-muted/50")}>
-                    <TableCell className="font-medium">{r.nombre}</TableCell>
-                    <TableCell className="text-sm">{r.email}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">{roleLabel(r.rol)}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      {r.is_active ? (
-                        <Badge variant="outline" className="border-emerald-600 text-emerald-800">
-                          Activo
-                        </Badge>
-                      ) : (
-                        <Badge variant="destructive">Inactivo</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm tabular-nums">
-                      {formatCreado(r.created_at)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => alternarActivo(r)}
-                        disabled={pending || (r.id === currentUserId && r.is_active)}
-                        aria-label={r.is_active ? "Inactivar usuario" : "Activar usuario"}
-                        title={r.is_active ? "Inactivar" : "Activar"}
-                      >
-                        {r.is_active ? (
-                          <UserMinus className="size-4 text-amber-700" aria-hidden />
-                        ) : (
-                          <UserCheck className="size-4 text-emerald-700" aria-hidden />
-                        )}
-                      </Button>
-                      <Button type="button" variant="ghost" size="icon" onClick={() => abrirEditar(r)}>
-                        <Pencil className="size-4" aria-hidden />
-                        <span className="sr-only">Editar</span>
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

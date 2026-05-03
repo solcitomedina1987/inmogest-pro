@@ -40,6 +40,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { LucideIconByName } from "@/components/ui/lucide-icon-by-name";
+import { adminPanelCardClass, adminTableHeadClass } from "@/lib/admin/admin-panel-table";
+import { cn } from "@/lib/utils";
 
 type Props = {
   initialRows: ConceptoPagoCatalogoRow[];
@@ -155,39 +158,42 @@ export function ConceptosPagoAdminClient({ initialRows }: Props) {
 
   return (
     <div className="w-full space-y-0">
-      <Card>
+      <Card className={adminPanelCardClass}>
         <CardHeader className="flex flex-col gap-4 space-y-0 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-1.5">
             <CardTitle>Conceptos de pago</CardTitle>
             <CardDescription>
-              Impacto al registrar cobros (suma/resta al propietario o inmobiliaria). Slug opcional para claves legacy.
+              Impacto al registrar cobros (suma o resta al propietario, o inmobiliaria).
             </CardDescription>
           </div>
           <Button type="button" className="shrink-0 sm:mt-0.5" onClick={abrirNuevo} disabled={pending}>
             Nuevo concepto
           </Button>
         </CardHeader>
-        <CardContent className="overflow-x-auto">
+        <CardContent className="overflow-x-auto px-0 sm:px-6">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-14">ID</TableHead>
-                <TableHead>Nombre</TableHead>
-                <TableHead>Impacto</TableHead>
-                <TableHead className="w-24">Icono</TableHead>
-                <TableHead>Slug</TableHead>
-                <TableHead className="w-28">Estado</TableHead>
-                <TableHead className="w-40 text-right">Acciones</TableHead>
+                <TableHead className={cn(adminTableHeadClass, "pl-4 sm:pl-6")}>Nombre</TableHead>
+                <TableHead className={cn(adminTableHeadClass, "max-w-[220px]")}>Impacto</TableHead>
+                <TableHead className={cn(adminTableHeadClass, "w-14 text-center")}>Icono</TableHead>
+                <TableHead className={cn(adminTableHeadClass, "w-28")}>Estado</TableHead>
+                <TableHead className={cn(adminTableHeadClass, "w-40 pr-4 text-right sm:pr-6")}>Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {initialRows.map((row) => (
                 <TableRow key={row.id}>
-                  <TableCell className="tabular-nums">{row.id}</TableCell>
-                  <TableCell className="font-medium">{row.nombre}</TableCell>
-                  <TableCell className="max-w-[200px] text-sm">{row.impacto}</TableCell>
-                  <TableCell className="text-muted-foreground text-sm">{row.icono}</TableCell>
-                  <TableCell className="text-muted-foreground text-sm">{row.slug ?? "—"}</TableCell>
+                  <TableCell className="text-foreground pl-4 font-medium whitespace-normal sm:pl-6">{row.nombre}</TableCell>
+                  <TableCell className="text-muted-foreground max-w-[220px] text-sm whitespace-normal">{row.impacto}</TableCell>
+                  <TableCell className="text-center">
+                    <span
+                      className="inline-flex items-center justify-center rounded-md border border-border bg-muted/40 p-1.5"
+                      title={row.icono || "Circle"}
+                    >
+                      <LucideIconByName name={row.icono} className="text-foreground size-5" />
+                    </span>
+                  </TableCell>
                   <TableCell>
                     {row.deleted_at ? (
                       <Badge variant="secondary">Baja</Badge>
@@ -195,7 +201,7 @@ export function ConceptosPagoAdminClient({ initialRows }: Props) {
                       <Badge variant="outline">Activo</Badge>
                     )}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="pr-4 text-right sm:pr-6">
                     <div className="flex justify-end gap-1">
                       <Button type="button" variant="ghost" size="icon" onClick={() => abrirEditar(row)} aria-label="Editar">
                         <Pencil className="size-4" />
@@ -268,7 +274,7 @@ export function ConceptosPagoAdminClient({ initialRows }: Props) {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Editar concepto</DialogTitle>
-            <DialogDescription>ID {editRow?.id}</DialogDescription>
+            <DialogDescription>Modificá nombre, impacto, icono o slug opcional.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-3 py-2">
             <div className="space-y-2">

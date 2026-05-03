@@ -25,6 +25,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { adminPanelCardClass, adminTableHeadClass } from "@/lib/admin/admin-panel-table";
+import { cn } from "@/lib/utils";
 
 export type NombreCatalogoRow = { id: number; nombre: string; deleted_at: string | null };
 
@@ -127,7 +129,7 @@ export function NombreCatalogoAdminClient({
 
   return (
     <div className="w-full space-y-0">
-      <Card>
+      <Card className={adminPanelCardClass}>
         <CardHeader className="flex flex-col gap-4 space-y-0 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-1.5">
             <CardTitle>{title}</CardTitle>
@@ -137,21 +139,19 @@ export function NombreCatalogoAdminClient({
             Nuevo
           </Button>
         </CardHeader>
-        <CardContent className="overflow-x-auto">
+        <CardContent className="overflow-x-auto px-0 sm:px-6">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-16">ID</TableHead>
-                <TableHead>Nombre</TableHead>
-                <TableHead className="w-32">Estado</TableHead>
-                <TableHead className="w-40 text-right">Acciones</TableHead>
+                <TableHead className={cn(adminTableHeadClass, "pl-4 sm:pl-6")}>Nombre</TableHead>
+                <TableHead className={cn(adminTableHeadClass, "w-32")}>Estado</TableHead>
+                <TableHead className={cn(adminTableHeadClass, "w-40 pr-4 text-right sm:pr-6")}>Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {initialRows.map((row) => (
                 <TableRow key={row.id}>
-                  <TableCell className="tabular-nums">{row.id}</TableCell>
-                  <TableCell className="font-medium">{row.nombre}</TableCell>
+                  <TableCell className="text-foreground pl-4 font-medium whitespace-normal sm:pl-6">{row.nombre}</TableCell>
                   <TableCell>
                     {row.deleted_at ? (
                       <Badge variant="secondary">Baja</Badge>
@@ -159,7 +159,7 @@ export function NombreCatalogoAdminClient({
                       <Badge variant="outline">Activo</Badge>
                     )}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="pr-4 text-right sm:pr-6">
                     <div className="flex justify-end gap-1">
                       <Button type="button" variant="ghost" size="icon" onClick={() => abrirEditar(row)} aria-label="Editar">
                         <Pencil className="size-4" />
@@ -213,7 +213,7 @@ export function NombreCatalogoAdminClient({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Editar</DialogTitle>
-            <DialogDescription>ID {editId}</DialogDescription>
+            <DialogDescription>Modificá el nombre del registro.</DialogDescription>
           </DialogHeader>
           <div className="space-y-2 py-2">
             <Label htmlFor="cat-edit-nombre">Nombre</Label>

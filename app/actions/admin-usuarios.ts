@@ -101,7 +101,7 @@ export async function updatePerfilUsuario(input: unknown): Promise<AdminUsuarioA
     return { ok: false, error: error.message };
   }
 
-  revalidatePath("/dashboard/admin-usuarios");
+  revalidatePath("/dashboard/admin-general");
   revalidatePath("/dashboard");
   return { ok: true as const };
 }
@@ -143,7 +143,7 @@ export async function toggleUsuarioActivo(input: unknown): Promise<AdminUsuarioA
     return { ok: false, error: error.message };
   }
 
-  revalidatePath("/dashboard/admin-usuarios");
+  revalidatePath("/dashboard/admin-general");
   revalidatePath("/dashboard");
   return { ok: true as const };
 }
@@ -238,7 +238,7 @@ export async function crearUsuarioDesdeAdmin(input: unknown): Promise<AdminUsuar
     },
   });
 
-  revalidatePath("/dashboard/admin-usuarios");
+  revalidatePath("/dashboard/admin-general");
 
   if (resendErr) {
     return { ok: true as const, signupEmailSent: false };
