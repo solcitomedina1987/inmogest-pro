@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CheckCircle2, Loader2, UploadCloud, X } from "lucide-react";
@@ -9,10 +9,8 @@ import { toast } from "sonner";
 import { createProperty, updateProperty } from "@/app/actions/propiedades";
 import { createClient } from "@/lib/supabase/client";
 import {
-  ESTADO_PROPIEDAD_VALUES,
   MAX_BYTES_PROPIEDAD_IMAGEN,
   MAX_IMAGENES_PROPIEDAD,
-  TIPO_PROPIEDAD_VALUES,
 } from "@/lib/constants/propiedades";
 import {
   propiedadFormClientSchema,
@@ -98,6 +96,8 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   editing: PropiedadListRow | null;
   propietarios: PersonaOption[];
+  tiposOpciones: string[];
+  estadosOpciones: string[];
 };
 
 /** Sube archivos directamente al bucket de Supabase desde el navegador.
@@ -134,7 +134,7 @@ async function uploadFilesToSupabase(
   return urls;
 }
 
-export function PropiedadFormDialog({ open, onOpenChange, editing, propietarios }: Props) {
+export function PropiedadFormDialog({ open, onOpenChange, editing, propietarios, tiposOpciones, estadosOpciones }: Props) {
   const router = useRouter();
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
@@ -147,6 +147,18 @@ export function PropiedadFormDialog({ open, onOpenChange, editing, propietarios 
     resolver: zodResolver(propiedadFormClientSchema) as Resolver<PropiedadFormClientValues>,
     defaultValues: defaults,
   });
+
+  const tipoSelectOpciones = useMemo(() => {
+    const o = [...tiposOpciones];
+    if (editing && !o.includes(editing.tipo)) o.unshift(editing.tipo);
+    return o;
+  }, [tiposOpciones, editing]);
+
+  const estadoSelectOpciones = useMemo(() => {
+    const o = [...estadosOpciones];
+    if (editing && !o.includes(editing.estado)) o.unshift(editing.estado);
+    return o;
+  }, [estadosOpciones, editing]);
 
   /** Limpia URLs de objeto para evitar memory leaks */
   const revokePreviews = useCallback((urls: string[]) => {
@@ -409,7 +421,7 @@ export function PropiedadFormDialog({ open, onOpenChange, editing, propietarios 
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent position="popper" className={DIALOG_SELECT_CONTENT_CLASS}>
-                        {TIPO_PROPIEDAD_VALUES.map((t) => (
+                        {tipoSelectOpciones.map((t) => (
                           <SelectItem key={t} value={t}>
                             {t}
                           </SelectItem>
@@ -434,7 +446,7 @@ export function PropiedadFormDialog({ open, onOpenChange, editing, propietarios 
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent position="popper" className={DIALOG_SELECT_CONTENT_CLASS}>
-                        {ESTADO_PROPIEDAD_VALUES.map((t) => (
+                        {estadoSelectOpciones.map((t) => (
                           <SelectItem key={t} value={t}>
                             {t}
                           </SelectItem>

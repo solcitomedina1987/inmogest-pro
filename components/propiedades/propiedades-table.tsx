@@ -5,7 +5,6 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, Home, Loader2, MessageCircle, Pencil, ReceiptText, RotateCcw, Search, Trash2 } from "lucide-react";
 import { deleteProperty } from "@/app/actions/propiedades";
-import { ESTADO_PROPIEDAD_VALUES, TIPO_PROPIEDAD_VALUES } from "@/lib/constants/propiedades";
 import { PropiedadEstadoBadge } from "@/lib/propiedades/estado-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -49,10 +48,12 @@ function labelTipo(t: string) {
 type Props = {
   rows: PropiedadListRow[];
   propietarios: PersonaOption[];
+  tiposCatalogo: string[];
+  estadosCatalogo: string[];
   children?: ReactNode;
 };
 
-export function PropiedadesTable({ rows, propietarios, children }: Props) {
+export function PropiedadesTable({ rows, propietarios, tiposCatalogo, estadosCatalogo, children }: Props) {
   const router = useRouter();
   const [q, setQ] = useState("");
   const [ciudadQ, setCiudadQ] = useState("");
@@ -64,6 +65,18 @@ export function PropiedadesTable({ rows, propietarios, children }: Props) {
   const [vistaPreviaRow, setVistaPreviaRow] = useState<PropiedadListRow | null>(null);
   const [navigatingCobrosId, setNavigatingCobrosId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  const tiposFiltroOpciones = useMemo(() => {
+    const s = new Set(tiposCatalogo);
+    for (const r of rows) s.add(r.tipo);
+    return [...s].sort((a, b) => a.localeCompare(b, "es"));
+  }, [tiposCatalogo, rows]);
+
+  const estadosFiltroOpciones = useMemo(() => {
+    const s = new Set(estadosCatalogo);
+    for (const r of rows) s.add(r.estado);
+    return [...s].sort((a, b) => a.localeCompare(b, "es"));
+  }, [estadosCatalogo, rows]);
 
   const filtradas = useMemo(() => {
     const nq = q.trim().toLowerCase();
@@ -174,7 +187,7 @@ export function PropiedadesTable({ rows, propietarios, children }: Props) {
                     </SelectTrigger>
                     <SelectContent position="popper" className="z-[100]">
                       <SelectItem value="todas">Todas</SelectItem>
-                      {TIPO_PROPIEDAD_VALUES.map((t) => (
+                      {tiposFiltroOpciones.map((t) => (
                         <SelectItem key={t} value={t}>
                           {labelTipo(t)}
                         </SelectItem>
@@ -190,7 +203,7 @@ export function PropiedadesTable({ rows, propietarios, children }: Props) {
                     </SelectTrigger>
                     <SelectContent position="popper" className="z-[100]">
                       <SelectItem value="todos">Todos</SelectItem>
-                      {ESTADO_PROPIEDAD_VALUES.map((e) => (
+                      {estadosFiltroOpciones.map((e) => (
                         <SelectItem key={e} value={e}>
                           {e}
                         </SelectItem>
@@ -371,6 +384,8 @@ export function PropiedadesTable({ rows, propietarios, children }: Props) {
         onOpenChange={setOpen}
         editing={editing}
         propietarios={propietarios}
+        tiposOpciones={tiposCatalogo}
+        estadosOpciones={estadosCatalogo}
       />
 
       <PropiedadVistaPreviaDialog

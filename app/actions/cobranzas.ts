@@ -8,6 +8,7 @@ import { ESTADO_PROPIEDAD_CARTEL_ALQUILER } from "@/lib/constants/propiedades";
 import { contratoCobranzaSchema } from "@/lib/validations/contrato-cobranza";
 import { contratoCobranzaVigente } from "@/lib/cobranzas/contrato-vigente";
 import { construirDetallePagoV2, totalRecaudadoInquilino } from "@/lib/cobranzas/detalle-pago";
+import { extrasConstruirDetalleDesdeCatalogo } from "@/lib/cobranzas/resolve-conceptos-extras";
 import { registroPagoSchema, editarPagoSchema } from "@/lib/validations/registro-pago";
 import { updateContratoCobranzaSchema } from "@/lib/validations/update-contrato-cobranza";
 import { crearEventosContrato, googleCalendarConfigurado } from "@/lib/google/calendar";
@@ -200,9 +201,14 @@ export async function registrarPagoContrato(input: unknown): Promise<CobranzaAct
   const monto_esperado =
     existente?.monto_esperado != null ? Number(existente.monto_esperado) : montoMensual;
 
+  const resolvedExtras = await extrasConstruirDetalleDesdeCatalogo(supabase, v.conceptos_extras);
+  if (!resolvedExtras.ok) {
+    return { ok: false, error: resolvedExtras.error };
+  }
+
   const detalle_pago = construirDetallePagoV2({
     monto_alquiler: v.monto_alquiler,
-    extras: v.conceptos_extras,
+    extras: resolvedExtras.extras,
   });
   const monto_pagado = totalRecaudadoInquilino(detalle_pago, 0);
   const estado = monto_pagado >= monto_esperado ? "Pagado" : "Pendiente";
@@ -258,9 +264,14 @@ export async function editarPago(input: unknown): Promise<CobranzaActionResult> 
   if (pErr || !pago) return { ok: false, error: "Pago no encontrado." };
 
   const monto_esperado = Number(pago.monto_esperado);
+  const resolvedExtras = await extrasConstruirDetalleDesdeCatalogo(supabase, v.conceptos_extras);
+  if (!resolvedExtras.ok) {
+    return { ok: false, error: resolvedExtras.error };
+  }
+
   const detalle_pago = construirDetallePagoV2({
     monto_alquiler: v.monto_alquiler,
-    extras: v.conceptos_extras,
+    extras: resolvedExtras.extras,
   });
   const monto_pagado = totalRecaudadoInquilino(detalle_pago, 0);
   const estado = monto_pagado >= monto_esperado ? "Pagado" : "Pendiente";

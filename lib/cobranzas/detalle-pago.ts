@@ -18,7 +18,10 @@ export const IMPACTO_PAGO_VALUES = ["propietario_suma", "propietario_resta", "in
 export type ImpactoPago = (typeof IMPACTO_PAGO_VALUES)[number];
 
 export type DetallePagoExtraV2 = {
-  concepto: ConceptoPagoTipo;
+  concepto?: ConceptoPagoTipo | null;
+  concepto_pago_id?: number | null;
+  concepto_label?: string | null;
+  slug?: string | null;
   monto: number;
   observaciones: string | null;
   impacto: ImpactoPago;
@@ -56,6 +59,18 @@ export function impactoDefaultDesdeConcepto(concepto: ConceptoPagoTipo): Impacto
     return "inmobiliaria";
   }
   return "propietario_suma";
+}
+
+export function etiquetaExtraDetalleV2(e: DetallePagoExtraV2): string {
+  if (e.concepto_label?.trim()) return e.concepto_label.trim();
+  if (e.concepto && esConceptoPagoTipo(e.concepto)) return etiquetaConceptoConEmoji(e.concepto);
+  return "Concepto";
+}
+
+export function conceptoTipoDesdeExtraV2(e: DetallePagoExtraV2): ConceptoPagoTipo | null {
+  if (e.slug && esConceptoPagoTipo(e.slug)) return e.slug;
+  if (e.concepto && esConceptoPagoTipo(e.concepto)) return e.concepto;
+  return null;
 }
 
 export function totalDesdeDetalle(d: DetallePagoV1): number {
@@ -126,24 +141,52 @@ export function construirDetallePagoV1(input: {
   };
 }
 
+export type ExtraInputConstruirDetalle =
+  | {
+      concepto: ConceptoPagoTipo;
+      monto: number;
+      observaciones?: string | null;
+      impacto: ImpactoPago;
+    }
+  | {
+      concepto_pago_id: number;
+      concepto_label: string;
+      slug: string | null;
+      monto: number;
+      observaciones?: string | null;
+      impacto: ImpactoPago;
+    };
+
 export function construirDetallePagoV2(input: {
   monto_alquiler: number;
-  extras: Array<{
-    concepto: ConceptoPagoTipo;
-    monto: number;
-    observaciones?: string | null;
-    impacto: ImpactoPago;
-  }>;
+  extras: ExtraInputConstruirDetalle[];
 }): DetallePagoV2 {
   const monto_alquiler = Number(input.monto_alquiler);
-  const extras = input.extras
+  const extras: DetallePagoExtraV2[] = input.extras
     .filter((e) => Number(e.monto) > 0)
-    .map((e) => ({
-      concepto: e.concepto,
-      monto: Number(e.monto),
-      observaciones: e.observaciones?.trim() ? e.observaciones.trim() : null,
-      impacto: e.impacto,
-    }));
+    .map((e) => {
+      if ("concepto_pago_id" in e) {
+        const slugOk = e.slug && esConceptoPagoTipo(e.slug) ? e.slug : null;
+        return {
+          concepto_pago_id: e.concepto_pago_id,
+          concepto_label: e.concepto_label.trim(),
+          slug: e.slug,
+          concepto: slugOk,
+          monto: Number(e.monto),
+          observaciones: e.observaciones?.trim() ? e.observaciones.trim() : null,
+          impacto: e.impacto,
+        };
+      }
+      return {
+        concepto: e.concepto,
+        concepto_pago_id: null,
+        concepto_label: null,
+        slug: null,
+        monto: Number(e.monto),
+        observaciones: e.observaciones?.trim() ? e.observaciones.trim() : null,
+        impacto: e.impacto,
+      };
+    });
   const base: DetallePagoV2 = { v: 2, monto_alquiler, extras };
   return {
     ...base,
@@ -164,16 +207,48 @@ export function parseDetallePagoDb(raw: unknown): DetallePagoParsed | null {
     for (const row of extrasRaw) {
       if (!row || typeof row !== "object") continue;
       const r = row as Record<string, unknown>;
-      const c = r.concepto;
-      if (typeof c !== "string" || !esConceptoPagoTipo(c)) continue;
       const m = Number(r.monto);
       if (Number.isNaN(m) || m < 0) continue;
       const obs = r.observaciones;
+      const idRaw = r.concepto_pago_id;
+      const idNum =
+        typeof idRaw === "number" && Number.isFinite(idRaw)
+          ? idRaw
+          : typeof idRaw === "string" && /^\d+$/.test(idRaw)
+            ? Number(idRaw)
+            : NaN;
+      const labelRaw = r.concepto_label;
+      if (Number.isFinite(idNum) && idNum > 0 && typeof labelRaw === "string" && labelRaw.trim()) {
+        const slugRaw = r.slug;
+        const slug = typeof slugRaw === "string" && slugRaw.trim() ? slugRaw.trim() : null;
+        const slugOk = slug && esConceptoPagoTipo(slug) ? slug : null;
+        const imp = r.impacto;
+        const impacto: ImpactoPago =
+          typeof imp === "string" && esImpactoPago(imp) ? imp : slugOk ? impactoDefaultDesdeConcepto(slugOk) : "propietario_suma";
+        const cLegacy = r.concepto;
+        const conceptoLegacy =
+          typeof cLegacy === "string" && esConceptoPagoTipo(cLegacy) ? cLegacy : slugOk;
+        extras.push({
+          concepto_pago_id: idNum,
+          concepto_label: labelRaw.trim(),
+          slug,
+          concepto: conceptoLegacy,
+          monto: m,
+          observaciones: typeof obs === "string" && obs.trim() ? obs.trim() : null,
+          impacto,
+        });
+        continue;
+      }
+      const c = r.concepto;
+      if (typeof c !== "string" || !esConceptoPagoTipo(c)) continue;
       const imp = r.impacto;
       const impacto: ImpactoPago =
         typeof imp === "string" && esImpactoPago(imp) ? imp : impactoDefaultDesdeConcepto(c);
       extras.push({
         concepto: c,
+        concepto_pago_id: null,
+        concepto_label: null,
+        slug: null,
         monto: m,
         observaciones: typeof obs === "string" && obs.trim() ? obs.trim() : null,
         impacto,
@@ -270,7 +345,7 @@ export function lineasReciboDesdePago(input: {
   }
   for (const e of d.extras) {
     lines.push({
-      concepto: etiquetaConceptoConEmoji(e.concepto),
+      concepto: etiquetaExtraDetalleV2(e),
       monto: e.monto,
       observaciones: e.observaciones,
     });
@@ -313,7 +388,7 @@ export function seccionesReciboDesdeDetalle(input: {
   } else {
     for (const e of d.extras) {
       lineas.push({
-        concepto: etiquetaConceptoConEmoji(e.concepto),
+        concepto: etiquetaExtraDetalleV2(e),
         monto: e.monto,
         observaciones: e.observaciones,
       });

@@ -1,14 +1,9 @@
 import { z } from "zod";
-import { CONCEPTOS_PAGO_KEYS } from "@/lib/cobranzas/conceptos-pago";
-import { IMPACTO_PAGO_VALUES } from "@/lib/cobranzas/detalle-pago";
-
-const impactoSchema = z.enum(IMPACTO_PAGO_VALUES);
 
 const conceptoExtraSchema = z.object({
-  concepto: z.enum(CONCEPTOS_PAGO_KEYS),
+  concepto_pago_id: z.coerce.number().int().positive("Seleccioná un concepto de pago."),
   monto: z.coerce.number().min(0, "El monto no puede ser negativo"),
   observaciones: z.string().optional(),
-  impacto: impactoSchema,
 });
 
 export const registroPagoSchema = z

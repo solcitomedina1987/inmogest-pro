@@ -7,11 +7,16 @@ export const PROPIEDAD_IMAGEN_DEFAULT = "/img/casa-default.png";
 /** Alias histórico — mismo valor que la imagen local por defecto. */
 export const PROPIEDAD_IMAGEN_PLACEHOLDER = PROPIEDAD_IMAGEN_DEFAULT;
 
+/** Valores alineados al seed de `tipos_propiedad` (filtros y sitio público). */
 export const TIPO_PROPIEDAD_VALUES = [
   "Casa",
   "Departamento",
   "Lote",
   "Local",
+  "Terreno",
+  "Duplex",
+  "Galpón",
+  "Fabrica",
   "Otro",
 ] as const;
 

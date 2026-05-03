@@ -6,11 +6,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { useFieldArray, useForm, type Resolver } from "react-hook-form";
 import { registrarPagoContrato } from "@/app/actions/cobranzas";
-import { CONCEPTOS_PAGO_ORDENADOS } from "@/lib/cobranzas/conceptos-pago";
-import type { ConceptoPagoTipo } from "@/lib/cobranzas/conceptos-pago";
+import { listConceptosPagoActivos, type ConceptoPagoCatalogoRow } from "@/app/actions/config-catalogos";
 import { mesPeriodoActual } from "@/lib/cobranzas/estado-contrato";
-import type { ImpactoPago } from "@/lib/cobranzas/detalle-pago";
 import { totalRecaudadoInquilino, construirDetallePagoV2, totalRendirPropietarioDesdeDetalleV2 } from "@/lib/cobranzas/detalle-pago";
+import { impactoDbToImpactoPago } from "@/lib/config-global/impacto-catalogo";
 import { FORMAS_PAGO } from "@/lib/constants/cobranzas";
 import { registroPagoSchema, type RegistroPagoValues } from "@/lib/validations/registro-pago";
 import { Button } from "@/components/ui/button";
@@ -51,11 +50,11 @@ const precioFmt = new Intl.NumberFormat("es-AR", {
   maximumFractionDigits: 2,
 });
 
-const IMPACTO_OPCIONES: { value: ImpactoPago; label: string }[] = [
-  { value: "propietario_suma", label: "Suma al propietario" },
-  { value: "propietario_resta", label: "Resta al propietario" },
-  { value: "inmobiliaria", label: "Suma a inmobiliaria" },
-];
+const IMPACTO_ETIQUETA_DB: Record<string, string> = {
+  "Suma al Propietario": "Suma al propietario",
+  "Resta al Propietario": "Resta al propietario",
+  Inmobiliaria: "Suma a inmobiliaria",
+};
 
 function hoyISO(): string {
   const d = new Date();
@@ -96,16 +95,10 @@ type Props = {
   mesPeriodoPredefinido?: string | null;
 };
 
-const defaultExtra = (): {
-  concepto: ConceptoPagoTipo;
-  monto: number;
-  observaciones: string;
-  impacto: ImpactoPago;
-} => ({
-  concepto: "luz",
+const defaultExtra = (firstConceptId: number): { concepto_pago_id: number; monto: number; observaciones: string } => ({
+  concepto_pago_id: firstConceptId,
   monto: 0,
   observaciones: "",
-  impacto: "propietario_suma",
 });
 
 export function RegistrarPagoDialog({
@@ -120,6 +113,7 @@ export function RegistrarPagoDialog({
   const router = useRouter();
   const [actionError, setActionError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [conceptCatalog, setConceptCatalog] = useState<ConceptoPagoCatalogoRow[]>([]);
 
   const requiereSelectorContrato = Boolean(contratosDisponibles?.length && contratoIdInicial == null);
 
@@ -145,21 +139,46 @@ export function RegistrarPagoDialog({
   const extras = form.watch("conceptos_extras");
   const contratoIdWatch = form.watch("contrato_id");
 
+  const catalogById = useMemo(() => new Map(conceptCatalog.map((r) => [r.id, r])), [conceptCatalog]);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    (async () => {
+      const res = await listConceptosPagoActivos();
+      if (cancelled) return;
+      if (res.ok && res.data) setConceptCatalog(res.data);
+      else setConceptCatalog([]);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
   const totalesLiquidacion = useMemo(() => {
+    const resolvedExtras = (extras ?? [])
+      .map((x) => {
+        const row = catalogById.get(x.concepto_pago_id);
+        if (!row) return null;
+        return {
+          concepto_pago_id: row.id,
+          concepto_label: row.nombre,
+          slug: row.slug,
+          monto: Number(x.monto) || 0,
+          observaciones: x.observaciones,
+          impacto: impactoDbToImpactoPago(row.impacto),
+        };
+      })
+      .filter((x): x is NonNullable<typeof x> => x != null);
     const d = construirDetallePagoV2({
       monto_alquiler: Number(montoAlquiler) || 0,
-      extras: (extras ?? []).map((x) => ({
-        concepto: x.concepto,
-        monto: Number(x.monto) || 0,
-        observaciones: x.observaciones,
-        impacto: x.impacto,
-      })),
+      extras: resolvedExtras,
     });
     return {
       totalCobrar: totalRecaudadoInquilino(d, 0),
       totalRendir: totalRendirPropietarioDesdeDetalleV2(d),
     };
-  }, [montoAlquiler, extras]);
+  }, [montoAlquiler, extras, catalogById]);
 
   useEffect(() => {
     if (disabled && open) onOpenChange(false);
@@ -362,8 +381,11 @@ export function RegistrarPagoDialog({
                   variant="outline"
                   size="sm"
                   className="gap-1"
-                  disabled={disabled}
-                  onClick={() => append(defaultExtra())}
+                  disabled={disabled || conceptCatalog.length === 0}
+                  onClick={() => {
+                    const first = conceptCatalog[0]?.id ?? 0;
+                    append(defaultExtra(first));
+                  }}
                 >
                   <Plus className="size-4" aria-hidden />
                   Agregar
@@ -371,7 +393,11 @@ export function RegistrarPagoDialog({
               </div>
 
               {fields.length === 0 ? (
-                <p className="text-muted-foreground text-sm">Sin conceptos extra. Usá + para agregar filas.</p>
+                <p className="text-muted-foreground text-sm">
+                  {conceptCatalog.length === 0
+                    ? "No hay conceptos de pago configurados. Cargalos en ADMIN General → Conceptos de pago."
+                    : "Sin conceptos extra. Usá + para agregar filas."}
+                </p>
               ) : (
                 <div className="space-y-3">
                   {fields.map((f, index) => (
@@ -393,20 +419,24 @@ export function RegistrarPagoDialog({
 
                       <FormField
                         control={form.control}
-                        name={`conceptos_extras.${index}.concepto`}
+                        name={`conceptos_extras.${index}.concepto_pago_id`}
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel className="text-xs">Concepto</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
+                            <Select
+                              onValueChange={(v) => field.onChange(Number(v))}
+                              value={field.value > 0 ? String(field.value) : undefined}
+                              disabled={disabled}
+                            >
                               <FormControl>
                                 <SelectTrigger className="w-full">
-                                  <SelectValue />
+                                  <SelectValue placeholder="Seleccionar…" />
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent className={DIALOG_SELECT_CONTENT_CLASS}>
-                                {CONCEPTOS_PAGO_ORDENADOS.map((c) => (
-                                  <SelectItem key={c.key} value={c.key}>
-                                    {c.emoji} {c.label}
+                                {conceptCatalog.map((c) => (
+                                  <SelectItem key={c.id} value={String(c.id)}>
+                                    {c.nombre}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
@@ -439,30 +469,20 @@ export function RegistrarPagoDialog({
                         )}
                       />
 
-                      <FormField
-                        control={form.control}
-                        name={`conceptos_extras.${index}.impacto`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-xs">Naturaleza del fondo</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                              <FormControl>
-                                <SelectTrigger className="w-full">
-                                  <SelectValue />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent className={DIALOG_SELECT_CONTENT_CLASS}>
-                                {IMPACTO_OPCIONES.map((o) => (
-                                  <SelectItem key={o.value} value={o.value}>
-                                    {o.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                      {(() => {
+                        const cid = form.watch(`conceptos_extras.${index}.concepto_pago_id`);
+                        const row = catalogById.get(cid);
+                        return (
+                          <div className="rounded-md border border-dashed border-stone-200 bg-white/60 px-2 py-1.5">
+                            <p className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">
+                              Impacto contable
+                            </p>
+                            <p className="text-xs font-medium text-stone-800">
+                              {row ? IMPACTO_ETIQUETA_DB[row.impacto] ?? row.impacto : "Seleccioná un concepto"}
+                            </p>
+                          </div>
+                        );
+                      })()}
 
                       <FormField
                         control={form.control}

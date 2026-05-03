@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { etiquetaConceptoSinEmoji } from "@/lib/cobranzas/conceptos-pago";
 import {
   aDetalleV2,
+  conceptoTipoDesdeExtraV2,
   parseDetallePagoDb,
   totalCobrarInquilinoDesdeDetalleV2,
   totalRendirPropietarioDesdeDetalleV2,
@@ -73,9 +74,11 @@ function lineasDesdeDetalle(detalle: ReturnType<typeof aDetalleV2>): LineaRendic
   for (const ex of detalle.extras) {
     const m = Number(ex.monto) || 0;
     if (m <= 0) continue;
+    const tipo = conceptoTipoDesdeExtraV2(ex);
+    const concepto_key = tipo ?? "otros";
     lineas.push({
-      concepto_key: ex.concepto,
-      concepto: etiquetaConceptoSinEmoji(ex.concepto),
+      concepto_key,
+      concepto: ex.concepto_label?.trim() || (tipo ? etiquetaConceptoSinEmoji(tipo) : "Concepto"),
       monto: roundMoney(m),
       observaciones: ex.observaciones,
     });
@@ -193,10 +196,11 @@ export async function computeInformeRendicion(
     for (const ex of detalle.extras) {
       if (ex.monto <= 0) continue;
       if (ex.impacto !== "inmobiliaria") continue;
+      const tipo = conceptoTipoDesdeExtraV2(ex);
       sumaInmobiliariaItems.push({
         pago_id: p.id,
-        concepto_key: ex.concepto,
-        concepto: etiquetaConceptoSinEmoji(ex.concepto),
+        concepto_key: tipo ?? "otros",
+        concepto: ex.concepto_label?.trim() || (tipo ? etiquetaConceptoSinEmoji(tipo) : "Inmobiliaria"),
         monto: roundMoney(Number(ex.monto)),
         observaciones: ex.observaciones,
       });

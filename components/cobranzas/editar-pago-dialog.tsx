@@ -6,10 +6,15 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { useFieldArray, useForm, type Resolver } from "react-hook-form";
 import { editarPago } from "@/app/actions/cobranzas";
-import { CONCEPTOS_PAGO_ORDENADOS } from "@/lib/cobranzas/conceptos-pago";
-import type { ConceptoPagoTipo } from "@/lib/cobranzas/conceptos-pago";
-import type { ImpactoPago } from "@/lib/cobranzas/detalle-pago";
-import { aDetalleV2, construirDetallePagoV2, totalRecaudadoInquilino, totalRendirPropietarioDesdeDetalleV2 } from "@/lib/cobranzas/detalle-pago";
+import { listConceptosPagoAdmin, type ConceptoPagoCatalogoRow } from "@/app/actions/config-catalogos";
+import {
+  aDetalleV2,
+  conceptoTipoDesdeExtraV2,
+  construirDetallePagoV2,
+  totalRecaudadoInquilino,
+  totalRendirPropietarioDesdeDetalleV2,
+} from "@/lib/cobranzas/detalle-pago";
+import { impactoDbToImpactoPago } from "@/lib/config-global/impacto-catalogo";
 import { FORMAS_PAGO } from "@/lib/constants/cobranzas";
 import { editarPagoSchema, type EditarPagoValues } from "@/lib/validations/registro-pago";
 import type { PagoRow } from "@/lib/cobranzas/types";
@@ -78,25 +83,19 @@ type Props = {
   onOpenChange: (open: boolean) => void;
 };
 
-const IMPACTO_OPCIONES: { value: ImpactoPago; label: string }[] = [
-  { value: "propietario_suma", label: "Suma al propietario" },
-  { value: "propietario_resta", label: "Resta al propietario" },
-  { value: "inmobiliaria", label: "Suma a inmobiliaria" },
-];
+const IMPACTO_ETIQUETA_DB: Record<string, string> = {
+  "Suma al Propietario": "Suma al propietario",
+  "Resta al Propietario": "Resta al propietario",
+  Inmobiliaria: "Suma a inmobiliaria",
+};
 
-const defaultExtra = (): {
-  concepto: ConceptoPagoTipo;
-  monto: number;
-  observaciones: string;
-  impacto: ImpactoPago;
-} => ({
-  concepto: "luz",
+const defaultExtra = (firstConceptId: number): { concepto_pago_id: number; monto: number; observaciones: string } => ({
+  concepto_pago_id: firstConceptId,
   monto: 0,
   observaciones: "",
-  impacto: "propietario_suma",
 });
 
-function valoresDesdePago(pago: PagoRow, contratoId: string): EditarPagoValues {
+function valoresDesdePago(pago: PagoRow, contratoId: string, slugToId: Map<string, number>): EditarPagoValues {
   const montoFb = pago.monto_pagado != null ? Number(pago.monto_pagado) : 0;
   const v2 = aDetalleV2(pago.detalle_pago ?? null, montoFb);
   return {
@@ -105,12 +104,18 @@ function valoresDesdePago(pago: PagoRow, contratoId: string): EditarPagoValues {
     fecha_pago: pago.fecha_pago_realizado ?? "",
     forma_pago: (pago.forma_pago as EditarPagoValues["forma_pago"]) ?? "Transferencia",
     monto_alquiler: v2.monto_alquiler,
-    conceptos_extras: v2.extras.map((e) => ({
-      concepto: e.concepto,
-      monto: e.monto,
-      observaciones: e.observaciones ?? "",
-      impacto: e.impacto,
-    })),
+    conceptos_extras: v2.extras.map((e) => {
+      let id = e.concepto_pago_id && e.concepto_pago_id > 0 ? e.concepto_pago_id : undefined;
+      if (id == null) {
+        const slug = conceptoTipoDesdeExtraV2(e);
+        if (slug) id = slugToId.get(slug);
+      }
+      return {
+        concepto_pago_id: id ?? 0,
+        monto: e.monto,
+        observaciones: e.observaciones ?? "",
+      };
+    }),
     observaciones: pago.observaciones ?? "",
   };
 }
@@ -119,6 +124,7 @@ export function EditarPagoDialog({ pago, contratoId, open, onOpenChange }: Props
   const router = useRouter();
   const [actionError, setActionError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [conceptCatalog, setConceptCatalog] = useState<ConceptoPagoCatalogoRow[]>([]);
 
   const form = useForm<EditarPagoValues>({
     resolver: zodResolver(editarPagoSchema) as Resolver<EditarPagoValues>,
@@ -140,27 +146,72 @@ export function EditarPagoDialog({ pago, contratoId, open, onOpenChange }: Props
 
   const montoAlquiler = form.watch("monto_alquiler");
   const extras = form.watch("conceptos_extras");
+
+  const catalogById = useMemo(() => new Map(conceptCatalog.map((r) => [r.id, r])), [conceptCatalog]);
+
+  const opcionesConcepto = useMemo(() => {
+    const ids = new Set((extras ?? []).map((x) => x.concepto_pago_id));
+    return conceptCatalog.filter((r) => !r.deleted_at || ids.has(r.id));
+  }, [conceptCatalog, extras]);
+
   const totalesLiquidacion = useMemo(() => {
+    const resolvedExtras = (extras ?? [])
+      .map((x) => {
+        const row = catalogById.get(x.concepto_pago_id);
+        if (!row) return null;
+        return {
+          concepto_pago_id: row.id,
+          concepto_label: row.nombre,
+          slug: row.slug,
+          monto: Number(x.monto) || 0,
+          observaciones: x.observaciones,
+          impacto: impactoDbToImpactoPago(row.impacto),
+        };
+      })
+      .filter((x): x is NonNullable<typeof x> => x != null);
     const d = construirDetallePagoV2({
       monto_alquiler: Number(montoAlquiler) || 0,
-      extras: (extras ?? []).map((x) => ({
-        concepto: x.concepto,
-        monto: Number(x.monto) || 0,
-        observaciones: x.observaciones,
-        impacto: x.impacto,
-      })),
+      extras: resolvedExtras,
     });
     return {
       totalCobrar: totalRecaudadoInquilino(d, 0),
       totalRendir: totalRendirPropietarioDesdeDetalleV2(d),
     };
-  }, [montoAlquiler, extras]);
+  }, [montoAlquiler, extras, catalogById]);
 
   useEffect(() => {
-    if (open && pago) {
-      setActionError(null);
-      form.reset(valoresDesdePago(pago, contratoId));
-    }
+    if (!open || !pago) return;
+    let cancelled = false;
+    setActionError(null);
+    (async () => {
+      const res = await listConceptosPagoAdmin();
+      if (cancelled) return;
+      if (!res.ok || !res.data) {
+        setConceptCatalog([]);
+        const montoFb = pago.monto_pagado != null ? Number(pago.monto_pagado) : 0;
+        const v2 = aDetalleV2(pago.detalle_pago ?? null, montoFb);
+        form.reset({
+          pago_id: pago.id,
+          contrato_id: contratoId,
+          fecha_pago: pago.fecha_pago_realizado ?? "",
+          forma_pago: (pago.forma_pago as EditarPagoValues["forma_pago"]) ?? "Transferencia",
+          monto_alquiler: v2.monto_alquiler,
+          conceptos_extras: [],
+          observaciones: pago.observaciones ?? "",
+        });
+        return;
+      }
+      const rows = res.data;
+      setConceptCatalog(rows);
+      const slugToId = new Map<string, number>();
+      for (const r of rows) {
+        if (r.slug) slugToId.set(r.slug, r.id);
+      }
+      if (!cancelled) form.reset(valoresDesdePago(pago, contratoId, slugToId));
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [open, pago, contratoId, form]);
 
   function onSubmit(values: EditarPagoValues) {
@@ -278,14 +329,28 @@ export function EditarPagoDialog({ pago, contratoId, open, onOpenChange }: Props
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <FormLabel className="text-base">Conceptos adicionales</FormLabel>
-                <Button type="button" variant="outline" size="sm" className="gap-1" onClick={() => append(defaultExtra())}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1"
+                  disabled={conceptCatalog.filter((r) => !r.deleted_at).length === 0}
+                  onClick={() => {
+                    const first = conceptCatalog.find((r) => !r.deleted_at)?.id ?? conceptCatalog[0]?.id ?? 0;
+                    append(defaultExtra(first));
+                  }}
+                >
                   <Plus className="size-4" aria-hidden />
                   Agregar
                 </Button>
               </div>
 
               {fields.length === 0 ? (
-                <p className="text-muted-foreground text-sm">Sin conceptos extra.</p>
+                <p className="text-muted-foreground text-sm">
+                  {conceptCatalog.length === 0
+                    ? "No se pudo cargar el catálogo de conceptos."
+                    : "Sin conceptos extra."}
+                </p>
               ) : (
                 <div className="space-y-3">
                   {fields.map((f, index) => (
@@ -306,20 +371,24 @@ export function EditarPagoDialog({ pago, contratoId, open, onOpenChange }: Props
 
                       <FormField
                         control={form.control}
-                        name={`conceptos_extras.${index}.concepto`}
+                        name={`conceptos_extras.${index}.concepto_pago_id`}
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel className="text-xs">Concepto</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
+                            <Select
+                              onValueChange={(v) => field.onChange(Number(v))}
+                              value={field.value > 0 ? String(field.value) : undefined}
+                            >
                               <FormControl>
                                 <SelectTrigger className="w-full">
-                                  <SelectValue />
+                                  <SelectValue placeholder="Seleccionar…" />
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent className={DIALOG_SELECT_CONTENT_CLASS}>
-                                {CONCEPTOS_PAGO_ORDENADOS.map((c) => (
-                                  <SelectItem key={c.key} value={c.key}>
-                                    {c.emoji} {c.label}
+                                {opcionesConcepto.map((c) => (
+                                  <SelectItem key={c.id} value={String(c.id)}>
+                                    {c.nombre}
+                                    {c.deleted_at ? " (dado de baja)" : ""}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
@@ -351,30 +420,20 @@ export function EditarPagoDialog({ pago, contratoId, open, onOpenChange }: Props
                         )}
                       />
 
-                      <FormField
-                        control={form.control}
-                        name={`conceptos_extras.${index}.impacto`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-xs">Naturaleza del fondo</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                              <FormControl>
-                                <SelectTrigger className="w-full">
-                                  <SelectValue />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent className={DIALOG_SELECT_CONTENT_CLASS}>
-                                {IMPACTO_OPCIONES.map((o) => (
-                                  <SelectItem key={o.value} value={o.value}>
-                                    {o.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                      {(() => {
+                        const cid = form.watch(`conceptos_extras.${index}.concepto_pago_id`);
+                        const row = catalogById.get(cid);
+                        return (
+                          <div className="rounded-md border border-dashed border-stone-200 bg-white/60 px-2 py-1.5">
+                            <p className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">
+                              Impacto contable
+                            </p>
+                            <p className="text-xs font-medium text-stone-800">
+                              {row ? IMPACTO_ETIQUETA_DB[row.impacto] ?? row.impacto : "Seleccioná un concepto"}
+                            </p>
+                          </div>
+                        );
+                      })()}
 
                       <FormField
                         control={form.control}

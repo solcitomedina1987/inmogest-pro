@@ -2,8 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { PublicPropiedadHome } from "@/lib/data/public-propiedades";
-import { PUBLIC_HOME_ESTADOS_ORDENADOS } from "@/lib/constants/public-site";
-import { TIPO_PROPIEDAD_VALUES } from "@/lib/constants/propiedades";
+import { ESTADO_PROPIEDAD_VALUES, TIPO_PROPIEDAD_VALUES } from "@/lib/constants/propiedades";
 import { PropiedadPublicCard } from "@/components/public/propiedad-public-card";
 import { PublicPropiedadDetalleDialog } from "@/components/public/public-propiedad-detalle-dialog";
 import { Button } from "@/components/ui/button";
@@ -17,14 +16,35 @@ import {
 
 type Props = {
   initialPropiedades: PublicPropiedadHome[];
+  /** Desde `tipos_propiedad` (vacío → se usan constantes de respaldo). */
+  tiposCatalogo?: string[];
+  estadosCatalogo?: string[];
 };
 
-export function PublicHomeClient({ initialPropiedades }: Props) {
+export function PublicHomeClient({
+  initialPropiedades,
+  tiposCatalogo = [],
+  estadosCatalogo = [],
+}: Props) {
   const [filtroRubro, setFiltroRubro] = useState<string>("all");
   const [filtroTipo, setFiltroTipo] = useState<string>("all");
   const [filtroEstado, setFiltroEstado] = useState<string>("all");
   const [detalle, setDetalle] = useState<PublicPropiedadHome | null>(null);
   const [detalleOpen, setDetalleOpen] = useState(false);
+
+  const tiposFiltro = useMemo(() => {
+    const base = tiposCatalogo.length > 0 ? tiposCatalogo : [...TIPO_PROPIEDAD_VALUES];
+    const set = new Set(base);
+    for (const p of initialPropiedades) set.add(p.tipo);
+    return [...set].sort((a, b) => a.localeCompare(b, "es"));
+  }, [tiposCatalogo, initialPropiedades]);
+
+  const estadosFiltro = useMemo(() => {
+    const base = estadosCatalogo.length > 0 ? estadosCatalogo : [...ESTADO_PROPIEDAD_VALUES];
+    const set = new Set(base);
+    for (const p of initialPropiedades) set.add(p.estado);
+    return [...set].sort((a, b) => a.localeCompare(b, "es"));
+  }, [estadosCatalogo, initialPropiedades]);
 
   const filtradas = useMemo(() => {
     return initialPropiedades.filter((p) => {
@@ -103,7 +123,7 @@ export function PublicHomeClient({ initialPropiedades }: Props) {
                     </SelectTrigger>
                     <SelectContent position="popper" className="z-[100]">
                       <SelectItem value="all">Todos</SelectItem>
-                      {TIPO_PROPIEDAD_VALUES.map((t) => (
+                      {tiposFiltro.map((t) => (
                         <SelectItem key={t} value={t}>
                           {t === "Departamento" ? "Depto" : t}
                         </SelectItem>
@@ -121,7 +141,7 @@ export function PublicHomeClient({ initialPropiedades }: Props) {
                     </SelectTrigger>
                     <SelectContent position="popper" className="z-[100]">
                       <SelectItem value="all">Todos</SelectItem>
-                      {PUBLIC_HOME_ESTADOS_ORDENADOS.map((e) => (
+                      {estadosFiltro.map((e) => (
                         <SelectItem key={e} value={e}>
                           {e}
                         </SelectItem>

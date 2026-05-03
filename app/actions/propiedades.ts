@@ -12,6 +12,45 @@ import { parsePropiedadFormData, toPropiedadDbPayload } from "@/lib/validations/
 
 const BUCKET = "propiedades";
 
+async function assertNombreEnCatalogoActivo(
+  supabase: SupabaseClient,
+  table: "tipos_propiedad" | "estados_propiedad",
+  nombre: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const n = nombre.trim();
+  const { data, error } = await supabase.from(table).select("id").eq("nombre", n).is("deleted_at", null).maybeSingle();
+  if (error) return { ok: false, error: error.message };
+  if (!data) {
+    return {
+      ok: false,
+      error:
+        table === "tipos_propiedad"
+          ? "El tipo de propiedad no es válido o fue dado de baja."
+          : "El estado no es válido o fue dado de baja.",
+    };
+  }
+  return { ok: true };
+}
+
+/** Permite conservar el nombre si coincide con el valor ya guardado aunque el catálogo esté dado de baja. */
+async function assertNombreEnCatalogoOConservado(
+  supabase: SupabaseClient,
+  table: "tipos_propiedad" | "estados_propiedad",
+  nombre: string,
+  valorAnterior: string | null,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const active = await assertNombreEnCatalogoActivo(supabase, table, nombre);
+  if (active.ok) return active;
+  const n = nombre.trim();
+  const prev = valorAnterior?.trim() ?? null;
+  if (prev && n === prev) {
+    const { data, error } = await supabase.from(table).select("id").eq("nombre", n).maybeSingle();
+    if (error) return { ok: false, error: error.message };
+    if (data) return { ok: true };
+  }
+  return active;
+}
+
 /**
  * Las imágenes se suben directamente a Supabase Storage desde el navegador
  * (evita el límite de 4.5 MB de Vercel en serverless functions).
@@ -69,6 +108,11 @@ export async function createProperty(formData: FormData): Promise<ActionResult> 
   }
 
   const row = toPropiedadDbPayload(parsed.data);
+  const tipoCheck = await assertNombreEnCatalogoActivo(supabase, "tipos_propiedad", row.tipo);
+  if (!tipoCheck.ok) return { ok: false, error: tipoCheck.error };
+  const estadoCheck = await assertNombreEnCatalogoActivo(supabase, "estados_propiedad", row.estado);
+  if (!estadoCheck.ok) return { ok: false, error: estadoCheck.error };
+
   const imageUrls = collectImageUrls(formData);
 
   const { data: created, error: insErr } = await supabase
@@ -118,7 +162,28 @@ export async function updateProperty(formData: FormData): Promise<ActionResult> 
     return { ok: false, error: msg };
   }
 
+  const { data: existing } = await supabase
+    .from("propiedades")
+    .select("tipo, estado")
+    .eq("id", id)
+    .maybeSingle();
+
   const row = toPropiedadDbPayload(parsed.data);
+  const tipoCheck = await assertNombreEnCatalogoOConservado(
+    supabase,
+    "tipos_propiedad",
+    row.tipo,
+    (existing?.tipo as string | undefined) ?? null,
+  );
+  if (!tipoCheck.ok) return { ok: false, error: tipoCheck.error };
+  const estadoCheck = await assertNombreEnCatalogoOConservado(
+    supabase,
+    "estados_propiedad",
+    row.estado,
+    (existing?.estado as string | undefined) ?? null,
+  );
+  if (!estadoCheck.ok) return { ok: false, error: estadoCheck.error };
+
   const imageUrls = collectImageUrls(formData);
 
   const { error: upErr } = await supabase

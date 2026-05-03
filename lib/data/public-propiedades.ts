@@ -78,3 +78,19 @@ export async function fetchPublicPropiedadesForHome(): Promise<PublicPropiedadHo
     };
   });
 }
+
+/** Catálogos activos para filtros del home (requiere política RLS `anon` de lectura). */
+export async function fetchCatalogosPropiedadPublic(): Promise<{ tipos: string[]; estados: string[] }> {
+  const supabase = await createClient();
+  const [tiposR, estadosR] = await Promise.all([
+    supabase.from("tipos_propiedad").select("nombre").is("deleted_at", null).order("nombre"),
+    supabase.from("estados_propiedad").select("nombre").is("deleted_at", null).order("nombre"),
+  ]);
+  if (tiposR.error || estadosR.error) {
+    return { tipos: [], estados: [] };
+  }
+  return {
+    tipos: (tiposR.data ?? []).map((r) => (r as { nombre: string }).nombre),
+    estados: (estadosR.data ?? []).map((r) => (r as { nombre: string }).nombre),
+  };
+}

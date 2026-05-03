@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { ESTADO_PROPIEDAD_VALUES, TIPO_PROPIEDAD_VALUES } from "@/lib/constants/propiedades";
 import { PropiedadesTable } from "@/components/propiedades/propiedades-table";
 import type { PersonaOption, PropiedadListRow } from "@/components/propiedades/types";
 import { primeraImagenPropiedad } from "@/lib/propiedades/imagenes";
@@ -28,10 +29,11 @@ export default async function DashboardPropiedadesPage() {
     redirect("/dashboard?restringido=1");
   }
 
-  const { data: propsRows, error: propsErr } = await supabase
-    .from("propiedades")
-    .select(
-      `
+  const [propsRes, personasRes, tiposRes, estadosRes] = await Promise.all([
+    supabase
+      .from("propiedades")
+      .select(
+        `
       id,
       nombre,
       valor,
@@ -50,15 +52,31 @@ export default async function DashboardPropiedadesPage() {
       propiedades_img ( url_imagen, orden ),
       cliente_inquilino:clientes!propiedades_cliente_id_fkey ( nombre_completo, telefono )
     `,
-    )
-    .eq("is_active", true)
-    .order("created_at", { ascending: false });
+      )
+      .eq("is_active", true)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("clientes")
+      .select("id, nombre_completo, dni, tipo_cliente, email, telefono")
+      .eq("is_active", true)
+      .order("nombre_completo"),
+    supabase.from("tipos_propiedad").select("nombre").is("deleted_at", null).order("nombre"),
+    supabase.from("estados_propiedad").select("nombre").is("deleted_at", null).order("nombre"),
+  ]);
 
-  const { data: personasData, error: personasErr } = await supabase
-    .from("clientes")
-    .select("id, nombre_completo, dni, tipo_cliente, email, telefono")
-    .eq("is_active", true)
-    .order("nombre_completo");
+  const propsRows = propsRes.data;
+  const propsErr = propsRes.error;
+  const personasData = personasRes.data;
+  const personasErr = personasRes.error;
+
+  const tiposCatalogo =
+    !tiposRes.error && (tiposRes.data?.length ?? 0) > 0
+      ? (tiposRes.data ?? []).map((r: { nombre: string }) => r.nombre)
+      : [...TIPO_PROPIEDAD_VALUES];
+  const estadosCatalogo =
+    !estadosRes.error && (estadosRes.data?.length ?? 0) > 0
+      ? (estadosRes.data ?? []).map((r: { nombre: string }) => r.nombre)
+      : [...ESTADO_PROPIEDAD_VALUES];
 
   const queryError = propsErr?.message ?? personasErr?.message;
 
@@ -152,7 +170,12 @@ export default async function DashboardPropiedadesPage() {
   const propietariosOpts = todas.filter((p) => p.tipo_cliente === "Propietario" || p.tipo_cliente === "Ambos");
 
   return (
-    <PropiedadesTable rows={rows} propietarios={propietariosOpts}>
+    <PropiedadesTable
+      rows={rows}
+      propietarios={propietariosOpts}
+      tiposCatalogo={tiposCatalogo}
+      estadosCatalogo={estadosCatalogo}
+    >
       <Suspense fallback={<ExecutiveDashboardSkeleton />}>
         <ExecutiveDashboardPanel />
       </Suspense>

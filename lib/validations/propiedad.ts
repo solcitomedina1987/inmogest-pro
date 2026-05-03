@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { ESTADO_PROPIEDAD_VALUES, TIPO_PROPIEDAD_VALUES } from "@/lib/constants/propiedades";
 
 export const propiedadFormClientSchema = z
   .object({
@@ -8,8 +7,9 @@ export const propiedadFormClientSchema = z
     ciudad: z.string().optional(),
     provincia: z.string().optional(),
     valor: z.coerce.number().positive("El valor debe ser mayor a 0"),
-    tipo: z.enum(TIPO_PROPIEDAD_VALUES),
-    estado: z.enum(ESTADO_PROPIEDAD_VALUES),
+    /** Nombre exacto según fila activa en `tipos_propiedad` (u homónimo conservado al editar). */
+    tipo: z.string().min(1, "Seleccioná un tipo de propiedad"),
+    estado: z.string().min(1, "Seleccioná un estado"),
     propietario_id: z.string().min(1, "Seleccioná un propietario").uuid("Seleccioná un propietario"),
     cliente_id: z.string().optional(),
     dormitorios: z.coerce.number().int().min(0),

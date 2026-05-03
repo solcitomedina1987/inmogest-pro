@@ -21,6 +21,12 @@ const baseNav = [
   { href: "/dashboard/proveedores", label: "Proveedores" },
 ] as const;
 
+const adminGeneralNavItems = [
+  { href: "/dashboard/admin-general/conceptos-pago", label: "Conceptos de pago" },
+  { href: "/dashboard/admin-general/tipos-propiedad", label: "Tipos de propiedad" },
+  { href: "/dashboard/admin-general/estados-propiedad", label: "Estados de propiedad" },
+] as const;
+
 const adminNavItems = [{ href: "/dashboard/admin-usuarios", label: "Admin Usuarios" }] as const;
 
 type Props = {
@@ -82,6 +88,28 @@ export function DashboardShell({ children, isAdmin = false, isCliente = false }:
             {item.label}
           </Link>
         ))}
+        {isAdmin ? (
+          <div className="mt-2 space-y-0.5 border-t border-border pt-2">
+            <p className="text-muted-foreground px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider">
+              Admin general
+            </p>
+            {adminGeneralNavItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                prefetch
+                onClick={(e) => handleNavClick(e, item.href, after)}
+                className={cn(
+                  "text-foreground rounded-md px-3 py-2 text-sm transition-colors hover:bg-muted",
+                  !mobile && isDashboardSameSection(pathname, item.href) && "bg-muted font-medium",
+                  mobile && isDashboardSameSection(pathname, item.href) && "bg-muted font-medium",
+                )}
+              >
+                {item.label}
+              </Link>
+            ))}
+          </div>
+        ) : null}
         {isAdmin
           ? adminNavItems.map((item) => (
               <Link
