@@ -84,6 +84,7 @@ function lineasAlquileresSoloPropietario(detalle: DetallePagoV2): LineaRendicion
   const lineas: LineaRendicionUnidad[] = [
     {
       concepto_key: "alquiler",
+      impacto_linea: "alquiler",
       concepto: "Alquiler",
       monto: roundMoney(Number(detalle.monto_alquiler) || 0),
       observaciones: null,
@@ -95,8 +96,10 @@ function lineasAlquileresSoloPropietario(detalle: DetallePagoV2): LineaRendicion
     if (ex.impacto === "inmobiliaria") continue;
     const tipo = conceptoTipoDesdeExtraV2(ex);
     const concepto_key = tipo ?? "otros";
+    const impacto_linea = ex.impacto === "propietario_resta" ? "propietario_resta" : "propietario_suma";
     lineas.push({
       concepto_key,
+      impacto_linea,
       concepto: ex.concepto_label?.trim() || (tipo ? etiquetaConceptoSinEmoji(tipo) : "Concepto"),
       monto: roundMoney(m),
       observaciones: ex.observaciones,

@@ -1,7 +1,14 @@
 import { Image, StyleSheet, Text, View } from "@react-pdf/renderer";
 import { rendicionPdfIconDataUri } from "@/lib/cobranzas/concepto-rendicion-pdf-icon";
 import { conceptoRendicionKeyDesdeLinea } from "@/lib/cobranzas/concepto-rendicion-key";
-import type { InformeRendicionPayloadV4 } from "@/lib/informes/rendicion-types";
+import {
+  debeMostrarLineaComision,
+  etiquetaComisionInmobiliaria,
+  impactoLineaEffective,
+  partesLineasUnidadV4,
+} from "@/lib/informes/rendicion-v4-display";
+import type { ReactNode } from "react";
+import type { ConceptoRendicionKey, InformeRendicionPayloadV4 } from "@/lib/informes/rendicion-types";
 
 const precio = (n: number) =>
   new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 2 }).format(n);
@@ -22,14 +29,49 @@ const s = StyleSheet.create({
   },
   blockTitle: { fontSize: 10.5, fontWeight: "bold" },
   blockSub: { fontSize: 7.5, color: "#555", marginTop: 2 },
-  unidadWrap: { paddingHorizontal: 6, paddingVertical: 5, borderBottomWidth: 0.5, borderBottomColor: "#ddd" },
+  unidadWrap: { paddingHorizontal: 8, paddingVertical: 6, borderBottomWidth: 0.5, borderBottomColor: "#ddd" },
   unidadTitle: { fontSize: 8.5, fontWeight: "bold", marginBottom: 4 },
-  row: { flexDirection: "row", alignItems: "center", borderBottomWidth: 0.5, borderBottomColor: "#eee", paddingVertical: 3, paddingHorizontal: 4 },
-  iconCell: { width: 14, marginRight: 4, alignItems: "center", justifyContent: "center" },
+  unidadRecibo: { fontSize: 7.5, color: "#666", marginBottom: 6 },
+  bloqueInner: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 2,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    backgroundColor: "#fafaf9",
+  },
+  lineRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    borderTopWidth: 0.5,
+    borderTopColor: "#e5e5e5",
+    paddingVertical: 4,
+    paddingHorizontal: 2,
+  },
+  lineRowFirst: { borderTopWidth: 0, paddingTop: 2 },
+  iconCell: { width: 14, marginRight: 4, alignItems: "center", paddingTop: 1 },
   iconImg: { width: 11, height: 11 },
+  cellConcept: { flex: 2.2, fontSize: 8.5 },
+  cellObs: { fontSize: 7, color: "#555", marginTop: 2 },
+  cellMonto: { flex: 1, fontSize: 8.5, textAlign: "right", fontWeight: "500" },
+  cellMontoNeg: { color: "#b91c1c" },
+  subtotalRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "baseline",
+    marginTop: 6,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: "#999",
+  },
+  subtotalLabel: { fontSize: 9, fontWeight: "bold" },
+  subtotalNum: { fontSize: 9, fontWeight: "bold", textAlign: "right" },
+  inmobBlock: { marginTop: 10, borderWidth: 1.5, borderColor: "#666", borderStyle: "dashed", borderRadius: 2 },
+  inmobHead: { paddingHorizontal: 8, paddingVertical: 5, backgroundColor: "#f1f5f9", borderBottomWidth: 0.5, borderBottomColor: "#ccc" },
+  row: { flexDirection: "row", alignItems: "center", borderBottomWidth: 0.5, borderBottomColor: "#eee", paddingVertical: 3, paddingHorizontal: 4 },
   cell1: { flex: 2, fontSize: 8.5 },
   cellN: { flex: 1, fontSize: 8.5, textAlign: "right" },
-  cellObs: { flex: 1.5, fontSize: 7.5, color: "#444" },
+  cellObsWide: { flex: 1.5, fontSize: 7.5, color: "#444" },
   resumenBox: {
     marginTop: 4,
     paddingVertical: 5,
@@ -40,12 +82,8 @@ const s = StyleSheet.create({
     borderRadius: 2,
   },
   resLine: { flexDirection: "row", justifyContent: "space-between", marginBottom: 3 },
-  resLabel: { fontSize: 8, color: "#333", maxWidth: "72%" },
-  resNum: { fontSize: 8, textAlign: "right" },
   resBold: { fontSize: 9, fontWeight: "bold" },
   resBoldNum: { fontSize: 9, fontWeight: "bold", textAlign: "right" },
-  inmobBlock: { marginTop: 10, borderWidth: 1.5, borderColor: "#666", borderStyle: "dashed", borderRadius: 2 },
-  inmobHead: { paddingHorizontal: 8, paddingVertical: 5, backgroundColor: "#f1f5f9", borderBottomWidth: 0.5, borderBottomColor: "#ccc" },
   tableFootLight: {
     borderTopWidth: 1,
     borderTopColor: "#999",
@@ -63,9 +101,17 @@ const s = StyleSheet.create({
     borderRadius: 3,
   },
   closureTitle: { fontSize: 8, fontWeight: "bold", textAlign: "center", color: "#444", marginBottom: 8 },
-  closureLine: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 5 },
-  closureBold: { fontSize: 9, fontWeight: "bold" },
-  closureNum: { fontSize: 9, fontWeight: "bold", textAlign: "right" },
+  closureUnitRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 5,
+    paddingBottom: 4,
+    borderBottomWidth: 0.5,
+    borderBottomColor: "#ddd",
+  },
+  closureUnitTitulo: { fontSize: 8.5, fontWeight: "500", maxWidth: "72%", color: "#292524" },
+  closureUnitNum: { fontSize: 8.5, fontWeight: "600", textAlign: "right" },
   closureDestacado: {
     marginTop: 6,
     paddingVertical: 10,
@@ -81,11 +127,45 @@ const s = StyleSheet.create({
   muted: { color: "#555", fontSize: 7.5 },
   rowPad: { paddingHorizontal: 8, paddingVertical: 8 },
   sectionRule: { marginTop: 10, marginBottom: 2, borderTopWidth: 2, borderTopColor: "#222" },
+  warn: { fontSize: 7.5, color: "#b91c1c", marginTop: 4, marginBottom: 4 },
 });
 
 type Props = { payload: InformeRendicionPayloadV4 };
 
+function PdfLineaConcepto({
+  conceptoKey,
+  titulo,
+  montoTexto,
+  esNegativo,
+  obs,
+  isFirst,
+}: {
+  conceptoKey: ConceptoRendicionKey;
+  titulo: string;
+  montoTexto: string;
+  esNegativo: boolean;
+  obs?: string | null;
+  isFirst: boolean;
+}) {
+  return (
+    <View style={[s.lineRow, isFirst ? s.lineRowFirst : {}]} wrap={false}>
+      <View style={s.iconCell}>
+        {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image */}
+        <Image src={rendicionPdfIconDataUri(conceptoKey)} style={s.iconImg} />
+      </View>
+      <View style={s.cellConcept}>
+        <Text>{titulo}</Text>
+        {obs?.trim() ? <Text style={s.cellObs}>{obs.trim()}</Text> : null}
+      </View>
+      <Text style={[s.cellMonto, esNegativo ? s.cellMontoNeg : {}]}>{montoTexto}</Text>
+    </View>
+  );
+}
+
 export function InformeRendicionPdfBodyV4({ payload }: Props) {
+  const validacionOk =
+    Math.abs(payload.total_validacion_neto - payload.total_a_rendir_propietario) < 0.02;
+
   return (
     <>
       <View style={s.blockOuter}>
@@ -97,46 +177,79 @@ export function InformeRendicionPdfBodyV4({ payload }: Props) {
             <Text style={s.muted}>Sin cobranzas en el período.</Text>
           </View>
         ) : (
-          payload.unidades.map((u) => (
-            <View key={u.pago_id} style={s.unidadWrap} wrap={false}>
-              <Text style={s.unidadTitle}>{u.titulo_bloque}</Text>
-              {u.lineas.map((row, i) => (
-                <View key={`${u.pago_id}-l-${i}`} style={s.row} wrap={false}>
-                  <View style={s.iconCell}>
-                    {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image */}
-                    <Image src={rendicionPdfIconDataUri(conceptoRendicionKeyDesdeLinea(row))} style={s.iconImg} />
+          payload.unidades.map((u) => {
+            const { lineaAlquiler, resto } = partesLineasUnidadV4(u);
+            const showComision = debeMostrarLineaComision(payload, u);
+            const alqFmt = precio(u.monto_alquiler);
+
+            const lineRows: ReactNode[] = [];
+            let rowSeq = 0;
+            const isFirstRow = () => rowSeq++ === 0;
+
+            if (lineaAlquiler) {
+              const row = lineaAlquiler;
+              const imp = impactoLineaEffective(row);
+              const esResta = imp === "propietario_resta";
+              const montoAbs = precio(row.monto);
+              const montoTexto = esResta ? `-${montoAbs}` : montoAbs;
+              lineRows.push(
+                <PdfLineaConcepto
+                  key={`${u.pago_id}-alq`}
+                  conceptoKey={conceptoRendicionKeyDesdeLinea(row)}
+                  titulo={row.concepto}
+                  montoTexto={montoTexto}
+                  esNegativo={esResta}
+                  obs={row.observaciones}
+                  isFirst={isFirstRow()}
+                />,
+              );
+            }
+
+            if (showComision) {
+              lineRows.push(
+                <PdfLineaConcepto
+                  key={`${u.pago_id}-com`}
+                  conceptoKey="honorarios_inmobiliarios"
+                  titulo={etiquetaComisionInmobiliaria(payload.comision_porcentaje, alqFmt)}
+                  montoTexto={`-${precio(u.comision_inmobiliaria_unidad)}`}
+                  esNegativo
+                  isFirst={isFirstRow()}
+                />,
+              );
+            }
+
+            resto.forEach((row, i) => {
+              const imp = impactoLineaEffective(row);
+              const esResta = imp === "propietario_resta";
+              const montoAbs = precio(row.monto);
+              const montoTexto = esResta ? `-${montoAbs}` : montoAbs;
+              lineRows.push(
+                <PdfLineaConcepto
+                  key={`${u.pago_id}-ex-${i}`}
+                  conceptoKey={conceptoRendicionKeyDesdeLinea(row)}
+                  titulo={row.concepto}
+                  montoTexto={montoTexto}
+                  esNegativo={esResta}
+                  obs={row.observaciones}
+                  isFirst={isFirstRow()}
+                />,
+              );
+            });
+
+            return (
+              <View key={u.pago_id} style={s.unidadWrap} wrap={false}>
+                <Text style={s.unidadTitle}>{u.titulo_bloque}</Text>
+                <Text style={s.unidadRecibo}>Recibo {u.pago_id.slice(0, 8)}…</Text>
+                <View style={s.bloqueInner}>
+                  {lineRows}
+                  <View style={s.subtotalRow} wrap={false}>
+                    <Text style={s.subtotalLabel}>Subtotal al propietario</Text>
+                    <Text style={s.subtotalNum}>{precio(u.subtotal_neto_unidad)}</Text>
                   </View>
-                  <Text style={s.cell1}>{row.concepto}</Text>
-                  <Text style={s.cellN}>{precio(row.monto)}</Text>
-                  <Text style={s.cellObs}>{row.observaciones ?? "—"}</Text>
-                </View>
-              ))}
-              <View style={s.resumenBox}>
-                <View style={s.resLine}>
-                  <Text style={s.resLabel}>Subtotal bruto (alquiler + suma al propietario)</Text>
-                  <Text style={s.resNum}>{precio(u.subtotal_bruto)}</Text>
-                </View>
-                <View style={s.resLine}>
-                  <Text style={s.resLabel}>
-                    Comisión ({payload.comision_porcentaje}% sobre alquiler {precio(u.monto_alquiler)})
-                  </Text>
-                  <Text style={s.resNum}>- {precio(u.comision_inmobiliaria_unidad)}</Text>
-                </View>
-                <View style={s.resLine}>
-                  <Text style={s.resLabel}>Deducciones (resta al propietario)</Text>
-                  <Text style={s.resNum}>- {precio(u.deducciones)}</Text>
-                </View>
-                <View style={[s.resLine, { marginBottom: 0 }]}>
-                  <Text style={s.muted}>Total cobrado al inquilino</Text>
-                  <Text style={s.muted}>{precio(u.subtotal_cobrado_inquilino)}</Text>
-                </View>
-                <View style={[s.resLine, { marginTop: 5, paddingTop: 4, borderTopWidth: 0.5, borderTopColor: "#999" }]}>
-                  <Text style={s.resBold}>Subtotal neto unidad</Text>
-                  <Text style={s.resBoldNum}>{precio(u.subtotal_neto_unidad)}</Text>
                 </View>
               </View>
-            </View>
-          ))
+            );
+          })
         )}
       </View>
 
@@ -171,7 +284,7 @@ export function InformeRendicionPdfBodyV4({ payload }: Props) {
                   </View>
                   <Text style={s.cell1}>{o.concepto}</Text>
                   <Text style={s.cellN}>{precio(o.monto)}</Text>
-                  <Text style={s.cellObs}>{o.observaciones ?? "—"}</Text>
+                  <Text style={s.cellObsWide}>{o.observaciones ?? "—"}</Text>
                 </View>
               ))}
               <View style={s.resumenBox}>
@@ -193,18 +306,17 @@ export function InformeRendicionPdfBodyV4({ payload }: Props) {
 
       <View style={s.closureBox}>
         <Text style={s.closureTitle}>LIQUIDACIÓN FINAL</Text>
-        <View style={s.closureLine}>
-          <Text style={s.closureBold}>Subtotal propiedades</Text>
-          <Text style={s.closureNum}>{precio(payload.total_subtotal_bruto_periodo)}</Text>
-        </View>
-        <View style={s.closureLine}>
-          <Text style={s.closureBold}>Comisiones (suma por unidad)</Text>
-          <Text style={s.closureNum}>- {precio(payload.total_comisiones_periodo)}</Text>
-        </View>
-        <View style={[s.closureLine, { marginBottom: 8 }]}>
-          <Text style={s.closureBold}>Deducciones (resta al propietario)</Text>
-          <Text style={s.closureNum}>- {precio(payload.total_deducciones_periodo)}</Text>
-        </View>
+        {payload.unidades.map((u) => (
+          <View key={`cl-${u.pago_id}`} style={s.closureUnitRow} wrap={false}>
+            <Text style={s.closureUnitTitulo}>{u.titulo_bloque}</Text>
+            <Text style={s.closureUnitNum}>{precio(u.subtotal_neto_unidad)}</Text>
+          </View>
+        ))}
+        {!validacionOk ? (
+          <Text style={s.warn}>
+            Atención: diferencia de redondeo entre el total liquidado y el detalle por unidad.
+          </Text>
+        ) : null}
         <View style={s.closureDestacado}>
           <View style={s.closureDestacadoRow}>
             <Text style={s.closureDestacadoLabel}>Total al propietario</Text>

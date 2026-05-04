@@ -67,10 +67,15 @@ export type InformeRendicionPayloadV2 = {
   total_neto_a_rendir: number;
 };
 
+/** Cómo impacta cada línea en el neto al propietario (payload v4+). */
+export type ImpactoLineaRendicionV4 = "alquiler" | "propietario_suma" | "propietario_resta";
+
 /** Línea de desglose dentro de una unidad (contrato / recibo del período). */
 export type LineaRendicionUnidad = {
   /** Para iconos; informes viejos pueden no tenerlo (se infiere del texto). */
   concepto_key?: ConceptoRendicionKey | null;
+  /** v4+: firma del monto; sin valor, la UI asume suma salvo alquiler inferido por clave/texto. */
+  impacto_linea?: ImpactoLineaRendicionV4 | null;
   concepto: string;
   monto: number;
   observaciones: string | null;
@@ -125,7 +130,7 @@ export type UnidadRendicionV4 = {
   inquilino_nombre: string;
   /** Propiedad: [dirección] | Inquilino: [nombre] */
   titulo_bloque: string;
-  /** Alquiler + suma al propietario + resta al propietario (sin rubros inmobiliaria). */
+  /** Alquiler + extras propietario (sin inmobiliaria); cada línea trae `impacto_linea` en informes nuevos. */
   lineas: LineaRendicionUnidad[];
   subtotal_cobrado_inquilino: number;
   /** Alquiler + conceptos con impacto “Suma al Propietario”. */

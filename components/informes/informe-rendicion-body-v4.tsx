@@ -1,5 +1,11 @@
 import { ConceptoRendicionLucideIcon, conceptoRendicionKeyDesdeLinea } from "@/lib/cobranzas/concepto-rendicion-icons";
-import type { InformeRendicionPayloadV4 } from "@/lib/informes/rendicion-types";
+import {
+  debeMostrarLineaComision,
+  etiquetaComisionInmobiliaria,
+  impactoLineaEffective,
+  partesLineasUnidadV4,
+} from "@/lib/informes/rendicion-v4-display";
+import type { ConceptoRendicionKey, InformeRendicionPayloadV4, LineaRendicionUnidad } from "@/lib/informes/rendicion-types";
 
 const precioFmt = new Intl.NumberFormat("es-AR", {
   style: "currency",
@@ -8,6 +14,92 @@ const precioFmt = new Intl.NumberFormat("es-AR", {
 });
 
 type Props = { payload: InformeRendicionPayloadV4 };
+
+function LineaMontoUnidad({
+  conceptoKey,
+  titulo,
+  montoTexto,
+  esNegativo,
+  obs,
+}: {
+  conceptoKey: ConceptoRendicionKey;
+  titulo: string;
+  montoTexto: string;
+  esNegativo: boolean;
+  obs?: string | null;
+}) {
+  return (
+    <div className="flex flex-wrap items-start gap-2 border-t border-stone-100 py-2 first:border-t-0 first:pt-0">
+      <div className="mt-0.5 shrink-0">
+        <ConceptoRendicionLucideIcon conceptoKey={conceptoKey} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm text-stone-900">{titulo}</p>
+        {obs?.trim() ? <p className="text-muted-foreground mt-0.5 text-xs">{obs.trim()}</p> : null}
+      </div>
+      <p
+        className={`shrink-0 text-right text-sm tabular-nums font-medium ${
+          esNegativo ? "text-destructive" : "text-stone-900"
+        }`}
+      >
+        {montoTexto}
+      </p>
+    </div>
+  );
+}
+
+function BloqueUnidadAlquileres({ payload, u }: { payload: InformeRendicionPayloadV4; u: InformeRendicionPayloadV4["unidades"][number] }) {
+  const { lineaAlquiler, resto } = partesLineasUnidadV4(u);
+  const showComision = debeMostrarLineaComision(payload, u);
+  const alqFmt = precioFmt.format(u.monto_alquiler);
+
+  const lineaConceptoEl = (row: LineaRendicionUnidad, keySuffix: string) => {
+    const imp = impactoLineaEffective(row);
+    const esResta = imp === "propietario_resta";
+    const montoAbs = precioFmt.format(row.monto);
+    const montoTexto = esResta ? `−${montoAbs}` : montoAbs;
+    return (
+      <LineaMontoUnidad
+        key={`${u.pago_id}-${keySuffix}`}
+        conceptoKey={conceptoRendicionKeyDesdeLinea(row)}
+        titulo={row.concepto}
+        montoTexto={montoTexto}
+        esNegativo={esResta}
+        obs={row.observaciones}
+      />
+    );
+  };
+
+  return (
+    <div className="bg-white px-4 py-4">
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="text-sm font-bold leading-snug text-stone-900">{u.titulo_bloque}</h3>
+        <span className="text-muted-foreground text-xs tabular-nums">Recibo {u.pago_id.slice(0, 8)}…</span>
+      </div>
+
+      <div className="rounded-md border border-stone-200 bg-stone-50/40 px-3 py-2">
+        {lineaAlquiler ? lineaConceptoEl(lineaAlquiler, "alq") : null}
+
+        {showComision ? (
+          <LineaMontoUnidad
+            key={`${u.pago_id}-com`}
+            conceptoKey="honorarios_inmobiliarios"
+            titulo={etiquetaComisionInmobiliaria(payload.comision_porcentaje, alqFmt)}
+            montoTexto={`−${precioFmt.format(u.comision_inmobiliaria_unidad)}`}
+            esNegativo
+          />
+        ) : null}
+
+        {resto.map((row, i) => lineaConceptoEl(row, `ex-${i}`))}
+
+        <div className="mt-2 flex flex-wrap items-baseline justify-between gap-2 border-t border-stone-300 pt-3">
+          <span className="text-sm font-bold text-stone-950">Subtotal al propietario</span>
+          <span className="text-sm font-bold tabular-nums text-stone-950">{precioFmt.format(u.subtotal_neto_unidad)}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function InformeRendicionBodyV4({ payload }: Props) {
   const validacionOk =
@@ -26,59 +118,7 @@ export function InformeRendicionBodyV4({ payload }: Props) {
           ) : (
             <div className="divide-y divide-stone-200">
               {payload.unidades.map((u) => (
-                <div key={u.pago_id} className="bg-white px-4 py-4">
-                  <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-                    <h3 className="text-sm font-bold text-stone-900">{u.titulo_bloque}</h3>
-                    <span className="text-muted-foreground text-xs tabular-nums">Recibo {u.pago_id.slice(0, 8)}…</span>
-                  </div>
-                  <table className="w-full text-sm">
-                    <thead className="bg-muted/40">
-                      <tr>
-                        <th className="w-10 px-1 py-1.5" aria-hidden />
-                        <th className="px-2 py-1.5 text-left font-medium">Concepto</th>
-                        <th className="px-2 py-1.5 text-right font-medium">Monto</th>
-                        <th className="px-2 py-1.5 text-left font-medium">Obs.</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {u.lineas.map((row, i) => (
-                        <tr key={`${u.pago_id}-${i}`} className="border-t border-stone-100">
-                          <td className="px-1 py-1.5 align-middle">
-                            <ConceptoRendicionLucideIcon conceptoKey={conceptoRendicionKeyDesdeLinea(row)} />
-                          </td>
-                          <td className="px-2 py-1.5">{row.concepto}</td>
-                          <td className="px-2 py-1.5 text-right tabular-nums">{precioFmt.format(row.monto)}</td>
-                          <td className="text-muted-foreground px-2 py-1.5 text-xs">{row.observaciones ?? "—"}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  <div className="mt-3 space-y-1.5 rounded-md border border-stone-200 bg-stone-50/90 px-3 py-2.5 text-sm">
-                    <div className="flex flex-wrap justify-between gap-2">
-                      <span className="text-stone-700">Subtotal bruto (alquiler + suma al propietario)</span>
-                      <span className="tabular-nums font-medium text-stone-900">{precioFmt.format(u.subtotal_bruto)}</span>
-                    </div>
-                    <div className="flex flex-wrap justify-between gap-2 text-destructive">
-                      <span>
-                        Comisión inmobiliaria ({payload.comision_porcentaje}% sobre alquiler{" "}
-                        {precioFmt.format(u.monto_alquiler)})
-                      </span>
-                      <span className="tabular-nums font-medium">− {precioFmt.format(u.comision_inmobiliaria_unidad)}</span>
-                    </div>
-                    <div className="flex flex-wrap justify-between gap-2 text-destructive">
-                      <span>Deducciones (resta al propietario)</span>
-                      <span className="tabular-nums font-medium">− {precioFmt.format(u.deducciones)}</span>
-                    </div>
-                    <div className="text-muted-foreground flex flex-wrap justify-between gap-2 border-t border-stone-200 pt-1.5 text-xs">
-                      <span>Total cobrado al inquilino (recibo)</span>
-                      <span className="tabular-nums">{precioFmt.format(u.subtotal_cobrado_inquilino)}</span>
-                    </div>
-                    <div className="flex flex-wrap justify-between gap-2 border-t border-stone-300 pt-2">
-                      <span className="font-bold text-stone-950">Subtotal neto unidad</span>
-                      <span className="font-bold tabular-nums text-stone-950">{precioFmt.format(u.subtotal_neto_unidad)}</span>
-                    </div>
-                  </div>
-                </div>
+                <BloqueUnidadAlquileres key={u.pago_id} payload={payload} u={u} />
               ))}
             </div>
           )}
@@ -147,27 +187,18 @@ export function InformeRendicionBodyV4({ payload }: Props) {
         aria-label="Liquidación final"
       >
         <h3 className="text-center text-xs font-bold uppercase tracking-widest text-stone-600">Liquidación final</h3>
-        <div className="mt-5 space-y-4 text-sm">
-          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-stone-300 pb-2">
-            <span className="min-w-0 flex-1 font-medium text-stone-800">Subtotal propiedades</span>
-            <span className="shrink-0 font-semibold tabular-nums text-stone-900 sm:text-right">
-              {precioFmt.format(payload.total_subtotal_bruto_periodo)}
-            </span>
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-destructive">
-            <span className="min-w-0 flex-1 font-medium">Comisiones (suma por unidad, sobre alquiler)</span>
-            <span className="shrink-0 font-semibold tabular-nums sm:text-right">
-              − {precioFmt.format(payload.total_comisiones_periodo)}
-            </span>
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-destructive">
-            <span className="min-w-0 flex-1 font-medium">Deducciones (resta al propietario)</span>
-            <span className="shrink-0 font-semibold tabular-nums sm:text-right">
-              − {precioFmt.format(payload.total_deducciones_periodo)}
-            </span>
-          </div>
+        <div className="mt-5 space-y-3 text-sm">
+          {payload.unidades.map((u) => (
+            <div
+              key={`liq-${u.pago_id}`}
+              className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-stone-200 pb-2 last:border-b-0 last:pb-0"
+            >
+              <span className="min-w-0 max-w-[85%] text-sm font-medium text-stone-800">{u.titulo_bloque}</span>
+              <span className="shrink-0 font-semibold tabular-nums text-stone-900">{precioFmt.format(u.subtotal_neto_unidad)}</span>
+            </div>
+          ))}
           {!validacionOk ? (
-            <p className="text-destructive text-xs font-medium">
+            <p className="text-destructive pt-1 text-xs font-medium">
               Atención: diferencia de redondeo entre el total liquidado y el detalle por unidad. Revisá los importes en el
               sistema.
             </p>
