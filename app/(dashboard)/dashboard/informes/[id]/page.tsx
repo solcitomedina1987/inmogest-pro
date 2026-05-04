@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { parseInformeRendicionPayload } from "@/lib/informes/parse-informe-payload";
+import { googleSheetsRendicionExportConfigurado } from "@/lib/informes/sheets-rendicion-export";
 import { InformeRendicionVista } from "@/components/informes/informe-rendicion-vista";
 import { InformeRendicionDetalleToolbar } from "@/components/informes/informe-rendicion-detalle-toolbar";
 
@@ -45,6 +46,7 @@ export default async function InformeRendicionDetallePage({ params }: Props) {
       <InformeRendicionDetalleToolbar
         informeId={row.id as string}
         deletedAt={(row.deleted_at as string | null | undefined) ?? null}
+        googleSheetsExportReady={googleSheetsRendicionExportConfigurado()}
       />
       <InformeRendicionVista payload={payload} fechaGeneracion={row.fecha_generacion as string} />
     </div>

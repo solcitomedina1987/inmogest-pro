@@ -1,16 +1,36 @@
 "use client";
 
 import Link from "next/link";
-import { AlertTriangle, ArrowLeft, Printer } from "lucide-react";
+import { useTransition } from "react";
+import { AlertTriangle, ArrowLeft, Loader2, Printer, Table } from "lucide-react";
+import { toast } from "sonner";
+import { sincronizarInformeRendicionGoogleSheets } from "@/app/actions/informes-rendicion-sheets";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type Props = {
   informeId: string;
   deletedAt?: string | null;
+  /** True si hay credenciales Google (misma service account que Calendar). */
+  googleSheetsExportReady?: boolean;
 };
 
-export function InformeRendicionDetalleToolbar({ informeId, deletedAt }: Props) {
+export function InformeRendicionDetalleToolbar({ informeId, deletedAt, googleSheetsExportReady = false }: Props) {
+  const [pendingSheets, startSheets] = useTransition();
+
+  const syncSheets = () => {
+    startSheets(() => {
+      void (async () => {
+        const r = await sincronizarInformeRendicionGoogleSheets(informeId);
+        if (r.ok) {
+          toast.success(`Datos exportados correctamente a la pestaña ${r.sheetTitle}`);
+        } else {
+          toast.error(r.error);
+        }
+      })();
+    });
+  };
+
   return (
     <div className="mb-6 flex max-w-full min-w-0 flex-col gap-3 print:hidden">
       {deletedAt ? (
@@ -41,6 +61,22 @@ export function InformeRendicionDetalleToolbar({ informeId, deletedAt }: Props) 
             <Printer className="size-4" aria-hidden />
             Descargar PDF
           </a>
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          className="gap-2"
+          disabled={Boolean(deletedAt) || !googleSheetsExportReady || pendingSheets}
+          title={
+            !googleSheetsExportReady
+              ? "Configurá GOOGLE_CLIENT_EMAIL y GOOGLE_PRIVATE_KEY y compartí la hoja con esa cuenta."
+              : undefined
+          }
+          onClick={syncSheets}
+        >
+          {pendingSheets ? <Loader2 className="size-4 shrink-0 animate-spin" aria-hidden /> : <Table className="size-4 shrink-0" aria-hidden />}
+          Sincronizar con Google Sheets
         </Button>
       </div>
     </div>
