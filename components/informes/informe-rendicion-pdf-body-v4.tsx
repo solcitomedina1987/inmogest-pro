@@ -28,7 +28,6 @@ const s = StyleSheet.create({
     borderBottomColor: "#ccc",
   },
   blockTitle: { fontSize: 10.5, fontWeight: "bold" },
-  blockSub: { fontSize: 7.5, color: "#555", marginTop: 2 },
   unidadWrap: { paddingHorizontal: 8, paddingVertical: 6, borderBottomWidth: 0.5, borderBottomColor: "#ddd" },
   unidadTitle: { fontSize: 8.5, fontWeight: "bold", marginBottom: 4 },
   unidadRecibo: { fontSize: 7.5, color: "#666", marginBottom: 6 },
@@ -84,12 +83,13 @@ const s = StyleSheet.create({
   resLine: { flexDirection: "row", justifyContent: "space-between", marginBottom: 3 },
   resBold: { fontSize: 9, fontWeight: "bold" },
   resBoldNum: { fontSize: 9, fontWeight: "bold", textAlign: "right" },
-  tableFootLight: {
-    borderTopWidth: 1,
-    borderTopColor: "#999",
-    backgroundColor: "#e8ecf0",
+  inmobTotalSep: {
+    marginTop: 10,
+    paddingTop: 10,
+    paddingBottom: 12,
     paddingHorizontal: 8,
-    paddingVertical: 5,
+    borderTopWidth: 2,
+    borderTopColor: "#999",
   },
   closureBox: {
     marginTop: 12,
@@ -258,7 +258,6 @@ export function InformeRendicionPdfBodyV4({ payload }: Props) {
       <View style={s.inmobBlock}>
         <View style={s.inmobHead}>
           <Text style={s.blockTitle}>Rendición a Inmobiliaria</Text>
-          <Text style={s.blockSub}>Por unidad / recibo.</Text>
         </View>
         {payload.inmobiliaria_por_unidad.length === 0 ? (
           <View style={s.rowPad}>
@@ -296,10 +295,12 @@ export function InformeRendicionPdfBodyV4({ payload }: Props) {
             </View>
           ))
         )}
-        <View style={s.tableFootLight}>
-          <View style={s.resLine}>
-            <Text style={s.resBold}>Total general inmobiliaria</Text>
-            <Text style={s.resBoldNum}>{precio(payload.total_suma_inmobiliaria_conceptos)}</Text>
+        <View style={s.inmobTotalSep}>
+          <View style={s.closureDestacado}>
+            <View style={s.closureDestacadoRow}>
+              <Text style={s.closureDestacadoLabel}>Total general inmobiliaria</Text>
+              <Text style={s.closureDestacadoNum}>{precio(payload.total_suma_inmobiliaria_conceptos)}</Text>
+            </View>
           </View>
         </View>
       </View>

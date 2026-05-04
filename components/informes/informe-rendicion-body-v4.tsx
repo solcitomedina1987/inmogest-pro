@@ -128,7 +128,6 @@ export function InformeRendicionBodyV4({ payload }: Props) {
       <section className="mt-10 overflow-hidden rounded-lg border-2 border-dashed border-stone-400 bg-slate-50/50 shadow-sm">
         <div className="border-b border-stone-200 px-4 py-3">
           <h2 className="text-base font-semibold text-stone-900">Rendición a Inmobiliaria</h2>
-          <p className="text-muted-foreground mt-1 text-xs">Conceptos con impacto inmobiliaria, agrupados por unidad.</p>
         </div>
 
         {payload.inmobiliaria_por_unidad.length === 0 ? (
@@ -174,10 +173,16 @@ export function InformeRendicionBodyV4({ payload }: Props) {
           </div>
         )}
 
-        <div className="border-t border-stone-300 bg-slate-100/90 px-4 py-2.5 text-sm">
-          <div className="flex justify-between gap-4 font-bold text-stone-950">
-            <span>Total general inmobiliaria</span>
-            <span className="tabular-nums">{precioFmt.format(payload.total_suma_inmobiliaria_conceptos)}</span>
+        <div className="mt-4 border-t-2 border-stone-300 px-4 pb-5 pt-4">
+          <div className="rounded-lg border-2 border-amber-600 bg-amber-50 px-4 py-5 shadow-inner">
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              <span className="min-w-0 flex-1 text-lg font-extrabold tracking-tight text-stone-950 sm:text-xl">
+                Total general inmobiliaria
+              </span>
+              <span className="shrink-0 text-2xl font-extrabold tabular-nums text-stone-950 sm:text-right sm:text-3xl">
+                {precioFmt.format(payload.total_suma_inmobiliaria_conceptos)}
+              </span>
+            </div>
           </div>
         </div>
       </section>
