@@ -12,6 +12,30 @@ function fmtFecha(iso: string): string {
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
 }
 
+function ServiciosPropiedad({ contrato }: { contrato: ContratoCobranzaRow }) {
+  const p = contrato.propiedad;
+  if (!p) return null;
+  const filas: { label: string; value: string }[] = [];
+  if (p.nis_electricidad?.trim()) filas.push({ label: "NIS electricidad", value: p.nis_electricidad.trim() });
+  if (p.cliente_gas?.trim()) filas.push({ label: "Cliente gas", value: p.cliente_gas.trim() });
+  if (p.padron_municipal?.trim()) filas.push({ label: "Padrón municipal", value: p.padron_municipal.trim() });
+  if (p.cliente_internet?.trim()) filas.push({ label: "Internet", value: p.cliente_internet.trim() });
+  if (filas.length === 0) return null;
+  return (
+    <div className="border-t border-border pt-4 sm:col-span-2 lg:col-span-3">
+      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Servicios en la propiedad</p>
+      <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+        {filas.map((f) => (
+          <div key={f.label}>
+            <dt className="text-muted-foreground text-xs">{f.label}</dt>
+            <dd className="mt-0.5 font-medium break-words">{f.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
 export function ContratoDetallesCard({ contrato }: { contrato: ContratoCobranzaRow }) {
   return (
     <Card className="border shadow-sm">
@@ -45,6 +69,7 @@ export function ContratoDetallesCard({ contrato }: { contrato: ContratoCobranzaR
             Cada {contrato.meses_actualizacion} meses · {contrato.indice_actualizacion}
           </p>
         </div>
+        <ServiciosPropiedad contrato={contrato} />
       </CardContent>
     </Card>
   );

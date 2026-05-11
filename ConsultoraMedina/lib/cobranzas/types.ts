@@ -19,7 +19,14 @@ export type ContratoCobranzaRow = {
   is_active: boolean;
   /** Baja lógica: si no es null, el contrato está eliminado. */
   deleted_at: string | null;
-  propiedad?: { nombre: string; direccion?: string | null } | null;
+  propiedad?: {
+    nombre: string;
+    direccion?: string | null;
+    nis_electricidad?: string | null;
+    cliente_gas?: string | null;
+    padron_municipal?: string | null;
+    cliente_internet?: string | null;
+  } | null;
   inquilino?: {
     nombre_completo: string;
     dni?: number | string | null;
@@ -27,6 +34,13 @@ export type ContratoCobranzaRow = {
     telefono?: string | null;
   } | null;
   locador?: { nombre_completo: string } | null;
+  /** Contrato de locación legal (`contratos`) vinculado a esta cobranza, si existe. */
+  contrato_legal?: {
+    id: string;
+    pdf_storage_path: string | null;
+    adjunto_storage_path: string | null;
+    adjunto_mime: string | null;
+  } | null;
 };
 
 export type PagoRow = {

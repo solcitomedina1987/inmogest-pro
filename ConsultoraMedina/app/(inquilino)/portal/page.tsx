@@ -74,9 +74,17 @@ export default async function PortalPage() {
       `id, propiedad_id, cliente_id, locador_id, fecha_inicio, fecha_vencimiento,
        monto_mensual, dia_limite_pago, meses_actualizacion, indice_actualizacion,
        ultima_actualizacion, is_active,
-       propiedad:propiedades ( nombre, direccion ),
+       propiedad:propiedades (
+         nombre,
+         direccion,
+         nis_electricidad,
+         cliente_gas,
+         padron_municipal,
+         cliente_internet
+       ),
        inquilino:clientes!contratos_cobranza_cliente_id_fkey ( nombre_completo ),
-       locador:clientes!contratos_cobranza_locador_id_fkey ( nombre_completo )`,
+       locador:clientes!contratos_cobranza_locador_id_fkey ( nombre_completo ),
+       contratos ( id, pdf_storage_path, adjunto_storage_path, adjunto_mime )`,
     )
     .eq("cliente_id", clienteRaw.id)
     .eq("is_active", true)
@@ -94,6 +102,16 @@ export default async function PortalPage() {
   }
 
   const r = contratoRow as Record<string, unknown>;
+  const propRaw = unwrapFk(
+    r.propiedad as {
+      nombre: string;
+      direccion?: string | null;
+      nis_electricidad?: string | null;
+      cliente_gas?: string | null;
+      padron_municipal?: string | null;
+      cliente_internet?: string | null;
+    } | null,
+  );
   const contrato: ContratoCobranzaRow = {
     id: r.id as string,
     propiedad_id: r.propiedad_id as string,
@@ -108,9 +126,30 @@ export default async function PortalPage() {
     ultima_actualizacion: (r.ultima_actualizacion as string) ?? null,
     is_active: Boolean(r.is_active),
     deleted_at: null,
-    propiedad: unwrapFk(r.propiedad as { nombre: string } | { nombre: string }[] | null),
+    propiedad: propRaw
+      ? {
+          nombre: propRaw.nombre,
+          direccion: propRaw.direccion ?? null,
+          nis_electricidad: propRaw.nis_electricidad?.trim() || null,
+          cliente_gas: propRaw.cliente_gas?.trim() || null,
+          padron_municipal: propRaw.padron_municipal?.trim() || null,
+          cliente_internet: propRaw.cliente_internet?.trim() || null,
+        }
+      : null,
     inquilino: unwrapFk(r.inquilino as { nombre_completo: string } | null),
     locador: unwrapFk(r.locador as { nombre_completo: string } | null),
+    contrato_legal: (() => {
+      const rawL = r.contratos as Record<string, unknown> | Record<string, unknown>[] | null | undefined;
+      const arr = Array.isArray(rawL) ? rawL : rawL ? [rawL] : [];
+      const L = arr[0];
+      if (!L?.id) return null;
+      return {
+        id: String(L.id),
+        pdf_storage_path: (L.pdf_storage_path as string | null) ?? null,
+        adjunto_storage_path: (L.adjunto_storage_path as string | null) ?? null,
+        adjunto_mime: (L.adjunto_mime as string | null) ?? null,
+      };
+    })(),
   };
 
   /* ── 5. Sincronizar cuotas mensuales (service role para poder insertar) ── */

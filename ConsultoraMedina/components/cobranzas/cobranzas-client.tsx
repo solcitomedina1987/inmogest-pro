@@ -12,6 +12,7 @@ import {
   FileText,
   Loader2,
   Pencil,
+  PlusCircle,
   ScrollText,
   Trash2,
 } from "lucide-react";
@@ -392,7 +393,7 @@ export function CobranzasClient({
                     <TableHead>Vencimiento</TableHead>
                     <TableHead className="text-right">Monto / mes</TableHead>
                     <TableHead>Estado cobro</TableHead>
-                    <TableHead>Contrato</TableHead>
+                    <TableHead className="text-center">Contrato</TableHead>
                     <TableHead className="w-[120px] text-center">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -410,7 +411,22 @@ export function CobranzasClient({
                         )}
                       >
                         <TableCell className="font-medium whitespace-nowrap">
-                          {c.propiedad?.nombre ?? "—"}
+                          <div className="flex flex-col gap-0.5">
+                            <span>{c.propiedad?.nombre ?? "—"}</span>
+                            {!eliminado ? (
+                              <span className="text-muted-foreground text-xs font-normal">
+                                {c.is_active ? (
+                                  <Badge variant="outline" className="border-emerald-600/60 text-emerald-800">
+                                    Alquiler activo
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="secondary">Finalizado</Badge>
+                                )}
+                              </span>
+                            ) : (
+                              <Badge className="border-0 bg-red-600 text-white hover:bg-red-600/90">Eliminado</Badge>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
                           {c.inquilino?.nombre_completo ?? "—"}
@@ -456,17 +472,37 @@ export function CobranzasClient({
                             <span className="text-muted-foreground text-sm">—</span>
                           )}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="text-center">
                           {eliminado ? (
-                            <Badge className="border-0 bg-red-600 text-white hover:bg-red-600/90">
-                              Eliminado
-                            </Badge>
-                          ) : c.is_active ? (
-                            <Badge variant="outline" className="border-emerald-600/60 text-emerald-800">
-                              Activo
-                            </Badge>
+                            <span className="text-muted-foreground text-sm">—</span>
+                          ) : c.contrato_legal?.id ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" className="size-8" asChild>
+                                  <Link
+                                    href={`/dashboard/contratos/${c.contrato_legal.id}`}
+                                    aria-label="Ver contrato legal"
+                                  >
+                                    <FileText className="size-4" aria-hidden />
+                                  </Link>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Contrato legal</TooltipContent>
+                            </Tooltip>
                           ) : (
-                            <Badge variant="secondary">Finalizado</Badge>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" className="size-8 text-primary" asChild>
+                                  <Link
+                                    href={`/dashboard/contratos/vincular/${c.id}`}
+                                    aria-label="Agregar contrato legal"
+                                  >
+                                    <PlusCircle className="size-4" aria-hidden />
+                                  </Link>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Agregar documento de contrato</TooltipContent>
+                            </Tooltip>
                           )}
                         </TableCell>
                         <TableCell className="text-center">

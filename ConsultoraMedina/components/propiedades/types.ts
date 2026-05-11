@@ -34,4 +34,8 @@ export type PropiedadListRow = {
   inquilino_telefono: string | null;
   /** Carrusel del sitio público (máx. 3 activas). */
   es_destacada: boolean;
+  nis_electricidad: string | null;
+  cliente_gas: string | null;
+  padron_municipal: string | null;
+  cliente_internet: string | null;
 };

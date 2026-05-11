@@ -50,6 +50,10 @@ export default async function DashboardPropiedadesPage() {
       propietario_id,
       cliente_id,
       es_destacada,
+      nis_electricidad,
+      cliente_gas,
+      padron_municipal,
+      cliente_internet,
       propiedades_img ( url_imagen, orden ),
       cliente_inquilino:clientes!propiedades_cliente_id_fkey ( nombre_completo, telefono )
     `,
@@ -132,6 +136,10 @@ export default async function DashboardPropiedadesPage() {
       inquilino_nombre: inq?.nombre_completo?.trim() ? inq.nombre_completo.trim() : null,
       inquilino_telefono: inq?.telefono?.trim() ? inq.telefono.trim() : null,
       es_destacada: Boolean(raw.es_destacada),
+      nis_electricidad: (raw.nis_electricidad as string | null)?.trim() || null,
+      cliente_gas: (raw.cliente_gas as string | null)?.trim() || null,
+      padron_municipal: (raw.padron_municipal as string | null)?.trim() || null,
+      cliente_internet: (raw.cliente_internet as string | null)?.trim() || null,
     };
   });
 

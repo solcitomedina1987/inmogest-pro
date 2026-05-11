@@ -3,13 +3,13 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Eye, FileX, Pencil, Printer, Search, User } from "lucide-react";
+import { Eye, FileUp, FileX, Pencil, PencilLine, Printer, Search, User } from "lucide-react";
 import { toast } from "sonner";
 import { rescindirContratoLocacion } from "@/app/actions/contratos-locacion";
 import { deriveContratoLocacionEstado, type ContratoLocacionEstado } from "@/lib/contratos/derive-estado-contrato";
+import { resolveContratoDescargaUrl } from "@/lib/contratos/contrato-descarga";
 import type { ContratoLocacionListRow } from "@/lib/contratos/types";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
-import { publicStorageObjectUrl } from "@/lib/supabase/public-storage-url";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +22,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,8 +54,6 @@ import {
 } from "@/components/contratos/contrato-locacion-form-dialog";
 import { cn } from "@/lib/utils";
 
-const BUCKET = "contratos-pdf";
-
 const SELECT_Z = "z-[100] max-h-[min(18rem,var(--radix-select-content-available-height))]";
 
 type PropietarioFiltroOption = { id: string; label: string };
@@ -62,9 +67,13 @@ type Props = {
   propietariosFiltro: PropietarioFiltroOption[];
 };
 
-function pdfUrl(path: string | null | undefined): string | null {
-  if (!path?.trim()) return null;
-  return publicStorageObjectUrl(BUCKET, path);
+function pdfUrl(row: ContratoLocacionListRow): string | null {
+  const d = resolveContratoDescargaUrl({
+    pdf_storage_path: row.pdf_storage_path,
+    adjunto_storage_path: row.adjunto_storage_path,
+    adjunto_mime: row.adjunto_mime,
+  });
+  return d?.href ?? null;
 }
 
 function estadoBadge(estado: ContratoLocacionEstado) {
@@ -93,6 +102,7 @@ export function ContratosClient({ rows, propiedadesForm, clientesForm, propietar
   const inquilinoDebounced = useDebouncedValue(inquilino, 300);
 
   const [formOpen, setFormOpen] = useState(false);
+  const [eleccionNuevo, setEleccionNuevo] = useState(false);
   const [editing, setEditing] = useState<ContratoLocacionListRow | null>(null);
   const [rescindirId, setRescindirId] = useState<string | null>(null);
   const [rescindiendo, startRescindir] = useTransition();
@@ -124,7 +134,7 @@ export function ContratosClient({ rows, propiedadesForm, clientesForm, propietar
 
   function abrirNuevo() {
     setEditing(null);
-    setFormOpen(true);
+    setEleccionNuevo(true);
   }
 
   function abrirEditar(row: ContratoLocacionListRow) {
@@ -163,6 +173,42 @@ export function ContratosClient({ rows, propiedadesForm, clientesForm, propietar
           Nuevo contrato
         </Button>
       </div>
+
+      <Dialog open={eleccionNuevo} onOpenChange={setEleccionNuevo}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Nuevo contrato</DialogTitle>
+            <DialogDescription>
+              Podés generar el PDF con plantilla (alta completa) o subir un archivo ya firmado cuando el alquiler
+              esté registrado en Cobranzas.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Button
+              type="button"
+              variant="default"
+              className="h-auto flex-col gap-2 py-6"
+              onClick={() => {
+                setEleccionNuevo(false);
+                setFormOpen(true);
+              }}
+            >
+              <PencilLine className="size-5" aria-hidden />
+              Generar contrato web
+            </Button>
+            <Button type="button" variant="secondary" className="h-auto flex-col gap-2 py-6" asChild>
+              <Link href="/dashboard/cobranzas" onClick={() => setEleccionNuevo(false)}>
+                <FileUp className="size-5" aria-hidden />
+                Subir archivo
+              </Link>
+            </Button>
+          </div>
+          <p className="text-muted-foreground text-center text-xs leading-relaxed">
+            Subir PDF o Word: en <strong>Alquileres</strong>, columna Contrato, tocá el ícono <strong>+</strong> del
+            contrato correspondiente.
+          </p>
+        </DialogContent>
+      </Dialog>
 
       <Card className="border shadow-sm">
         <CardContent className="space-y-3 p-3 sm:p-4">
@@ -263,7 +309,7 @@ export function ContratosClient({ rows, propiedadesForm, clientesForm, propietar
                       rescindido_at: r.rescindido_at,
                       estado: r.estado,
                     });
-                    const url = pdfUrl(r.pdf_storage_path);
+                    const url = pdfUrl(r);
                     const puedeEditar = est !== "RESCINDIDO";
                     const puedeRescindir = est !== "RESCINDIDO";
                     return (

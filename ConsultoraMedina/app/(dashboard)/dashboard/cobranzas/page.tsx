@@ -22,6 +22,40 @@ function unwrapFk<T>(v: T | T[] | null | undefined): T | null {
 }
 
 function normalizeContratoRow(row: Record<string, unknown>): ContratoCobranzaRow {
+  const rawProp = row.propiedad as
+    | {
+        nombre: string;
+        direccion?: string | null;
+        nis_electricidad?: string | null;
+        cliente_gas?: string | null;
+        padron_municipal?: string | null;
+        cliente_internet?: string | null;
+      }
+    | {
+        nombre: string;
+        direccion?: string | null;
+        nis_electricidad?: string | null;
+        cliente_gas?: string | null;
+        padron_municipal?: string | null;
+        cliente_internet?: string | null;
+      }[]
+    | null
+    | undefined;
+  const p = unwrapFk(rawProp);
+
+  const legRaw = row.contratos as Record<string, unknown> | Record<string, unknown>[] | null | undefined;
+  const legArr = Array.isArray(legRaw) ? legRaw : legRaw ? [legRaw] : [];
+  const leg0 = legArr[0];
+  const contrato_legal =
+    leg0 && leg0.id
+      ? {
+          id: String(leg0.id),
+          pdf_storage_path: (leg0.pdf_storage_path as string | null) ?? null,
+          adjunto_storage_path: (leg0.adjunto_storage_path as string | null) ?? null,
+          adjunto_mime: (leg0.adjunto_mime as string | null) ?? null,
+        }
+      : null;
+
   return {
     id: row.id as string,
     propiedad_id: row.propiedad_id as string,
@@ -36,9 +70,21 @@ function normalizeContratoRow(row: Record<string, unknown>): ContratoCobranzaRow
     ultima_actualizacion: (row.ultima_actualizacion as string) ?? null,
     is_active: Boolean(row.is_active),
     deleted_at: (row.deleted_at as string | null | undefined) ?? null,
-    propiedad: unwrapFk(row.propiedad as { nombre: string; direccion?: string } | { nombre: string; direccion?: string }[] | null),
-    inquilino: unwrapFk(row.inquilino as { nombre_completo: string; telefono?: string | null } | { nombre_completo: string; telefono?: string | null }[] | null),
+    propiedad: p
+      ? {
+          nombre: p.nombre,
+          direccion: p.direccion ?? null,
+          nis_electricidad: (p.nis_electricidad as string | null)?.trim() || null,
+          cliente_gas: (p.cliente_gas as string | null)?.trim() || null,
+          padron_municipal: (p.padron_municipal as string | null)?.trim() || null,
+          cliente_internet: (p.cliente_internet as string | null)?.trim() || null,
+        }
+      : null,
+    inquilino: unwrapFk(
+      row.inquilino as { nombre_completo: string; telefono?: string | null } | { nombre_completo: string; telefono?: string | null }[] | null,
+    ),
     locador: unwrapFk(row.locador as { nombre_completo: string } | { nombre_completo: string }[] | null),
+    contrato_legal,
   };
 }
 
@@ -80,9 +126,17 @@ export default async function DashboardCobranzasPage({ searchParams }: PageProps
       ultima_actualizacion,
       is_active,
       deleted_at,
-      propiedad:propiedades ( nombre, direccion ),
+      propiedad:propiedades (
+        nombre,
+        direccion,
+        nis_electricidad,
+        cliente_gas,
+        padron_municipal,
+        cliente_internet
+      ),
       inquilino:clientes!contratos_cobranza_cliente_id_fkey ( nombre_completo, telefono ),
-      locador:clientes!contratos_cobranza_locador_id_fkey ( nombre_completo )
+      locador:clientes!contratos_cobranza_locador_id_fkey ( nombre_completo ),
+      contratos ( id, pdf_storage_path, adjunto_storage_path, adjunto_mime )
     `,
     )
     .order("deleted_at", { ascending: true, nullsFirst: true })

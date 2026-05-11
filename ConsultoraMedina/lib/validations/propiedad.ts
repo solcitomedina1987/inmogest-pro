@@ -17,6 +17,10 @@ export const propiedadFormClientSchema = z
     m2_totales: z.coerce.number().min(0),
     m2_cubiertos: z.coerce.number().min(0),
     ubicacion_texto: z.string().optional(),
+    nis_electricidad: z.string().optional(),
+    cliente_gas: z.string().optional(),
+    padron_municipal: z.string().optional(),
+    cliente_internet: z.string().optional(),
   })
   .refine(
     (d) =>
@@ -45,6 +49,10 @@ export function toPropiedadDbPayload(values: PropiedadFormClientValues) {
     m2_totales: values.m2_totales,
     m2_cubiertos: values.m2_cubiertos,
     ubicacion_texto: values.ubicacion_texto?.trim() || null,
+    nis_electricidad: values.nis_electricidad?.trim() || null,
+    cliente_gas: values.cliente_gas?.trim() || null,
+    padron_municipal: values.padron_municipal?.trim() || null,
+    cliente_internet: values.cliente_internet?.trim() || null,
   };
 }
 
@@ -65,6 +73,10 @@ export function parsePropiedadFormData(formData: FormData) {
     m2_totales: formData.get("m2_totales"),
     m2_cubiertos: formData.get("m2_cubiertos"),
     ubicacion_texto: formData.get("ubicacion_texto") || "",
+    nis_electricidad: formData.get("nis_electricidad") || "",
+    cliente_gas: formData.get("cliente_gas") || "",
+    padron_municipal: formData.get("padron_municipal") || "",
+    cliente_internet: formData.get("cliente_internet") || "",
   };
   return propiedadFormClientSchema.safeParse(raw);
 }

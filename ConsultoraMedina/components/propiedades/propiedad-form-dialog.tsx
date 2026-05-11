@@ -70,6 +70,10 @@ const defaults: PropiedadFormClientValues = {
   m2_totales: 0,
   m2_cubiertos: 0,
   ubicacion_texto: "",
+  nis_electricidad: "",
+  cliente_gas: "",
+  padron_municipal: "",
+  cliente_internet: "",
 };
 
 function rowToFormValues(row: PropiedadListRow): PropiedadFormClientValues {
@@ -88,6 +92,10 @@ function rowToFormValues(row: PropiedadListRow): PropiedadFormClientValues {
     m2_totales: Number(row.m2_totales),
     m2_cubiertos: Number(row.m2_cubiertos),
     ubicacion_texto: row.ubicacion_texto ?? "",
+    nis_electricidad: row.nis_electricidad ?? "",
+    cliente_gas: row.cliente_gas ?? "",
+    padron_municipal: row.padron_municipal ?? "",
+    cliente_internet: row.cliente_internet ?? "",
   };
 }
 
@@ -244,6 +252,10 @@ export function PropiedadFormDialog({ open, onOpenChange, editing, propietarios,
     fd.append("m2_totales", String(values.m2_totales));
     fd.append("m2_cubiertos", String(values.m2_cubiertos));
     fd.append("ubicacion_texto", values.ubicacion_texto ?? "");
+    fd.append("nis_electricidad", values.nis_electricidad ?? "");
+    fd.append("cliente_gas", values.cliente_gas ?? "");
+    fd.append("padron_municipal", values.padron_municipal ?? "");
+    fd.append("cliente_internet", values.cliente_internet ?? "");
     imageUrls.forEach((url) => fd.append("imageUrls", url));
     return fd;
   }
@@ -586,6 +598,64 @@ export function PropiedadFormDialog({ open, onOpenChange, editing, propietarios,
                 </FormItem>
               )}
             />
+
+            <div className="space-y-3 rounded-lg border border-dashed border-stone-200 bg-stone-50/80 p-4">
+              <p className="text-sm font-medium text-stone-900">Datos de Servicios (Opcionales)</p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="nis_electricidad"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>NIS electricidad</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Opcional" autoComplete="off" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="cliente_gas"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Cliente gas</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Opcional" autoComplete="off" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="padron_municipal"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Padrón municipal</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Opcional" autoComplete="off" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="cliente_internet"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Cliente internet</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Opcional" autoComplete="off" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
 
             <div className="space-y-2">
               <Label htmlFor="prop-images">Imágenes</Label>

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Building2, CalendarClock, Eye, TrendingUp } from "lucide-react";
+import { Building2, CalendarClock, Download, Eye, TrendingUp } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { PropietarioHeader } from "@/components/propietarios/propietario-header";
@@ -20,6 +20,7 @@ import {
   proximaFechaActualizacionAlquiler,
 } from "@/lib/cobranzas/estado-contrato";
 import { etiquetaEstadoPropiedad } from "@/lib/propietario/estado-propiedad";
+import { resolveContratoDescargaUrl } from "@/lib/contratos/contrato-descarga";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -57,6 +58,13 @@ type PropRow = {
   direccion: string;
   estado: string;
   cliente_inquilino: { nombre_completo: string } | { nombre_completo: string }[] | null;
+};
+
+type ContratoLegalMini = {
+  contratos_cobranza_id: string;
+  pdf_storage_path: string | null;
+  adjunto_storage_path: string | null;
+  adjunto_mime: string | null;
 };
 
 function contratoParaPropiedad(contratos: ContratoRow[], propiedadId: string): ContratoRow | null {
@@ -145,6 +153,21 @@ export default async function PropietariosDashboardPage() {
         inquilino: unwrapFk(row.inquilino as { nombre_completo: string } | null),
       };
     });
+  }
+
+  const legalPorCobranza = new Map<string, ContratoLegalMini>();
+  const cobIds = contratos.map((c) => c.id);
+  if (cobIds.length > 0) {
+    const { data: legRows } = await db
+      .from("contratos")
+      .select("contratos_cobranza_id, pdf_storage_path, adjunto_storage_path, adjunto_mime")
+      .in("contratos_cobranza_id", cobIds);
+    for (const row of legRows ?? []) {
+      const x = row as ContratoLegalMini;
+      if (x.contratos_cobranza_id) {
+        legalPorCobranza.set(x.contratos_cobranza_id, x);
+      }
+    }
   }
 
   const totalProps = propsList.length;
@@ -278,6 +301,7 @@ export default async function PropietariosDashboardPage() {
                       <TableHead>Estado</TableHead>
                       <TableHead>Inquilino</TableHead>
                       <TableHead className="hidden md:table-cell">Contrato</TableHead>
+                      <TableHead className="hidden sm:table-cell text-center">Descarga</TableHead>
                       <TableHead className="w-[72px] text-right">Ver</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -313,6 +337,33 @@ export default async function PropietariosDashboardPage() {
                               </span>
                             ) : (
                               "—"
+                            )}
+                          </TableCell>
+                          <TableCell className="hidden sm:table-cell text-center">
+                            {etiqueta === "Alquilada" && ct ? (
+                              (() => {
+                                const leg = legalPorCobranza.get(ct.id);
+                                const d = leg
+                                  ? resolveContratoDescargaUrl({
+                                      pdf_storage_path: leg.pdf_storage_path,
+                                      adjunto_storage_path: leg.adjunto_storage_path,
+                                      adjunto_mime: leg.adjunto_mime,
+                                    })
+                                  : null;
+                                if (!d) {
+                                  return <span className="text-muted-foreground text-xs">—</span>;
+                                }
+                                return (
+                                  <Button variant="default" size="sm" className="gap-1.5" asChild>
+                                    <a href={d.href} target="_blank" rel="noopener noreferrer">
+                                      <Download className="size-3.5 shrink-0" aria-hidden />
+                                      <span className="hidden lg:inline">{d.esPdf ? "PDF" : "Archivo"}</span>
+                                    </a>
+                                  </Button>
+                                );
+                              })()
+                            ) : (
+                              <span className="text-muted-foreground text-xs">—</span>
                             )}
                           </TableCell>
                           <TableCell className="text-right">

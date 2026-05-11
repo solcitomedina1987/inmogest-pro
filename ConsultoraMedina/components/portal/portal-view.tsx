@@ -1,6 +1,9 @@
 "use client";
 
+import { Download } from "lucide-react";
+import { resolveContratoDescargaUrl } from "@/lib/contratos/contrato-descarga";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ContratoCobranzaRow, PagoRow } from "@/lib/cobranzas/types";
 import { ContratoDetallesCard } from "@/components/portal/contrato-detalles-card";
@@ -14,8 +17,11 @@ type Props = {
 };
 
 export function PortalView({ contrato, pagos, widgets }: Props) {
+  const doc = contrato.contrato_legal;
+  const descarga = doc ? resolveContratoDescargaUrl(doc) : null;
+
   return (
-    <div className="flex flex-col gap-8 px-4 py-8 md:px-8 max-w-4xl mx-auto">
+    <div className="flex max-w-4xl mx-auto flex-col gap-8 px-4 py-8 md:px-8">
 
       {/* Encabezado */}
       <div className="space-y-1">
@@ -27,6 +33,22 @@ export function PortalView({ contrato, pagos, widgets }: Props) {
             : <Badge variant="secondary" className="ml-2">Finalizado</Badge>}
         </p>
       </div>
+
+      {descarga ? (
+        <div className="flex justify-center px-1">
+          <Button size="lg" className="w-full max-w-md gap-2 shadow-sm sm:w-auto" asChild>
+            <a
+              href={descarga.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              download={descarga.esPdf ? "contrato.pdf" : undefined}
+            >
+              <Download className="size-5 shrink-0" aria-hidden />
+              {descarga.esPdf ? "Descargar contrato (PDF)" : descarga.etiqueta}
+            </a>
+          </Button>
+        </div>
+      ) : null}
 
       {/* ── Widgets informativos ── */}
       <ContratoWidgets data={widgets} />

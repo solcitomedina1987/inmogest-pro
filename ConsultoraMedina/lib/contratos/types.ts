@@ -15,6 +15,8 @@ export type ContratoLocacionListRow = {
   estado: string;
   rescindido_at: string | null;
   pdf_storage_path: string | null;
+  adjunto_storage_path: string | null;
+  adjunto_mime: string | null;
   contratos_cobranza_id: string | null;
   dia_limite_pago: number | null;
   meses_actualizacion: number | null;
