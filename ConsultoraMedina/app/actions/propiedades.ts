@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   MAX_IMAGENES_PROPIEDAD,
+  MAX_PROPIEDADES_DESTACADAS,
+  MSG_MAX_PROPIEDADES_DESTACADAS,
   PROPIEDAD_IMAGEN_PLACEHOLDER,
 } from "@/lib/constants/propiedades";
 import { requireAdmin } from "@/lib/supabase/require-admin";
@@ -218,6 +220,69 @@ export async function updateProperty(formData: FormData): Promise<ActionResult> 
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : "Error al guardar imágenes." };
     }
+  }
+
+  revalidatePath("/dashboard/propiedades");
+  revalidatePath("/");
+  return { ok: true };
+}
+
+export async function togglePropiedadDestacada(id: string): Promise<ActionResult> {
+  const gate = await requireAdmin();
+  if (!gate.ok) {
+    return {
+      ok: false,
+      error: gate.code === "no-auth" ? "Iniciá sesión para continuar." : "No tenés permisos para esta acción.",
+    };
+  }
+  const { supabase } = gate;
+
+  if (!id || !/^[0-9a-f-]{36}$/i.test(id)) {
+    return { ok: false, error: "Propiedad inválida." };
+  }
+
+  const { data: row, error: fetchErr } = await supabase
+    .from("propiedades")
+    .select("es_destacada")
+    .eq("id", id)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (fetchErr) {
+    return { ok: false, error: fetchErr.message };
+  }
+  if (!row) {
+    return { ok: false, error: "No se encontró la propiedad." };
+  }
+
+  const currently = Boolean((row as { es_destacada?: boolean }).es_destacada);
+
+  if (!currently) {
+    const { count, error: countErr } = await supabase
+      .from("propiedades")
+      .select("id", { count: "exact", head: true })
+      .eq("is_active", true)
+      .eq("es_destacada", true);
+
+    if (countErr) {
+      return { ok: false, error: countErr.message };
+    }
+    if ((count ?? 0) >= MAX_PROPIEDADES_DESTACADAS) {
+      return { ok: false, error: MSG_MAX_PROPIEDADES_DESTACADAS };
+    }
+  }
+
+  const { error: upErr } = await supabase
+    .from("propiedades")
+    .update({
+      es_destacada: !currently,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .eq("is_active", true);
+
+  if (upErr) {
+    return { ok: false, error: upErr.message };
   }
 
   revalidatePath("/dashboard/propiedades");

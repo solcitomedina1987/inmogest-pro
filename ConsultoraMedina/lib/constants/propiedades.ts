@@ -36,3 +36,8 @@ export const MAX_IMAGENES_PROPIEDAD = 10;
 
 /** Tamaño máximo por archivo al subir fotos (validación cliente y servidor). */
 export const MAX_BYTES_PROPIEDAD_IMAGEN = 5 * 1024 * 1024;
+
+/** Destacadas en sitio público (carrusel + panel admin). */
+export const MAX_PROPIEDADES_DESTACADAS = 3;
+
+export const MSG_MAX_PROPIEDADES_DESTACADAS = "Solo puedes destacar hasta 3 propiedades";

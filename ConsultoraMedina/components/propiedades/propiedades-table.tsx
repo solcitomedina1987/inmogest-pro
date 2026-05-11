@@ -3,9 +3,21 @@
 import type { ReactNode } from "react";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, Home, Loader2, MessageCircle, Pencil, ReceiptText, RotateCcw, Search, Trash2 } from "lucide-react";
-import { deleteProperty } from "@/app/actions/propiedades";
+import {
+  Eye,
+  Home,
+  Loader2,
+  MessageCircle,
+  Pencil,
+  ReceiptText,
+  RotateCcw,
+  Search,
+  Star,
+  Trash2,
+} from "lucide-react";
+import { deleteProperty, togglePropiedadDestacada } from "@/app/actions/propiedades";
 import { PropiedadEstadoBadge } from "@/lib/propiedades/estado-badge";
+import { MSG_MAX_PROPIEDADES_DESTACADAS } from "@/lib/constants/propiedades";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,6 +40,8 @@ import {
 import { PropiedadFormDialog } from "@/components/propiedades/propiedad-form-dialog";
 import { PropiedadVistaPreviaDialog } from "@/components/propiedades/propiedad-vista-previa-dialog";
 import type { PersonaOption, PropiedadListRow } from "@/components/propiedades/types";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const precioFmt = new Intl.NumberFormat("es-AR", {
   style: "currency",
@@ -64,6 +78,7 @@ export function PropiedadesTable({ rows, propietarios, tiposCatalogo, estadosCat
   const [vistaPreviaOpen, setVistaPreviaOpen] = useState(false);
   const [vistaPreviaRow, setVistaPreviaRow] = useState<PropiedadListRow | null>(null);
   const [navigatingCobrosId, setNavigatingCobrosId] = useState<string | null>(null);
+  const [destacadaPendingId, setDestacadaPendingId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   const tiposFiltroOpciones = useMemo(() => {
@@ -126,6 +141,23 @@ export function PropiedadesTable({ rows, propietarios, tiposCatalogo, estadosCat
       const res = await deleteProperty(id);
       if (!res.ok) {
         alert(res.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
+
+  function handleToggleDestacada(row: PropiedadListRow) {
+    setDestacadaPendingId(row.id);
+    startTransition(async () => {
+      const res = await togglePropiedadDestacada(row.id);
+      setDestacadaPendingId(null);
+      if (!res.ok) {
+        if (res.error === MSG_MAX_PROPIEDADES_DESTACADAS) {
+          toast.warning(res.error);
+        } else {
+          toast.error(res.error);
+        }
         return;
       }
       router.refresh();
@@ -241,6 +273,10 @@ export function PropiedadesTable({ rows, propietarios, tiposCatalogo, estadosCat
                   <TableHeader>
                     <TableRow>
                       <TableHead>Nombre</TableHead>
+                      <TableHead className="w-14 text-center">
+                        <span className="sr-only">Destacada</span>
+                        <Star className="text-muted-foreground mx-auto size-4" aria-hidden />
+                      </TableHead>
                       <TableHead className="text-right">Precio</TableHead>
                       <TableHead>Tipo</TableHead>
                       <TableHead>Estado</TableHead>
@@ -259,6 +295,30 @@ export function PropiedadesTable({ rows, propietarios, tiposCatalogo, estadosCat
                         <TableRow key={row.id}>
                           <TableCell className="max-w-[200px] font-medium">
                             <span className="line-clamp-2">{row.nombre}</span>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              className="text-amber-500 hover:text-amber-600"
+                              aria-label={row.es_destacada ? "Quitar de destacados" : "Marcar como destacada"}
+                              aria-pressed={row.es_destacada}
+                              disabled={destacadaPendingId === row.id}
+                              onClick={() => handleToggleDestacada(row)}
+                            >
+                              {destacadaPendingId === row.id ? (
+                                <Loader2 className="size-4 animate-spin" aria-hidden />
+                              ) : (
+                                <Star
+                                  className={cn(
+                                    "size-4",
+                                    row.es_destacada && "fill-amber-400 text-amber-500",
+                                  )}
+                                  aria-hidden
+                                />
+                              )}
+                            </Button>
                           </TableCell>
                           <TableCell className="text-right tabular-nums">
                             {precioFmt.format(row.valor)}

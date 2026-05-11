@@ -29,8 +29,7 @@ const s = StyleSheet.create({
   },
   blockTitle: { fontSize: 10.5, fontWeight: "bold" },
   unidadWrap: { paddingHorizontal: 8, paddingVertical: 6, borderBottomWidth: 0.5, borderBottomColor: "#ddd" },
-  unidadTitle: { fontSize: 8.5, fontWeight: "bold", marginBottom: 4 },
-  unidadRecibo: { fontSize: 7.5, color: "#666", marginBottom: 6 },
+  unidadTitle: { fontSize: 8.5, fontWeight: "bold", marginBottom: 6 },
   bloqueInner: {
     borderWidth: 1,
     borderColor: "#ccc",
@@ -239,7 +238,6 @@ export function InformeRendicionPdfBodyV4({ payload }: Props) {
             return (
               <View key={u.pago_id} style={s.unidadWrap} wrap={false}>
                 <Text style={s.unidadTitle}>{u.titulo_bloque}</Text>
-                <Text style={s.unidadRecibo}>Recibo {u.pago_id.slice(0, 8)}…</Text>
                 <View style={s.bloqueInner}>
                   {lineRows}
                   <View style={s.subtotalRow} wrap={false}>

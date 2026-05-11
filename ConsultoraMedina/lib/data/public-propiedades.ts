@@ -18,6 +18,7 @@ export type PublicPropiedadHome = {
   imagen_modal: string;
   /** Galería ordenada; carrusel si hay más de una. */
   imagenes: string[];
+  es_destacada: boolean;
 };
 
 type ImgRow = { url_imagen: string; orden: number };
@@ -45,6 +46,7 @@ export async function fetchPublicPropiedadesForHome(): Promise<PublicPropiedadHo
       m2_cubiertos,
       ubicacion_texto,
       descripcion,
+      es_destacada,
       propiedades_img ( url_imagen, orden )
     `,
     )
@@ -75,6 +77,7 @@ export async function fetchPublicPropiedadesForHome(): Promise<PublicPropiedadHo
       descripcion: (r.descripcion as string) ?? null,
       imagenes,
       imagen_modal: imagenes[0],
+      es_destacada: Boolean(r.es_destacada),
     };
   });
 }

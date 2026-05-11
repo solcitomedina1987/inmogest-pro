@@ -38,6 +38,9 @@ export const metadata: Metadata = {
     description: BRAND_TAGLINE,
   },
   robots: { index: true, follow: true },
+  icons: {
+    apple: "/logo-inmobiliaria.png",
+  },
 };
 
 export default function RootLayout({

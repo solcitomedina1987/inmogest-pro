@@ -49,6 +49,7 @@ export default async function DashboardPropiedadesPage() {
       ubicacion_texto,
       propietario_id,
       cliente_id,
+      es_destacada,
       propiedades_img ( url_imagen, orden ),
       cliente_inquilino:clientes!propiedades_cliente_id_fkey ( nombre_completo, telefono )
     `,
@@ -130,6 +131,7 @@ export default async function DashboardPropiedadesPage() {
       imagen_principal: primeraImagenPropiedad(imgs),
       inquilino_nombre: inq?.nombre_completo?.trim() ? inq.nombre_completo.trim() : null,
       inquilino_telefono: inq?.telefono?.trim() ? inq.telefono.trim() : null,
+      es_destacada: Boolean(raw.es_destacada),
     };
   });
 

@@ -32,4 +32,6 @@ export type PropiedadListRow = {
   /** Datos del cliente vinculado (inquilino en ficha); relevante si estado = Alquilada. */
   inquilino_nombre: string | null;
   inquilino_telefono: string | null;
+  /** Carrusel del sitio público (máx. 3 activas). */
+  es_destacada: boolean;
 };

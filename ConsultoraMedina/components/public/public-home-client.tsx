@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { PublicPropiedadHome } from "@/lib/data/public-propiedades";
 import { ESTADO_PROPIEDAD_VALUES, TIPO_PROPIEDAD_VALUES } from "@/lib/constants/propiedades";
+import { DestacadosCarousel } from "@/components/public/destacados-carousel";
 import { PropiedadPublicCard } from "@/components/public/propiedad-public-card";
 import { PublicPropiedadDetalleDialog } from "@/components/public/public-propiedad-detalle-dialog";
 import { Button } from "@/components/ui/button";
@@ -46,6 +47,11 @@ export function PublicHomeClient({
     return [...set].sort((a, b) => a.localeCompare(b, "es"));
   }, [estadosCatalogo, initialPropiedades]);
 
+  const destacadas = useMemo(
+    () => initialPropiedades.filter((p) => p.es_destacada),
+    [initialPropiedades],
+  );
+
   const filtradas = useMemo(() => {
     return initialPropiedades.filter((p) => {
       if (filtroRubro === "Alquiler") {
@@ -85,10 +91,17 @@ export function PublicHomeClient({
   return (
     <>
       <section className="border-b border-stone-200/80 bg-gradient-to-b from-white to-stone-50/80">
-        <div className="mx-auto max-w-6xl px-4 py-14 sm:py-20 md:px-8">
+        <div className="mx-auto max-w-6xl px-4 py-10 text-center sm:py-12 md:px-8">
+          <p className="text-sm font-medium tracking-wide text-stone-500 uppercase">Bienvenido</p>
+        </div>
+      </section>
+
+      <DestacadosCarousel items={destacadas} onVerDetalles={abrirDetalle} />
+
+      <section className="border-b border-stone-200/80 bg-gradient-to-b from-white to-stone-50/80">
+        <div className="mx-auto max-w-6xl px-4 py-10 sm:py-14 md:px-8">
           <div className="mx-auto max-w-3xl text-center">
-            <p className="text-sm font-medium tracking-wide text-stone-500 uppercase">Bienvenido</p>
-            <h2 className="mt-2 text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl">
+            <h2 className="text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl">
               Encontrá tu próximo espacio
             </h2>
             <p className="text-muted-foreground mt-3 text-sm leading-relaxed sm:text-base">

@@ -72,9 +72,8 @@ function BloqueUnidadAlquileres({ payload, u }: { payload: InformeRendicionPaylo
 
   return (
     <div className="bg-white px-4 py-4">
-      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+      <div className="mb-3">
         <h3 className="text-sm font-bold leading-snug text-stone-900">{u.titulo_bloque}</h3>
-        <span className="text-muted-foreground text-xs tabular-nums">Recibo {u.pago_id.slice(0, 8)}…</span>
       </div>
 
       <div className="rounded-md border border-stone-200 bg-stone-50/40 px-3 py-2">

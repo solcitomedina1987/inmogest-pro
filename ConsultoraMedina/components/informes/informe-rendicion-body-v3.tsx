@@ -24,9 +24,8 @@ export function InformeRendicionBodyV3({ payload }: Props) {
             <div className="divide-y divide-stone-200">
               {payload.unidades.map((u) => (
                 <div key={u.pago_id} className="bg-white px-4 py-4">
-                  <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+                  <div className="mb-2">
                     <h3 className="text-sm font-bold text-stone-900">Propiedad: {u.etiqueta}</h3>
-                    <span className="text-muted-foreground text-xs tabular-nums">Recibo {u.pago_id.slice(0, 8)}…</span>
                   </div>
                   <table className="w-full text-sm">
                     <thead className="bg-muted/40">
